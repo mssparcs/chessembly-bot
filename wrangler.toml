@@ -1,0 +1,6 @@
+name = "chessembly-bot"
+main = "build/index.js"
+compatibility_date = "2025-11-16"
+
+[build]
+command = "cargo install worker-build && worker-build --release"

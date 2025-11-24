@@ -1,0 +1,302 @@
+piece(test) transition(chameleon)
+{ move(1, 1) }
+{ move(-1, 1) }
+{ move(1, -1) }
+{ move(-1, -1) }
+{ move(1, 0) }
+{ move(-1, 0) }
+{ move(0, 1) }
+{ move(0, -1) };
+
+# 카멜레온;
+
+piece(chameleon) move(1, 1);
+piece(chameleon) move(1, -1);
+piece(chameleon) move(-1, 1);
+piece(chameleon) move(-1, -1);
+piece(chameleon) move(1, 0);
+piece(chameleon) move(-1, 0);
+piece(chameleon) move(0, 1);
+piece(chameleon) move(0, -1);
+
+piece(chameleon) piece-on(pawn, 2, 2) transition(mirrored-pawn) catch(2, 2);
+piece(chameleon) piece-on(pawn, 2, -2) transition(mirrored-pawn) catch(2, -2);
+piece(chameleon) piece-on(pawn, -2, 2) transition(mirrored-pawn) catch(-2, 2);
+piece(chameleon) piece-on(pawn, -2, -2) transition(mirrored-pawn) catch(-2, -2);
+
+piece(chameleon) piece-on(bishop, 2, 2) transition(mirrored-bishop) catch(2, 2);
+piece(chameleon) piece-on(bishop, 2, -2) transition(mirrored-bishop) catch(2, -2);
+piece(chameleon) piece-on(bishop, -2, 2) transition(mirrored-bishop) catch(-2, 2);
+piece(chameleon) piece-on(bishop, -2, -2) transition(mirrored-bishop) catch(-2, -2);
+
+piece(chameleon) piece-on(knight, 2, 2) transition(mirrored-knight) catch(2, 2);
+piece(chameleon) piece-on(knight, 2, -2) transition(mirrored-knight) catch(2, -2);
+piece(chameleon) piece-on(knight, -2, 2) transition(mirrored-knight) catch(-2, 2);
+piece(chameleon) piece-on(knight, -2, -2) transition(mirrored-knight) catch(-2, -2);
+
+piece(chameleon) piece-on(queen, 2, 2) transition(mirrored-queen) catch(2, 2);
+piece(chameleon) piece-on(queen, 2, -2) transition(mirrored-queen) catch(2, -2);
+piece(chameleon) piece-on(queen, -2, 2) transition(mirrored-queen) catch(-2, 2);
+piece(chameleon) piece-on(queen, -2, -2) transition(mirrored-queen) catch(-2, -2);
+
+piece(chameleon) piece-on(rook, 2, 2) transition(mirrored-rook) catch(2, 2);
+piece(chameleon) piece-on(rook, 2, -2) transition(mirrored-rook) catch(2, -2);
+piece(chameleon) piece-on(rook, -2, 2) transition(mirrored-rook) catch(-2, 2);
+piece(chameleon) piece-on(rook, -2, -2) transition(mirrored-rook) catch(-2, -2);
+
+# 폰;
+
+piece(mirrored-pawn) move(0, 1);
+piece(mirrored-pawn) piece-on(pawn, 1, 1) take(1, 1);
+piece(mirrored-pawn) piece-on(pawn, -1, 1) take(-1, 1);
+piece(mirrored-pawn) piece-on(queen, 1, 1) transition(mirrored-queen) take(1, 1);
+piece(mirrored-pawn) piece-on(queen, -1, 1) transition(mirrored-queen) take(-1, 1);
+piece(mirrored-pawn) piece-on(bishop, 1, 1) transition(mirrored-bishop) take(1, 1);
+piece(mirrored-pawn) piece-on(bishop, -1, 1) transition(mirrored-bishop) take(-1, 1);
+piece(mirrored-pawn) piece-on(knight, 1, 1) transition(mirrored-knight) take(1, 1);
+piece(mirrored-pawn) piece-on(knight, -1, 1) transition(mirrored-knight) take(-1, 1);
+piece(mirrored-pawn) piece-on(rook, 1, 1) transition(mirrored-rook) take(1, 1);
+piece(mirrored-pawn) piece-on(rook, -1, 1) transition(mirrored-rook) take(-1, 1);
+
+# 나이트;
+
+piece(mirrored-knight) take-move(2, 1);
+piece(mirrored-knight) take-move(2, -1);
+piece(mirrored-knight) take-move(-2, 1);
+piece(mirrored-knight) take-move(-2, -1);
+piece(mirrored-knight) take-move(1, 2);
+piece(mirrored-knight) take-move(1, -2);
+piece(mirrored-knight) take-move(-1, 2);
+piece(mirrored-knight) take-move(-1, -2);
+
+piece(mirrored-knight) piece-on(pawn, 2, 1) transition(mirrored-pawn) take-move(2, 1);
+piece(mirrored-knight) piece-on(pawn, 2, -1) transition(mirrored-pawn) take-move(2, -1);
+piece(mirrored-knight) piece-on(pawn, -2, 1) transition(mirrored-pawn) take-move(-2, 1);
+piece(mirrored-knight) piece-on(pawn, -2, -1) transition(mirrored-pawn) take-move(-2, -1);
+piece(mirrored-knight) piece-on(pawn, 1, 2) transition(mirrored-pawn) take-move(1, 2);
+piece(mirrored-knight) piece-on(pawn, 1, -2) transition(mirrored-pawn) take-move(1, -2);
+piece(mirrored-knight) piece-on(pawn, -1, 2) transition(mirrored-pawn) take-move(-1, 2);
+piece(mirrored-knight) piece-on(pawn, -1, -2) transition(mirrored-pawn) take-move(-1, -2);
+
+piece(mirrored-knight) piece-on(bishop, 2, 1) transition(mirrored-bishop) take-move(2, 1);
+piece(mirrored-knight) piece-on(bishop, 2, -1) transition(mirrored-bishop) take-move(2, -1);
+piece(mirrored-knight) piece-on(bishop, -2, 1) transition(mirrored-bishop) take-move(-2, 1);
+piece(mirrored-knight) piece-on(bishop, -2, -1) transition(mirrored-bishop) take-move(-2, -1);
+piece(mirrored-knight) piece-on(bishop, 1, 2) transition(mirrored-bishop) take-move(1, 2);
+piece(mirrored-knight) piece-on(bishop, 1, -2) transition(mirrored-bishop) take-move(1, -2);
+piece(mirrored-knight) piece-on(bishop, -1, 2) transition(mirrored-bishop) take-move(-1, 2);
+piece(mirrored-knight) piece-on(bishop, -1, -2) transition(mirrored-bishop) take-move(-1, -2);
+
+piece(mirrored-knight) piece-on(rook, 2, 1) transition(mirrored-rook) take-move(2, 1);
+piece(mirrored-knight) piece-on(rook, 2, -1) transition(mirrored-rook) take-move(2, -1);
+piece(mirrored-knight) piece-on(rook, -2, 1) transition(mirrored-rook) take-move(-2, 1);
+piece(mirrored-knight) piece-on(rook, -2, -1) transition(mirrored-rook) take-move(-2, -1);
+piece(mirrored-knight) piece-on(rook, 1, 2) transition(mirrored-rook) take-move(1, 2);
+piece(mirrored-knight) piece-on(rook, 1, -2) transition(mirrored-rook) take-move(1, -2);
+piece(mirrored-knight) piece-on(rook, -1, 2) transition(mirrored-rook) take-move(-1, 2);
+piece(mirrored-knight) piece-on(rook, -1, -2) transition(mirrored-rook) take-move(-1, -2);
+
+piece(mirrored-knight) piece-on(queen, 2, 1) transition(mirrored-queen) take-move(2, 1);
+piece(mirrored-knight) piece-on(queen, 2, -1) transition(mirrored-queen) take-move(2, -1);
+piece(mirrored-knight) piece-on(queen, -2, 1) transition(mirrored-queen) take-move(-2, 1);
+piece(mirrored-knight) piece-on(queen, -2, -1) transition(mirrored-queen) take-move(-2, -1);
+piece(mirrored-knight) piece-on(queen, 1, 2) transition(mirrored-queen) take-move(1, 2);
+piece(mirrored-knight) piece-on(queen, 1, -2) transition(mirrored-queen) take-move(1, -2);
+piece(mirrored-knight) piece-on(queen, -1, 2) transition(mirrored-queen) take-move(-1, 2);
+piece(mirrored-knight) piece-on(queen, -1, -2) transition(mirrored-queen) take-move(-1, -2);
+
+# 룩;
+
+piece(mirrored-rook) take-move(1, 0) repeat(1);
+piece(mirrored-rook) take-move(0, 1) repeat(1);
+piece(mirrored-rook) take-move(-1, 0) repeat(1);
+piece(mirrored-rook) take-move(0, -1) repeat(1);
+piece(mirrored-bishop) take-move(1, 1) repeat(1);
+piece(mirrored-bishop) take-move(-1, 1) repeat(1);
+piece(mirrored-bishop) take-move(-1, -1) repeat(1);
+piece(mirrored-bishop) take-move(1, -1) repeat(1);
+
+piece(mirrored-queen) take-move(1, 0) repeat(1);
+piece(mirrored-queen) take-move(0, 1) repeat(1);
+piece(mirrored-queen) take-move(-1, 0) repeat(1);
+piece(mirrored-queen) take-move(0, -1) repeat(1);
+piece(mirrored-queen) take-move(1, 1) repeat(1);
+piece(mirrored-queen) take-move(-1, 1) repeat(1);
+piece(mirrored-queen) take-move(-1, -1) repeat(1);
+piece(mirrored-queen) take-move(1, -1) repeat(1);
+
+piece(mirrored-rook) jmp(5)
+piece(mirrored-queen) label(5)
+do
+    transition
+    piece-on(pawn, 1, 0) jne(0)
+        transition(mirrored-pawn)
+    label(0)
+    piece-on(bishop, 1, 0) jne(1)
+        transition(mirrored-bishop)
+    label(1)
+    piece-on(knight, 1, 0) jne(2)
+        transition(mirrored-knight)
+    label(2)
+    piece-on(rook, 1, 0) jne(3)
+        transition(mirrored-rook)
+    label(3)
+    piece-on(queen, 1, 0) jne(4)
+        transition(mirrored-queen)
+    label(4)
+    take-move(1, 0)
+while;
+
+piece(mirrored-rook) jmp(5)
+piece(mirrored-queen) label(5)
+do
+    transition
+    piece-on(pawn, 0, 1) jne(0)
+        transition(mirrored-pawn)
+    label(0)
+    piece-on(bishop, 0, 1) jne(1)
+        transition(mirrored-bishop)
+    label(1)
+    piece-on(knight, 0, 1) jne(2)
+        transition(mirrored-knight)
+    label(2)
+    piece-on(queen, 0, 1) jne(3)
+        transition(mirrored-queen)
+    label(3)
+    piece-on(queen, 0, 1) jne(4)
+        transition(mirrored-queen)
+    label(4)
+    take-move(0, 1)
+while;
+
+piece(mirrored-rook) jmp(5)
+piece(mirrored-queen) label(5)
+do
+    transition
+    piece-on(pawn, -1, 0) jne(0)
+        transition(mirrored-pawn)
+    label(0)
+    piece-on(bishop, -1, 0) jne(1)
+        transition(mirrored-bishop)
+    label(1)
+    piece-on(knight, -1, 0) jne(2)
+        transition(mirrored-knight)
+    label(2)
+    piece-on(queen, -1, 0) jne(3)
+        transition(mirrored-queen)
+    label(3)
+    piece-on(queen, -1, 0) jne(4)
+        transition(mirrored-queen)
+    label(4)
+    take-move(-1, 0)
+while;
+
+piece(mirrored-rook) jmp(5)
+piece(mirrored-queen) label(5)
+do
+    transition
+    piece-on(pawn, 0, -1) jne(0)
+        transition(mirrored-pawn)
+    label(0)
+    piece-on(bishop, 0, -1) jne(1)
+        transition(mirrored-bishop)
+    label(1)
+    piece-on(knight, 0, -1) jne(2)
+        transition(mirrored-knight)
+    label(2)
+    piece-on(queen, 0, -1) jne(3)
+        transition(mirrored-queen)
+    label(3)
+    piece-on(queen, 0, -1) jne(4)
+        transition(mirrored-queen)
+    label(4)
+    take-move(0, -1)
+while;
+
+piece(mirrored-bishop) jmp(5)
+piece(mirrored-queen) label(5)
+do
+    transition
+    piece-on(pawn, 1, 1) jne(0)
+        transition(mirrored-pawn)
+    label(0)
+    piece-on(rook, 1, 1) jne(1)
+        transition(mirrored-rook)
+    label(1)
+    piece-on(knight, 1, 1) jne(2)
+        transition(mirrored-knight)
+    label(2)
+    piece-on(queen, 1, 1) jne(3)
+        transition(mirrored-queen)
+    label(3)
+    piece-on(queen, 1, 1) jne(4)
+        transition(mirrored-queen)
+    label(4)
+    take-move(1, 1)
+while;
+
+piece(mirrored-bishop) jmp(5)
+piece(mirrored-queen) label(5)
+do
+    transition
+    piece-on(pawn, -1, 1) jne(0)
+        transition(mirrored-pawn)
+    label(0)
+    piece-on(bishop, -1, 1) jne(1)
+        transition(mirrored-bishop)
+    label(1)
+    piece-on(knight, -1, 1) jne(2)
+        transition(mirrored-knight)
+    label(2)
+    piece-on(queen, -1, 1) jne(3)
+        transition(mirrored-queen)
+    label(3)
+    piece-on(queen, -1, 1) jne(4)
+        transition(mirrored-queen)
+    label(4)
+    take-move(-1, 1)
+while;
+
+piece(mirrored-bishop) jmp(5)
+piece(mirrored-queen) label(5)
+do
+    transition
+    piece-on(pawn, -1, -1) jne(0)
+        transition(mirrored-pawn)
+    label(0)
+    piece-on(bishop, -1, -1) jne(1)
+        transition(mirrored-bishop)
+    label(1)
+    piece-on(knight, -1, -1) jne(2)
+        transition(mirrored-knight)
+    label(2)
+    piece-on(queen, -1, -1) jne(3)
+        transition(mirrored-queen)
+    label(3)
+    piece-on(queen, -1, -1) jne(4)
+        transition(mirrored-queen)
+    label(4)
+    take-move(-1, -1)
+while;
+
+piece(mirrored-bishop) jmp(5)
+piece(mirrored-queen) label(5)
+do
+    transition
+    piece-on(pawn, 1, -1) jne(0)
+        transition(mirrored-pawn)
+    label(0)
+    piece-on(bishop, 1, -1) jne(1)
+        transition(mirrored-bishop)
+    label(1)
+    piece-on(knight, 1, -1) jne(2)
+        transition(mirrored-knight)
+    label(2)
+    piece-on(queen, 1, -1) jne(3)
+        transition(mirrored-queen)
+    label(3)
+    piece-on(queen, 1, -1) jne(4)
+        transition(mirrored-queen)
+    label(4)
+    take-move(1, -1)
+while;
