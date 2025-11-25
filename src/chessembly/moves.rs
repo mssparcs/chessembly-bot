@@ -252,6 +252,21 @@ impl<'a> ChessemblyCompiled<'a> {
         }.generate_moves(board, position, false).unwrap()
     }
 
+// piece(cannon) do take(1, 0) enemy(0, 0) not while jump(1, 0) repeat(1);
+// piece(cannon) do take(-1, 0) enemy(0, 0) not while jump(-1, 0) repeat(1);
+// piece(cannon) do take(0, 1) enemy(0, 0) not while jump(0, 1) repeat(1);
+// piece(cannon) do take(0, -1) enemy(0, 0) not while jump(0, -1) repeat(1);
+    pub fn generate_cannon_moves(&self, board :&mut Board<'a>, position :&Position) -> Vec<ChessMove<'a>> {
+        ChessemblyCompiled {
+            chains: vec![
+                vec![Behavior::Do, Behavior::Take((1, 0)), Behavior::Enemy((0, 0)), Behavior::Not, Behavior::While, Behavior::Jump((1, 0)), Behavior::Repeat(1)],
+                vec![Behavior::Do, Behavior::Take((-1, 0)), Behavior::Enemy((0, 0)), Behavior::Not, Behavior::While, Behavior::Jump((-1, 0)), Behavior::Repeat(1)],
+                vec![Behavior::Do, Behavior::Take((0, 1)), Behavior::Enemy((0, 0)), Behavior::Not, Behavior::While, Behavior::Jump((0, 1)), Behavior::Repeat(1)],
+                vec![Behavior::Do, Behavior::Take((0, -1)), Behavior::Enemy((0, 0)), Behavior::Not, Behavior::While, Behavior::Jump((0, -1)), Behavior::Repeat(1)]
+            ]
+        }.generate_moves(board, position, false).unwrap()
+    }
+
     pub fn generate_tempest_rook_moves(&self, board :&mut Board<'a>, position :&Position) -> Vec<ChessMove<'a>> {
         ChessemblyCompiled {
             chains: vec![

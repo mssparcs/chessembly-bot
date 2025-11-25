@@ -22,7 +22,7 @@ async fn fetch(
         if let Some(script) = req.headers().get("Chessembly") {
             if let Some(data) = req.headers().get("Turn") {
                 if let Ok(compiled) = ChessemblyCompiled::from_script(&String::from(worker::js_sys::decode_uri(script.to_str().unwrap()).unwrap())[..]) {
-                    worker::console_log!("{:?}", compiled.chains);
+                    // worker::console_log!("{:?}", compiled.chains);
                     let mut board = Board::empty(&compiled);
                     let mut i = 0;
                     for line in position.to_str().unwrap().split('/') {

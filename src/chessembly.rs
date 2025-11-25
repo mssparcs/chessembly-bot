@@ -77,6 +77,7 @@ pub enum MoveType {
     Move,
     TakeMove,
     Take,
+    TakeJump,
     Catch,
     // Castling,
 
@@ -135,7 +136,7 @@ pub enum Behavior<'a> {
     Peek(DeltaPosition),
     Observe(DeltaPosition),
     While,
-    // TakeJump(Position),
+    Jump(DeltaPosition),
     Do,
     Bound(DeltaPosition),
     Edge(DeltaPosition),
@@ -583,6 +584,9 @@ impl<'a> Behavior<'a> {
         else if cmd == "take" {
             return Behavior::Take((params_vec.get(0).map(|s| s.parse::<i8>().unwrap_or(0)).unwrap_or(0), params_vec.get(1).map(|s| s.parse::<i8>().unwrap_or(0)).unwrap_or(0)));
         }
+        else if cmd == "jump" {
+            return Behavior::Jump((params_vec.get(0).map(|s| s.parse::<i8>().unwrap_or(0)).unwrap_or(0), params_vec.get(1).map(|s| s.parse::<i8>().unwrap_or(0)).unwrap_or(0)));
+        }
         else if cmd == "move" {
             return Behavior::Move((params_vec.get(0).map(|s| s.parse::<i8>().unwrap_or(0)).unwrap_or(0), params_vec.get(1).map(|s| s.parse::<i8>().unwrap_or(0)).unwrap_or(0)));
         }
@@ -668,6 +672,7 @@ impl<'a> Behavior<'a> {
             Behavior::Friendly(delta) => Behavior::Friendly(Behavior::reflect_turn_vector(delta, turn)),
             Behavior::Danger(delta) => Behavior::Danger(Behavior::reflect_turn_vector(delta, turn)),
             Behavior::Take(delta) => Behavior::Take(Behavior::reflect_turn_vector(delta, turn)),
+            Behavior::Jump(delta) => Behavior::Jump(Behavior::reflect_turn_vector(delta, turn)),
             Behavior::TakeMove(delta) => Behavior::TakeMove(Behavior::reflect_turn_vector(delta, turn)),
             Behavior::Move(delta) => Behavior::Move(Behavior::reflect_turn_vector(delta, turn)),
             Behavior::Catch(delta) => Behavior::Catch(Behavior::reflect_turn_vector(delta, turn)),
@@ -886,6 +891,7 @@ impl<'a> ChessemblyCompiled<'a> {
             let mut rip :usize = 0;
             let mut loops = 0;
             let mut stack :Vec<(Position, usize)> = vec![(position.clone(), chain.len())];
+            let mut take_stack :Vec<Option<Position>> = vec![None];
             let mut states :Vec<bool> = vec![true];
             let mut transition :Option<*const str> = None;
             let mut state_change :Option<Vec<(*const str, u8)>> = None;
@@ -987,6 +993,12 @@ impl<'a> ChessemblyCompiled<'a> {
                             end += 1;
                         }
                         stack.push((stack.last().unwrap().clone().0, end));
+                        if let Some(p) = take_stack.last() {
+                            take_stack.push(p.clone());
+                        }
+                        else {
+                            take_stack.push(None);
+                        }
                         states.push(true);
                         rip += 1;
                     },
@@ -1197,9 +1209,7 @@ impl<'a> ChessemblyCompiled<'a> {
                             rip += 1;
                             continue;
                         }
-
                         let wc = ChessemblyCompiled::move_anchor(&mut stack.last_mut().unwrap().0, &delta, board, board.color_on(position).unwrap());
-                        
                         if wc != WallCollision::NoCollision {
                             *states.last_mut().unwrap() = false;
                             rip += 1;
@@ -1214,14 +1224,53 @@ impl<'a> ChessemblyCompiled<'a> {
                         else if ChessemblyCompiled::is_enemy(&stack.last().unwrap().0, board, board.color_on(position).unwrap()) {
                             ChessemblyCompiled::push_node(&mut nodes, ChessMove {
                                 from: position.clone(),
-                                take: stack.last_mut().unwrap().0.clone(),
-                                move_to: stack.last_mut().unwrap().0.clone(),
-                                move_type: MoveType::TakeMove,
+                                take: stack.last().unwrap().0.clone(),
+                                move_to: stack.last().unwrap().0.clone(),
+                                move_type: MoveType::Take,
                                 state_change: state_change.clone().map(|x| x.iter().map(|(k, v)| (unsafe { k.as_ref().unwrap() }, *v)).collect()),
                                 transition: transition.map(|x| unsafe { x.as_ref().unwrap() })
                             });
+                            if let Some(_) = take_stack.pop() {
+                                take_stack.push(Some(stack.last().unwrap().0.clone()));
+                            }
+                            else {
+                                take_stack.push(Some(stack.last().unwrap().0.clone()));
+                            }
                         }
                         rip += 1;
+                    },
+                    Behavior::Jump(delta) => {
+                        // worker::console_log!("Jump");
+                        let tl1 = take_stack.last();
+                        if let Some(tp) = tl1 {
+                            if let Some(tpc) = tp {
+                                if let Some(trace) = nodes.iter().position(|x| x.move_type == MoveType::Take && x.take == *tpc) {
+                                    nodes.swap_remove(trace);
+                                }
+
+                                if !ChessemblyCompiled::is_zero_vector(&delta) {
+                                    let wc = ChessemblyCompiled::move_anchor(&mut stack.last_mut().unwrap().0, &delta, board, board.color_on(position).unwrap());
+                                    if wc == WallCollision::NoCollision {
+                                        if board.color_on(&stack.last().unwrap().0).is_none() {
+                                            ChessemblyCompiled::push_node(&mut nodes, ChessMove {
+                                                from: position.clone(),
+                                                take: tpc.clone(),
+                                                move_to: stack.last().unwrap().0.clone(),
+                                                move_type: MoveType::TakeJump,
+                                                state_change: state_change.clone().map(|x| x.iter().map(|(k, v)| (unsafe { k.as_ref().unwrap() }, *v)).collect()),
+                                                transition: transition.map(|x| unsafe { x.as_ref().unwrap() })
+                                            });
+                                            rip += 1;
+                                            continue;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        *states.last_mut().unwrap() = false;
+                        rip += 1;
+                        continue;
                     },
                     Behavior::Catch(delta) => {
                         if ChessemblyCompiled::is_zero_vector(&delta) {
@@ -1299,7 +1348,9 @@ impl<'a> ChessemblyCompiled<'a> {
                         rip -= n as usize;
                     },
                     Behavior::Not => {
-                        *states.last_mut().unwrap() = !*states.last().unwrap();
+                        let x = *states.last().unwrap();
+                        *states.last_mut().unwrap() = !x;
+                        rip += 1;
                     },
                     Behavior::Do => {
                         if let Some(next_inst) = chain.get(rip + 1) {
@@ -1478,6 +1529,11 @@ impl<'a> ChessemblyCompiled<'a> {
             }
             else if piece == "camel" {
                 let ret = self.generate_ij_moves(board, position, 3, 1);
+                board.dp.insert((position.0, position.1), ret.clone());
+                return ret;
+            }
+            else if piece == "cannon" {
+                let ret = self.generate_cannon_moves(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
                 return ret;
             }
