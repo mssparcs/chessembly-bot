@@ -79,5 +79,4 @@ async fn fetch(req: HttpRequest, _env: Env, _ctx: Context) -> Result<worker::Res
 
 pub async fn root() -> &'static str {
     "Hello Axum!"
-
 }

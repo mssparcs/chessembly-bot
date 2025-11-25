@@ -1,8 +1,8 @@
 use std::cmp::Ordering;
 use std::{collections::HashMap, hash::Hash};
+mod behavior;
 pub mod board;
 pub mod moves;
-mod behavior;
 use behavior::{Behavior, BehaviorChain};
 use board::Board;
 
@@ -27,21 +27,21 @@ impl Color {
     pub fn invert(&self) -> Color {
         match self {
             Self::White => Self::Black,
-            Self::Black => Self::White
+            Self::Black => Self::White,
         }
     }
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Piece<'a> {
-    pub piece_type :&'a str,
-    pub color :Color,
+    pub piece_type: &'a str,
+    pub color: Color,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum PieceSpan<'a> {
     Piece(Piece<'a>),
-    Empty
+    Empty,
 }
 
 use serde::Serialize;
@@ -63,12 +63,12 @@ pub type DeltaPosition = (i8, i8);
 
 #[derive(Clone, Eq, PartialOrd, PartialEq, Debug, Hash, Serialize)]
 pub struct ChessMove<'a> {
-    pub from :Position,
-    pub take :Position,
-    pub move_to :Position,
-    pub move_type :MoveType,
-    pub state_change :Option<Vec<(&'a str, u8)>>,
-    pub transition :Option<&'a str>
+    pub from: Position,
+    pub take: Position,
+    pub move_to: Position,
+    pub move_type: MoveType,
+    pub state_change: Option<Vec<(&'a str, u8)>>,
+    pub transition: Option<&'a str>,
 }
 
 impl<'a> ChessMove<'a> {
@@ -92,7 +92,7 @@ impl<'a> ChessMove<'a> {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ChessemblyCompiled<'a> {
-    pub chains :Vec<BehaviorChain<'a>>
+    pub chains: Vec<BehaviorChain<'a>>,
 }
 
 #[derive(Clone, Debug, Copy, PartialEq)]
@@ -105,26 +105,33 @@ enum WallCollision {
     CornerTopRight,
     CornerBottomLeft,
     CornerBottomRight,
-    NoCollision
+    NoCollision,
 }
 
-pub struct MoveGen {
-
-}
+pub struct MoveGen {}
 
 impl MoveGen {
-    pub fn get_all_moves<'a>(board :&mut Board<'a>, turn :Color, check_danger :bool) -> Vec<ChessMove<'a>> {
+    pub fn get_all_moves<'a>(
+        board: &mut Board<'a>,
+        turn: Color,
+        check_danger: bool,
+    ) -> Vec<ChessMove<'a>> {
         let mut ret = Vec::new();
         for j in 0..board.get_height() {
             for i in 0..board.get_width() {
                 if board.color_on(&(i as u8, j as u8)) == Some(turn) {
                     if check_danger {
-                        let a = board.script.get_moves(board, &(i as u8, j as u8), check_danger);
+                        let a = board
+                            .script
+                            .get_moves(board, &(i as u8, j as u8), check_danger);
                         let b = board.script.filter_nodes(a, board);
                         ret.extend(b);
-                    }
-                    else {
-                        ret.extend(board.script.get_moves(board, &(i as u8, j as u8), check_danger));
+                    } else {
+                        ret.extend(board.script.get_moves(
+                            board,
+                            &(i as u8, j as u8),
+                            check_danger,
+                        ));
                     }
                 }
             }
@@ -133,13 +140,16 @@ impl MoveGen {
     }
 
     #[inline]
-    pub fn new_legal<'a>(board :&mut Board<'a>) -> Vec<ChessMove<'a>> {
+    pub fn new_legal<'a>(board: &mut Board<'a>) -> Vec<ChessMove<'a>> {
         MoveGen::get_all_moves(board, board.side_to_move(), true)
     }
 
     #[inline]
-    pub fn get_danger_zones(board :&mut Board, enemy :Color) -> Vec<Position> {
-        MoveGen::get_all_moves(board, enemy, false).iter().map(|x| x.take).collect()
+    pub fn get_danger_zones(board: &mut Board, enemy: Color) -> Vec<Position> {
+        MoveGen::get_all_moves(board, enemy, false)
+            .iter()
+            .map(|x| x.take)
+            .collect()
     }
 }
 
@@ -154,30 +164,31 @@ impl<'a> ChessemblyCompiled<'a> {
     }
 
     #[inline]
-    pub fn push_behavior(&mut self, behavior :Behavior<'a>) {
+    pub fn push_behavior(&mut self, behavior: Behavior<'a>) {
         let x = &mut self.chains.last_mut();
         if let Some(last) = x {
             last.push(behavior);
         }
     }
 
-    pub fn from_script(script :&'a str) -> Result<ChessemblyCompiled<'a>, ()> {
+    pub fn from_script(script: &'a str) -> Result<ChessemblyCompiled<'a>, ()> {
         let mut ret = ChessemblyCompiled::new();
         let chains = script.split(';');
         for chain_str in chains {
             if chain_str.trim().starts_with('#') {
                 continue;
-            }
-            else if chain_str.chars().all(char::is_whitespace) {
+            } else if chain_str.chars().all(char::is_whitespace) {
                 continue;
-            }
-            else {
+            } else {
                 ret.add_command();
                 let mut i = 0;
                 let mut j = 0;
                 while j < chain_str.len() - 1 {
-                    if chain_str[j..j+1].chars().all(char::is_whitespace) {
-                        if chain_str[j+1..j+2].chars().all(|c| char::is_alphabetic(c) || c == '{' || c == '}') {
+                    if chain_str[j..j + 1].chars().all(char::is_whitespace) {
+                        if chain_str[j + 1..j + 2]
+                            .chars()
+                            .all(|c| char::is_alphabetic(c) || c == '{' || c == '}')
+                        {
                             if chain_str[i..j].trim().len() > 0 {
                                 ret.push_behavior(Behavior::from_str(&chain_str[i..j].trim()));
                                 i = j;
@@ -194,7 +205,12 @@ impl<'a> ChessemblyCompiled<'a> {
         Ok(ret)
     }
 
-    fn wall_collision(anchor :&Position, delta :&DeltaPosition, board :&Board, color :Color) -> WallCollision {
+    fn wall_collision(
+        anchor: &Position,
+        delta: &DeltaPosition,
+        board: &Board,
+        color: Color,
+    ) -> WallCollision {
         let a0 = (anchor.0 as i8) + delta.0;
         let a1 = (anchor.1 as i8) - delta.1;
         match (
@@ -298,7 +314,12 @@ impl<'a> ChessemblyCompiled<'a> {
         }
     }
 
-    fn move_anchor(anchor :&mut Position, delta :&DeltaPosition, board :&Board, color :Color) -> WallCollision {
+    fn move_anchor(
+        anchor: &mut Position,
+        delta: &DeltaPosition,
+        board: &Board,
+        color: Color,
+    ) -> WallCollision {
         let wc = ChessemblyCompiled::wall_collision(anchor, delta, board, color);
         if wc == WallCollision::NoCollision {
             anchor.0 = ((anchor.0 as i8) + delta.0) as u8;
@@ -308,95 +329,121 @@ impl<'a> ChessemblyCompiled<'a> {
         wc
     }
 
-    fn cancel_move_anchor(anchor :&mut Position, delta :&DeltaPosition) {
+    fn cancel_move_anchor(anchor: &mut Position, delta: &DeltaPosition) {
         anchor.0 = ((anchor.0 as i8) - delta.0) as u8;
         anchor.1 = ((anchor.1 as i8) + delta.1) as u8;
     }
 
-    fn is_enemy(anchor :&Position, board :&Board, color :Color) -> bool {
+    fn is_enemy(anchor: &Position, board: &Board, color: Color) -> bool {
         if board.color_on(anchor) == Some(color.invert()) {
             return true;
         }
         false
     }
 
-    fn is_friendly(anchor :&Position, board :&Board, color :Color) -> bool {
+    fn is_friendly(anchor: &Position, board: &Board, color: Color) -> bool {
         if board.color_on(anchor) == Some(color) {
             return true;
         }
         false
     }
 
-    pub fn is_zero_vector(delta :&DeltaPosition) -> bool {
+    pub fn is_zero_vector(delta: &DeltaPosition) -> bool {
         delta.0 == 0 && delta.1 == 0
     }
 
-    pub fn is_danger(&self, board :&mut Board, position :&Position, color :Color) -> bool {
+    pub fn is_danger(&self, board: &mut Board, position: &Position, color: Color) -> bool {
         let danger_zones = MoveGen::get_danger_zones(board, color);
         danger_zones.iter().any(|x| x == position)
     }
 
-    pub fn is_check(&self, board :&mut Board, color :Color) -> bool {
+    pub fn is_check(&self, board: &mut Board, color: Color) -> bool {
         let danger_zones = MoveGen::get_danger_zones(board, color);
-        danger_zones.iter().any(|x| board.piece_on(x) == Some("king"))
+        danger_zones
+            .iter()
+            .any(|x| board.piece_on(x) == Some("king"))
     }
 
-    pub fn is_check_dbg(&self, board :&mut Board, color :Color) -> bool {
+    pub fn is_check_dbg(&self, board: &mut Board, color: Color) -> bool {
         let danger_zones = MoveGen::get_danger_zones(board, color);
         for i in 0..8 {
             let mut x = String::new();
             for j in 0..8 {
                 if danger_zones.contains(&(j, i)) {
-                    x.push_str(&format!("[{}]", board.piece_on(&(j, i)).map(|x| x.chars().next().unwrap()).unwrap_or(' '))[..]);
-                }
-                else {
-                    x.push_str(&format!(" {} ", board.piece_on(&(j, i)).map(|x| x.chars().next().unwrap()).unwrap_or(' '))[..]);
+                    x.push_str(
+                        &format!(
+                            "[{}]",
+                            board
+                                .piece_on(&(j, i))
+                                .map(|x| x.chars().next().unwrap())
+                                .unwrap_or(' ')
+                        )[..],
+                    );
+                } else {
+                    x.push_str(
+                        &format!(
+                            " {} ",
+                            board
+                                .piece_on(&(j, i))
+                                .map(|x| x.chars().next().unwrap())
+                                .unwrap_or(' ')
+                        )[..],
+                    );
                 }
             }
         }
-        danger_zones.iter().any(|x| board.piece_on(x) == Some("king"))
+        danger_zones
+            .iter()
+            .any(|x| board.piece_on(x) == Some("king"))
     }
 
-    pub fn push_node(nodes :&mut Vec<ChessMove<'a>>, node :ChessMove<'a>) {
-        if let Some(i) = nodes.iter().position(|x| x.move_to == node.move_to && x.take == node.take) {
+    pub fn push_node(nodes: &mut Vec<ChessMove<'a>>, node: ChessMove<'a>) {
+        if let Some(i) = nodes
+            .iter()
+            .position(|x| x.move_to == node.move_to && x.take == node.take)
+        {
             nodes.swap_remove(i);
         }
         nodes.push(node);
     }
 
-    pub fn generate_moves(&self, board :&mut Board<'a>, position :&Position, check_danger :bool) -> Result<Vec<ChessMove<'a>>, ()> {
-        let mut nodes :Vec<ChessMove> = Vec::new();
+    pub fn generate_moves(
+        &self,
+        board: &mut Board<'a>,
+        position: &Position,
+        check_danger: bool,
+    ) -> Result<Vec<ChessMove<'a>>, ()> {
+        let mut nodes: Vec<ChessMove> = Vec::new();
 
         for chain in &self.chains {
-            let mut rip :usize = 0;
+            let mut rip: usize = 0;
             let mut loops = 0;
-            let mut stack :Vec<(Position, usize)> = vec![(position.clone(), chain.len())];
-            let mut take_stack :Vec<Option<Position>> = vec![None];
-            let mut states :Vec<bool> = vec![true];
-            let mut transition :Option<*const str> = None;
-            let mut state_change :Option<Vec<(*const str, u8)>> = None;
-            
+            let mut stack: Vec<(Position, usize)> = vec![(position.clone(), chain.len())];
+            let mut take_stack: Vec<Option<Position>> = vec![None];
+            let mut states: Vec<bool> = vec![true];
+            let mut transition: Option<*const str> = None;
+            let mut state_change: Option<Vec<(*const str, u8)>> = None;
+
             while rip < chain.len() {
                 let abs_inst = &chain[rip];
                 loops += 1;
                 if loops > 1000 {
                     break;
                 }
-                
+
                 let is_control_expr = match abs_inst {
                     Behavior::While => true,
                     Behavior::Jmp(_) => true,
                     Behavior::Jne(_) => true,
                     Behavior::Label(_) => true,
                     Behavior::Not => true,
-                    _ => false
+                    _ => false,
                 };
-                
+
                 if *states.last().unwrap() == false && !is_control_expr {
                     if stack.len() > 1 {
                         rip = stack.last().unwrap().1;
-                    }
-                    else {
+                    } else {
                         break;
                     }
                 }
@@ -416,44 +463,72 @@ impl<'a> ChessemblyCompiled<'a> {
                             continue;
                         }
 
-                        let wc = ChessemblyCompiled::move_anchor(&mut stack.last_mut().unwrap().0, &delta, board, board.color_on(position).unwrap());
-                        
+                        let wc = ChessemblyCompiled::move_anchor(
+                            &mut stack.last_mut().unwrap().0,
+                            &delta,
+                            board,
+                            board.color_on(position).unwrap(),
+                        );
+
                         if wc != WallCollision::NoCollision {
                             *states.last_mut().unwrap() = false;
                             rip += 1;
                             continue;
                         }
-                        if ChessemblyCompiled::is_friendly(&stack.last().unwrap().0, board, board.color_on(position).unwrap()) {
-                            ChessemblyCompiled::cancel_move_anchor(&mut stack.last_mut().unwrap().0, &delta);
+                        if ChessemblyCompiled::is_friendly(
+                            &stack.last().unwrap().0,
+                            board,
+                            board.color_on(position).unwrap(),
+                        ) {
+                            ChessemblyCompiled::cancel_move_anchor(
+                                &mut stack.last_mut().unwrap().0,
+                                &delta,
+                            );
                             *states.last_mut().unwrap() = false;
                             rip += 1;
                             continue;
-                        }
-                        else if ChessemblyCompiled::is_enemy(&stack.last().unwrap().0, board, board.color_on(position).unwrap()) {
-                            ChessemblyCompiled::push_node(&mut nodes, ChessMove {
-                                from: position.clone(),
-                                take: stack.last_mut().unwrap().0.clone(),
-                                move_to: stack.last_mut().unwrap().0.clone(),
-                                move_type: MoveType::TakeMove,
-                                state_change: state_change.clone().map(|x| x.iter().map(|(k, v)| (unsafe { k.as_ref().unwrap() }, *v)).collect()),
-                                transition: transition.map(|x| unsafe { x.as_ref().unwrap() })
-                            });
+                        } else if ChessemblyCompiled::is_enemy(
+                            &stack.last().unwrap().0,
+                            board,
+                            board.color_on(position).unwrap(),
+                        ) {
+                            ChessemblyCompiled::push_node(
+                                &mut nodes,
+                                ChessMove {
+                                    from: position.clone(),
+                                    take: stack.last_mut().unwrap().0.clone(),
+                                    move_to: stack.last_mut().unwrap().0.clone(),
+                                    move_type: MoveType::TakeMove,
+                                    state_change: state_change.clone().map(|x| {
+                                        x.iter()
+                                            .map(|(k, v)| (unsafe { k.as_ref().unwrap() }, *v))
+                                            .collect()
+                                    }),
+                                    transition: transition.map(|x| unsafe { x.as_ref().unwrap() }),
+                                },
+                            );
                             *states.last_mut().unwrap() = false;
                             rip += 1;
                             continue;
-                        }
-                        else {
-                            ChessemblyCompiled::push_node(&mut nodes, ChessMove {
-                                from: position.clone(),
-                                take: stack.last_mut().unwrap().0.clone(),
-                                move_to: stack.last_mut().unwrap().0.clone(),
-                                move_type: MoveType::TakeMove,
-                                state_change: state_change.clone().map(|x| x.iter().map(|(k, v)| (unsafe { k.as_ref().unwrap() }, *v)).collect()),
-                                transition: transition.map(|x| unsafe { x.as_ref().unwrap() })
-                            });
+                        } else {
+                            ChessemblyCompiled::push_node(
+                                &mut nodes,
+                                ChessMove {
+                                    from: position.clone(),
+                                    take: stack.last_mut().unwrap().0.clone(),
+                                    move_to: stack.last_mut().unwrap().0.clone(),
+                                    move_type: MoveType::TakeMove,
+                                    state_change: state_change.clone().map(|x| {
+                                        x.iter()
+                                            .map(|(k, v)| (unsafe { k.as_ref().unwrap() }, *v))
+                                            .collect()
+                                    }),
+                                    transition: transition.map(|x| unsafe { x.as_ref().unwrap() }),
+                                },
+                            );
                             rip += 1;
                         }
-                    },
+                    }
                     Behavior::BlockOpen => {
                         let mut end = rip;
                         let mut ss = 0;
@@ -461,13 +536,13 @@ impl<'a> ChessemblyCompiled<'a> {
                             match &chain[end] {
                                 Behavior::BlockOpen => {
                                     ss += 1;
-                                },
+                                }
                                 Behavior::BlockClose => {
                                     ss -= 1;
                                     if ss == 0 {
                                         break;
                                     }
-                                },
+                                }
                                 _ => {}
                             }
                             end += 1;
@@ -475,42 +550,53 @@ impl<'a> ChessemblyCompiled<'a> {
                         stack.push((stack.last().unwrap().clone().0, end));
                         if let Some(p) = take_stack.last() {
                             take_stack.push(p.clone());
-                        }
-                        else {
+                        } else {
                             take_stack.push(None);
                         }
                         states.push(true);
                         rip += 1;
-                    },
+                    }
                     Behavior::BlockClose => {
                         if stack.len() > 1 && states.len() > 1 {
                             stack.pop();
                             states.pop();
-                        }
-                        else {
+                        } else {
                             break;
                         }
                         rip += 1;
-                    },
+                    }
                     Behavior::Peek(delta) => {
-                        let wc = ChessemblyCompiled::move_anchor(&mut stack.last_mut().unwrap().0, &delta, board, board.color_on(position).unwrap());
-                        
+                        let wc = ChessemblyCompiled::move_anchor(
+                            &mut stack.last_mut().unwrap().0,
+                            &delta,
+                            board,
+                            board.color_on(position).unwrap(),
+                        );
+
                         if wc != WallCollision::NoCollision {
                             *states.last_mut().unwrap() = false;
                             rip += 1;
                             continue;
                         }
                         if let Some(_) = board.color_on(&stack.last().unwrap().0) {
-                            ChessemblyCompiled::cancel_move_anchor(&mut stack.last_mut().unwrap().0, &delta);
+                            ChessemblyCompiled::cancel_move_anchor(
+                                &mut stack.last_mut().unwrap().0,
+                                &delta,
+                            );
                             *states.last_mut().unwrap() = false;
                             rip += 1;
                             continue;
                         }
                         rip += 1;
-                    },
+                    }
                     Behavior::Observe(delta) => {
-                        let wc = ChessemblyCompiled::move_anchor(&mut stack.last_mut().unwrap().0, &delta, board, board.color_on(position).unwrap());
-                        
+                        let wc = ChessemblyCompiled::move_anchor(
+                            &mut stack.last_mut().unwrap().0,
+                            &delta,
+                            board,
+                            board.color_on(position).unwrap(),
+                        );
+
                         if wc != WallCollision::NoCollision {
                             *states.last_mut().unwrap() = false;
                             rip += 1;
@@ -519,226 +605,367 @@ impl<'a> ChessemblyCompiled<'a> {
                         if let Some(_) = board.color_on(&stack.last().unwrap().0) {
                             *states.last_mut().unwrap() = false;
                         }
-                        ChessemblyCompiled::cancel_move_anchor(&mut stack.last_mut().unwrap().0, &delta);
+                        ChessemblyCompiled::cancel_move_anchor(
+                            &mut stack.last_mut().unwrap().0,
+                            &delta,
+                        );
                         rip += 1;
                         continue;
-                    },
+                    }
                     Behavior::Piece(piece_name) => {
                         if let Some(piece) = board.piece_on(position) {
                             // worker::console_log!("{}, {}", piece_name, piece);
                             *states.last_mut().unwrap() = piece == piece_name;
-                        }
-                        else {
+                        } else {
                             *states.last_mut().unwrap() = false;
                         }
                         rip += 1;
-                    },
+                    }
                     Behavior::Bound(delta) => {
-                        let wc = ChessemblyCompiled::wall_collision(&stack.last().unwrap().0, &delta, board, board.color_on(position).unwrap());
+                        let wc = ChessemblyCompiled::wall_collision(
+                            &stack.last().unwrap().0,
+                            &delta,
+                            board,
+                            board.color_on(position).unwrap(),
+                        );
                         *states.last_mut().unwrap() = match wc {
                             WallCollision::NoCollision => false,
-                            _ => true
+                            _ => true,
                         };
                         rip += 1;
-                    },
+                    }
                     Behavior::Edge(delta) => {
-                        let wc = ChessemblyCompiled::wall_collision(&stack.last().unwrap().0, &delta, board, board.color_on(position).unwrap());
+                        let wc = ChessemblyCompiled::wall_collision(
+                            &stack.last().unwrap().0,
+                            &delta,
+                            board,
+                            board.color_on(position).unwrap(),
+                        );
                         *states.last_mut().unwrap() = match wc {
                             WallCollision::EdgeTop => true,
                             WallCollision::EdgeBottom => true,
                             WallCollision::EdgeLeft => true,
                             WallCollision::EdgeRight => true,
-                            _ => false
+                            _ => false,
                         };
                         rip += 1;
-                    },
+                    }
                     Behavior::Corner(delta) => {
-                        let wc = ChessemblyCompiled::wall_collision(&stack.last().unwrap().0, &delta, board, board.color_on(position).unwrap());
+                        let wc = ChessemblyCompiled::wall_collision(
+                            &stack.last().unwrap().0,
+                            &delta,
+                            board,
+                            board.color_on(position).unwrap(),
+                        );
                         *states.last_mut().unwrap() = match wc {
                             WallCollision::CornerTopLeft => true,
                             WallCollision::CornerTopRight => true,
                             WallCollision::CornerBottomLeft => true,
                             WallCollision::CornerBottomRight => true,
-                            _ => false
+                            _ => false,
                         };
                         rip += 1;
-                    },
+                    }
                     Behavior::EdgeTop(delta) => {
-                        let wc = ChessemblyCompiled::wall_collision(&stack.last().unwrap().0, &delta, board, board.color_on(position).unwrap());
+                        let wc = ChessemblyCompiled::wall_collision(
+                            &stack.last().unwrap().0,
+                            &delta,
+                            board,
+                            board.color_on(position).unwrap(),
+                        );
                         *states.last_mut().unwrap() = wc == WallCollision::EdgeTop;
                         rip += 1;
-                    },
+                    }
                     Behavior::EdgeBottom(delta) => {
-                        let wc = ChessemblyCompiled::wall_collision(&stack.last().unwrap().0, &delta, board, board.color_on(position).unwrap());
+                        let wc = ChessemblyCompiled::wall_collision(
+                            &stack.last().unwrap().0,
+                            &delta,
+                            board,
+                            board.color_on(position).unwrap(),
+                        );
                         *states.last_mut().unwrap() = wc == WallCollision::EdgeBottom;
                         rip += 1;
-                    },
+                    }
                     Behavior::EdgeLeft(delta) => {
-                        let wc = ChessemblyCompiled::wall_collision(&stack.last().unwrap().0, &delta, board, board.color_on(position).unwrap());
+                        let wc = ChessemblyCompiled::wall_collision(
+                            &stack.last().unwrap().0,
+                            &delta,
+                            board,
+                            board.color_on(position).unwrap(),
+                        );
                         *states.last_mut().unwrap() = wc == WallCollision::EdgeLeft;
                         rip += 1;
-                    },
+                    }
                     Behavior::EdgeRight(delta) => {
-                        let wc = ChessemblyCompiled::wall_collision(&stack.last().unwrap().0, &delta, board, board.color_on(position).unwrap());
+                        let wc = ChessemblyCompiled::wall_collision(
+                            &stack.last().unwrap().0,
+                            &delta,
+                            board,
+                            board.color_on(position).unwrap(),
+                        );
                         *states.last_mut().unwrap() = wc == WallCollision::EdgeRight;
                         rip += 1;
-                    },
+                    }
                     Behavior::CornerTopLeft(delta) => {
-                        let wc = ChessemblyCompiled::wall_collision(&stack.last().unwrap().0, &delta, board, board.color_on(position).unwrap());
+                        let wc = ChessemblyCompiled::wall_collision(
+                            &stack.last().unwrap().0,
+                            &delta,
+                            board,
+                            board.color_on(position).unwrap(),
+                        );
                         *states.last_mut().unwrap() = wc == WallCollision::CornerTopLeft;
                         rip += 1;
-                    },
+                    }
                     Behavior::CornerTopRight(delta) => {
-                        let wc = ChessemblyCompiled::wall_collision(&stack.last().unwrap().0, &delta, board, board.color_on(position).unwrap());
+                        let wc = ChessemblyCompiled::wall_collision(
+                            &stack.last().unwrap().0,
+                            &delta,
+                            board,
+                            board.color_on(position).unwrap(),
+                        );
                         *states.last_mut().unwrap() = wc == WallCollision::CornerTopRight;
                         rip += 1;
-                    },
+                    }
                     Behavior::CornerBottomLeft(delta) => {
-                        let wc = ChessemblyCompiled::wall_collision(&stack.last().unwrap().0, &delta, board, board.color_on(position).unwrap());
+                        let wc = ChessemblyCompiled::wall_collision(
+                            &stack.last().unwrap().0,
+                            &delta,
+                            board,
+                            board.color_on(position).unwrap(),
+                        );
                         *states.last_mut().unwrap() = wc == WallCollision::CornerBottomLeft;
                         rip += 1;
-                    },
+                    }
                     Behavior::CornerBottomRight(delta) => {
-                        let wc = ChessemblyCompiled::wall_collision(&stack.last().unwrap().0, &delta, board, board.color_on(position).unwrap());
+                        let wc = ChessemblyCompiled::wall_collision(
+                            &stack.last().unwrap().0,
+                            &delta,
+                            board,
+                            board.color_on(position).unwrap(),
+                        );
                         *states.last_mut().unwrap() = wc == WallCollision::CornerBottomRight;
                         rip += 1;
-                    },
+                    }
                     Behavior::Check => {
-                        *states.last_mut().unwrap() = self.is_check(board, board.color_on(position).unwrap());
+                        *states.last_mut().unwrap() =
+                            self.is_check(board, board.color_on(position).unwrap());
                         rip += 1;
-                    },
+                    }
                     Behavior::Danger(delta) => {
                         if !check_danger {
                             *states.last_mut().unwrap() = false;
                             continue;
                         }
 
-                        let wc = ChessemblyCompiled::move_anchor(&mut stack.last_mut().unwrap().0, &delta, board, board.color_on(position).unwrap());
+                        let wc = ChessemblyCompiled::move_anchor(
+                            &mut stack.last_mut().unwrap().0,
+                            &delta,
+                            board,
+                            board.color_on(position).unwrap(),
+                        );
                         if wc != WallCollision::NoCollision {
                             *states.last_mut().unwrap() = false;
                             rip += 1;
                             continue;
                         }
 
-                        *states.last_mut().unwrap() = self.is_danger(board, &stack.last().unwrap().0, board.color_on(position).unwrap());
-                        ChessemblyCompiled::cancel_move_anchor(&mut stack.last_mut().unwrap().0, &delta);
-                    },
+                        *states.last_mut().unwrap() = self.is_danger(
+                            board,
+                            &stack.last().unwrap().0,
+                            board.color_on(position).unwrap(),
+                        );
+                        ChessemblyCompiled::cancel_move_anchor(
+                            &mut stack.last_mut().unwrap().0,
+                            &delta,
+                        );
+                    }
                     Behavior::Enemy(delta) => {
-                        let wc = ChessemblyCompiled::move_anchor(&mut stack.last_mut().unwrap().0, &delta, board, board.color_on(position).unwrap());
+                        let wc = ChessemblyCompiled::move_anchor(
+                            &mut stack.last_mut().unwrap().0,
+                            &delta,
+                            board,
+                            board.color_on(position).unwrap(),
+                        );
                         if wc != WallCollision::NoCollision {
                             *states.last_mut().unwrap() = false;
                             rip += 1;
                             continue;
                         }
-                        *states.last_mut().unwrap() = ChessemblyCompiled::is_enemy(&stack.last().unwrap().0, board, board.color_on(position).unwrap());
-                        ChessemblyCompiled::cancel_move_anchor(&mut stack.last_mut().unwrap().0, &delta);
+                        *states.last_mut().unwrap() = ChessemblyCompiled::is_enemy(
+                            &stack.last().unwrap().0,
+                            board,
+                            board.color_on(position).unwrap(),
+                        );
+                        ChessemblyCompiled::cancel_move_anchor(
+                            &mut stack.last_mut().unwrap().0,
+                            &delta,
+                        );
                         rip += 1;
-                    },
+                    }
                     Behavior::Friendly(delta) => {
-                        let wc = ChessemblyCompiled::move_anchor(&mut stack.last_mut().unwrap().0, &delta, board, board.color_on(position).unwrap());
+                        let wc = ChessemblyCompiled::move_anchor(
+                            &mut stack.last_mut().unwrap().0,
+                            &delta,
+                            board,
+                            board.color_on(position).unwrap(),
+                        );
                         if wc != WallCollision::NoCollision {
                             *states.last_mut().unwrap() = false;
                             rip += 1;
                             continue;
                         }
-                        *states.last_mut().unwrap() = ChessemblyCompiled::is_friendly(&stack.last().unwrap().0, board, board.color_on(position).unwrap());
-                        ChessemblyCompiled::cancel_move_anchor(&mut stack.last_mut().unwrap().0, &delta);
+                        *states.last_mut().unwrap() = ChessemblyCompiled::is_friendly(
+                            &stack.last().unwrap().0,
+                            board,
+                            board.color_on(position).unwrap(),
+                        );
+                        ChessemblyCompiled::cancel_move_anchor(
+                            &mut stack.last_mut().unwrap().0,
+                            &delta,
+                        );
                         rip += 1;
-                    },
+                    }
                     Behavior::PieceOn((piece_name, delta)) => {
-                        let wc = ChessemblyCompiled::move_anchor(&mut stack.last_mut().unwrap().0, &delta, board, board.color_on(position).unwrap());
+                        let wc = ChessemblyCompiled::move_anchor(
+                            &mut stack.last_mut().unwrap().0,
+                            &delta,
+                            board,
+                            board.color_on(position).unwrap(),
+                        );
                         if wc != WallCollision::NoCollision {
                             *states.last_mut().unwrap() = false;
                             rip += 1;
                             continue;
                         }
-                        *states.last_mut().unwrap() = board.piece_on(&stack.last().unwrap().0) == Some(&piece_name[..]);
-                        ChessemblyCompiled::cancel_move_anchor(&mut stack.last_mut().unwrap().0, &delta);
+                        *states.last_mut().unwrap() =
+                            board.piece_on(&stack.last().unwrap().0) == Some(&piece_name[..]);
+                        ChessemblyCompiled::cancel_move_anchor(
+                            &mut stack.last_mut().unwrap().0,
+                            &delta,
+                        );
                         rip += 1;
-                    },
+                    }
                     Behavior::IfState((key, n)) => {
                         if board.color_on(position) == Some(Color::White) {
-                            *states.last_mut().unwrap() = *board.board_state.white.register.get(key).unwrap_or(&0) == n;
-                        }
-                        else if board.color_on(position) == Some(Color::Black) {
-                            *states.last_mut().unwrap() = *board.board_state.black.register.get(key).unwrap_or(&0) == n;
+                            *states.last_mut().unwrap() =
+                                *board.board_state.white.register.get(key).unwrap_or(&0) == n;
+                        } else if board.color_on(position) == Some(Color::Black) {
+                            *states.last_mut().unwrap() =
+                                *board.board_state.black.register.get(key).unwrap_or(&0) == n;
                         }
                         rip += 1;
-                    },
+                    }
                     Behavior::SetState((key, n)) => {
                         if let Some(state_changes) = &mut state_change {
                             state_changes.push((key, n));
-                        }
-                        else {
+                        } else {
                             state_change = Some(vec![(key, n)]);
                         }
                         rip += 1;
-                    },
+                    }
                     Behavior::Transition(piece_name) => {
                         if piece_name.len() == 0 {
                             transition = None;
-                        }
-                        else {
+                        } else {
                             transition = Some(piece_name);
                         }
                         rip += 1;
-                    },
+                    }
                     Behavior::Take(delta) => {
                         if ChessemblyCompiled::is_zero_vector(&delta) {
                             *states.last_mut().unwrap() = false;
                             rip += 1;
                             continue;
                         }
-                        let wc = ChessemblyCompiled::move_anchor(&mut stack.last_mut().unwrap().0, &delta, board, board.color_on(position).unwrap());
+                        let wc = ChessemblyCompiled::move_anchor(
+                            &mut stack.last_mut().unwrap().0,
+                            &delta,
+                            board,
+                            board.color_on(position).unwrap(),
+                        );
                         if wc != WallCollision::NoCollision {
                             *states.last_mut().unwrap() = false;
                             rip += 1;
                             continue;
                         }
-                        if ChessemblyCompiled::is_friendly(&stack.last().unwrap().0, board, board.color_on(position).unwrap()) {
-                            ChessemblyCompiled::cancel_move_anchor(&mut stack.last_mut().unwrap().0, &delta);
+                        if ChessemblyCompiled::is_friendly(
+                            &stack.last().unwrap().0,
+                            board,
+                            board.color_on(position).unwrap(),
+                        ) {
+                            ChessemblyCompiled::cancel_move_anchor(
+                                &mut stack.last_mut().unwrap().0,
+                                &delta,
+                            );
                             *states.last_mut().unwrap() = false;
                             rip += 1;
                             continue;
-                        }
-                        else if ChessemblyCompiled::is_enemy(&stack.last().unwrap().0, board, board.color_on(position).unwrap()) {
-                            ChessemblyCompiled::push_node(&mut nodes, ChessMove {
-                                from: position.clone(),
-                                take: stack.last().unwrap().0.clone(),
-                                move_to: stack.last().unwrap().0.clone(),
-                                move_type: MoveType::Take,
-                                state_change: state_change.clone().map(|x| x.iter().map(|(k, v)| (unsafe { k.as_ref().unwrap() }, *v)).collect()),
-                                transition: transition.map(|x| unsafe { x.as_ref().unwrap() })
-                            });
+                        } else if ChessemblyCompiled::is_enemy(
+                            &stack.last().unwrap().0,
+                            board,
+                            board.color_on(position).unwrap(),
+                        ) {
+                            ChessemblyCompiled::push_node(
+                                &mut nodes,
+                                ChessMove {
+                                    from: position.clone(),
+                                    take: stack.last().unwrap().0.clone(),
+                                    move_to: stack.last().unwrap().0.clone(),
+                                    move_type: MoveType::Take,
+                                    state_change: state_change.clone().map(|x| {
+                                        x.iter()
+                                            .map(|(k, v)| (unsafe { k.as_ref().unwrap() }, *v))
+                                            .collect()
+                                    }),
+                                    transition: transition.map(|x| unsafe { x.as_ref().unwrap() }),
+                                },
+                            );
                             if let Some(_) = take_stack.pop() {
                                 take_stack.push(Some(stack.last().unwrap().0.clone()));
-                            }
-                            else {
+                            } else {
                                 take_stack.push(Some(stack.last().unwrap().0.clone()));
                             }
                         }
                         rip += 1;
-                    },
+                    }
                     Behavior::Jump(delta) => {
                         let tl1 = take_stack.last();
                         if let Some(tp) = tl1 {
                             if let Some(tpc) = tp {
-                                if let Some(trace) = nodes.iter().position(|x| x.move_type == MoveType::Take && x.take == *tpc) {
+                                if let Some(trace) = nodes
+                                    .iter()
+                                    .position(|x| x.move_type == MoveType::Take && x.take == *tpc)
+                                {
                                     nodes.swap_remove(trace);
                                 }
 
                                 if !ChessemblyCompiled::is_zero_vector(&delta) {
-                                    let wc = ChessemblyCompiled::move_anchor(&mut stack.last_mut().unwrap().0, &delta, board, board.color_on(position).unwrap());
+                                    let wc = ChessemblyCompiled::move_anchor(
+                                        &mut stack.last_mut().unwrap().0,
+                                        &delta,
+                                        board,
+                                        board.color_on(position).unwrap(),
+                                    );
                                     if wc == WallCollision::NoCollision {
                                         if board.color_on(&stack.last().unwrap().0).is_none() {
-                                            ChessemblyCompiled::push_node(&mut nodes, ChessMove {
-                                                from: position.clone(),
-                                                take: tpc.clone(),
-                                                move_to: stack.last().unwrap().0.clone(),
-                                                move_type: MoveType::TakeJump,
-                                                state_change: state_change.clone().map(|x| x.iter().map(|(k, v)| (unsafe { k.as_ref().unwrap() }, *v)).collect()),
-                                                transition: transition.map(|x| unsafe { x.as_ref().unwrap() })
-                                            });
+                                            ChessemblyCompiled::push_node(
+                                                &mut nodes,
+                                                ChessMove {
+                                                    from: position.clone(),
+                                                    take: tpc.clone(),
+                                                    move_to: stack.last().unwrap().0.clone(),
+                                                    move_type: MoveType::TakeJump,
+                                                    state_change: state_change.clone().map(|x| {
+                                                        x.iter()
+                                                            .map(|(k, v)| {
+                                                                (unsafe { k.as_ref().unwrap() }, *v)
+                                                            })
+                                                            .collect()
+                                                    }),
+                                                    transition: transition
+                                                        .map(|x| unsafe { x.as_ref().unwrap() }),
+                                                },
+                                            );
                                             rip += 1;
                                             continue;
                                         }
@@ -750,7 +977,7 @@ impl<'a> ChessemblyCompiled<'a> {
                         *states.last_mut().unwrap() = false;
                         rip += 1;
                         continue;
-                    },
+                    }
                     Behavior::Catch(delta) => {
                         if ChessemblyCompiled::is_zero_vector(&delta) {
                             *states.last_mut().unwrap() = false;
@@ -758,31 +985,53 @@ impl<'a> ChessemblyCompiled<'a> {
                             continue;
                         }
 
-                        let wc = ChessemblyCompiled::move_anchor(&mut stack.last_mut().unwrap().0, &delta, board, board.color_on(position).unwrap());
-                        
+                        let wc = ChessemblyCompiled::move_anchor(
+                            &mut stack.last_mut().unwrap().0,
+                            &delta,
+                            board,
+                            board.color_on(position).unwrap(),
+                        );
+
                         if wc != WallCollision::NoCollision {
                             *states.last_mut().unwrap() = false;
                             rip += 1;
                             continue;
                         }
-                        if ChessemblyCompiled::is_friendly(&stack.last().unwrap().0, board, board.color_on(position).unwrap()) {
-                            ChessemblyCompiled::cancel_move_anchor(&mut stack.last_mut().unwrap().0, &delta);
+                        if ChessemblyCompiled::is_friendly(
+                            &stack.last().unwrap().0,
+                            board,
+                            board.color_on(position).unwrap(),
+                        ) {
+                            ChessemblyCompiled::cancel_move_anchor(
+                                &mut stack.last_mut().unwrap().0,
+                                &delta,
+                            );
                             *states.last_mut().unwrap() = false;
                             rip += 1;
-                            continue;  
-                        }
-                        else if ChessemblyCompiled::is_enemy(&stack.last().unwrap().0, board, board.color_on(position).unwrap()) {
-                            ChessemblyCompiled::push_node(&mut nodes, ChessMove {
-                                from: position.clone(),
-                                take: stack.last_mut().unwrap().0.clone(),
-                                move_to: position.clone(),
-                                move_type: MoveType::Catch,
-                                state_change: state_change.clone().map(|x| x.iter().map(|(k, v)| (unsafe { k.as_ref().unwrap() }, *v)).collect()),
-                                transition: transition.map(|x| unsafe { x.as_ref().unwrap() })
-                            });
+                            continue;
+                        } else if ChessemblyCompiled::is_enemy(
+                            &stack.last().unwrap().0,
+                            board,
+                            board.color_on(position).unwrap(),
+                        ) {
+                            ChessemblyCompiled::push_node(
+                                &mut nodes,
+                                ChessMove {
+                                    from: position.clone(),
+                                    take: stack.last_mut().unwrap().0.clone(),
+                                    move_to: position.clone(),
+                                    move_type: MoveType::Catch,
+                                    state_change: state_change.clone().map(|x| {
+                                        x.iter()
+                                            .map(|(k, v)| (unsafe { k.as_ref().unwrap() }, *v))
+                                            .collect()
+                                    }),
+                                    transition: transition.map(|x| unsafe { x.as_ref().unwrap() }),
+                                },
+                            );
                         }
                         rip += 1;
-                    },
+                    }
                     Behavior::Move(delta) => {
                         if ChessemblyCompiled::is_zero_vector(&delta) {
                             *states.last_mut().unwrap() = false;
@@ -790,33 +1039,57 @@ impl<'a> ChessemblyCompiled<'a> {
                             continue;
                         }
 
-                        let wc = ChessemblyCompiled::move_anchor(&mut stack.last_mut().unwrap().0, &delta, board, board.color_on(position).unwrap());
-                        
+                        let wc = ChessemblyCompiled::move_anchor(
+                            &mut stack.last_mut().unwrap().0,
+                            &delta,
+                            board,
+                            board.color_on(position).unwrap(),
+                        );
+
                         if wc != WallCollision::NoCollision {
                             *states.last_mut().unwrap() = false;
                             rip += 1;
                             continue;
                         }
-                        if ChessemblyCompiled::is_friendly(&stack.last().unwrap().0, board, board.color_on(position).unwrap()) {
-                            ChessemblyCompiled::cancel_move_anchor(&mut stack.last_mut().unwrap().0, &delta);
+                        if ChessemblyCompiled::is_friendly(
+                            &stack.last().unwrap().0,
+                            board,
+                            board.color_on(position).unwrap(),
+                        ) {
+                            ChessemblyCompiled::cancel_move_anchor(
+                                &mut stack.last_mut().unwrap().0,
+                                &delta,
+                            );
                             *states.last_mut().unwrap() = false;
-                        }
-                        else if ChessemblyCompiled::is_enemy(&stack.last().unwrap().0, board, board.color_on(position).unwrap()) {
-                            ChessemblyCompiled::cancel_move_anchor(&mut stack.last_mut().unwrap().0, &delta);
+                        } else if ChessemblyCompiled::is_enemy(
+                            &stack.last().unwrap().0,
+                            board,
+                            board.color_on(position).unwrap(),
+                        ) {
+                            ChessemblyCompiled::cancel_move_anchor(
+                                &mut stack.last_mut().unwrap().0,
+                                &delta,
+                            );
                             *states.last_mut().unwrap() = false;
-                        }
-                        else {
-                            ChessemblyCompiled::push_node(&mut nodes, ChessMove {
-                                from: position.clone(),
-                                take: stack.last_mut().unwrap().0.clone(),
-                                move_to: stack.last_mut().unwrap().0.clone(),
-                                move_type: MoveType::Move,
-                                state_change: state_change.clone().map(|x| x.iter().map(|(k, v)| (unsafe { k.as_ref().unwrap() }, *v)).collect()),
-                                transition: transition.map(|x| unsafe { x.as_ref().unwrap() })
-                            });
+                        } else {
+                            ChessemblyCompiled::push_node(
+                                &mut nodes,
+                                ChessMove {
+                                    from: position.clone(),
+                                    take: stack.last_mut().unwrap().0.clone(),
+                                    move_to: stack.last_mut().unwrap().0.clone(),
+                                    move_type: MoveType::Move,
+                                    state_change: state_change.clone().map(|x| {
+                                        x.iter()
+                                            .map(|(k, v)| (unsafe { k.as_ref().unwrap() }, *v))
+                                            .collect()
+                                    }),
+                                    transition: transition.map(|x| unsafe { x.as_ref().unwrap() }),
+                                },
+                            );
                         }
                         rip += 1;
-                    },
+                    }
                     Behavior::Repeat(n) => {
                         if n == 0 {
                             break;
@@ -825,36 +1098,34 @@ impl<'a> ChessemblyCompiled<'a> {
                             break;
                         }
                         rip -= n as usize;
-                    },
+                    }
                     Behavior::Not => {
                         let x = *states.last().unwrap();
                         *states.last_mut().unwrap() = !x;
                         rip += 1;
-                    },
+                    }
                     Behavior::Do => {
                         if let Some(next_inst) = chain.get(rip + 1) {
                             match next_inst {
                                 Behavior::While => {
                                     rip += 1;
-                                },
+                                }
                                 _ => {
                                     states.push(true);
                                 }
                             }
-                        }
-                        else {
+                        } else {
                             break;
                         }
                         rip += 1;
-                    },
+                    }
                     Behavior::While => {
                         if *states.last().unwrap() {
                             let mut ss = 0;
                             loop {
                                 if chain[rip] == Behavior::While {
                                     ss += 1;
-                                }
-                                else if chain[rip] == Behavior::Do {
+                                } else if chain[rip] == Behavior::Do {
                                     ss -= 1;
                                     if ss == 0 {
                                         // ??
@@ -866,54 +1137,57 @@ impl<'a> ChessemblyCompiled<'a> {
                                 }
                                 rip -= 1;
                             }
-                        }
-                        else {
+                        } else {
                             states.pop();
                             if states.len() == 0 {
                                 break;
                             }
                             rip += 1;
                         }
-                    },
+                    }
                     Behavior::Label(_) => {
                         rip += 1;
-                    },
+                    }
                     Behavior::Jmp(label) => {
                         if *states.last().unwrap() {
-                            if let Some(label_rip) = chain.iter().enumerate().find(|&(_, v)| *v == Behavior::Label(label)) {
+                            if let Some(label_rip) = chain
+                                .iter()
+                                .enumerate()
+                                .find(|&(_, v)| *v == Behavior::Label(label))
+                            {
                                 rip = label_rip.0;
-                            }
-                            else {
+                            } else {
                                 break;
                             }
-                        }
-                        else {
+                        } else {
                             rip += 1;
                             *states.last_mut().unwrap() = true;
                         }
-                    },
+                    }
                     Behavior::Jne(label) => {
                         if !*states.last().unwrap() {
-                            if let Some(label_rip) = chain.iter().enumerate().find(|&(_, v)| *v == Behavior::Label(label)) {
+                            if let Some(label_rip) = chain
+                                .iter()
+                                .enumerate()
+                                .find(|&(_, v)| *v == Behavior::Label(label))
+                            {
                                 rip = label_rip.0;
-                            }
-                            else {
+                            } else {
                                 break;
                             }
-                        }
-                        else {
+                        } else {
                             rip += 1;
                             *states.last_mut().unwrap() = true;
                         }
-                    },
-                    _ => break
+                    }
+                    _ => break,
                 };
             }
         }
         return Ok(nodes);
     }
 
-    pub fn filter_nodes(&self, nodes :Vec<ChessMove<'a>>, board :&Board<'a>) -> Vec<ChessMove<'a>> {
+    pub fn filter_nodes(&self, nodes: Vec<ChessMove<'a>>, board: &Board<'a>) -> Vec<ChessMove<'a>> {
         let mut ret = Vec::new();
         for testnode in nodes {
             let mut new_board = board.make_move_new_nc(&testnode, false);
@@ -922,11 +1196,16 @@ impl<'a> ChessemblyCompiled<'a> {
                 ret.push(testnode);
             }
         }
-        
+
         ret
     }
 
-    pub fn get_moves(&self, board :&mut Board<'a>, position :&Position, check_danger :bool) -> Vec<ChessMove<'a>> {
+    pub fn get_moves(
+        &self,
+        board: &mut Board<'a>,
+        position: &Position,
+        check_danger: bool,
+    ) -> Vec<ChessMove<'a>> {
         if let Some(cached) = board.dp.get(position) {
             return cached.clone();
         }
@@ -937,81 +1216,72 @@ impl<'a> ChessemblyCompiled<'a> {
                 let ret = self.generate_pawn_moves(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
                 return ret;
-            }
-            else if piece == "king" {
-                let danger_zones = if check_danger { MoveGen::get_danger_zones(board, board.color_on(position).unwrap().invert()) } else { Vec::new() };
+            } else if piece == "king" {
+                let danger_zones = if check_danger {
+                    MoveGen::get_danger_zones(board, board.color_on(position).unwrap().invert())
+                } else {
+                    Vec::new()
+                };
                 let ret = self.generate_king_moves(board, position, &danger_zones);
                 board.dp.insert((position.0, position.1), ret.clone());
                 return ret;
-            }
-            else if piece == "rook" {
+            } else if piece == "rook" {
                 let ret = self.generate_rook_moves(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
                 return ret;
-            }
-            else if piece == "knight" {
+            } else if piece == "knight" {
                 let ret = self.generate_knight_moves(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
                 return ret;
-            }
-            else if piece == "bishop" {
+            } else if piece == "bishop" {
                 let ret = self.generate_bishop_moves(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
                 return ret;
-            }
-            else if piece == "queen" {
+            } else if piece == "queen" {
                 let ret = self.generate_queen_moves(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
                 return ret;
-            }
-            else if piece == "tempest-rook" {
+            } else if piece == "tempest-rook" {
                 let ret = self.generate_tempest_rook_moves(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
                 return ret;
-            }
-            else if piece == "bouncing-bishop" {
+            } else if piece == "bouncing-bishop" {
                 let ret = self.generate_bouncing_bishop_moves(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
                 return ret;
-            }
-            else if piece == "dozer" {
+            } else if piece == "dozer" {
                 let ret = self.generate_dozer_moves(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
                 return ret;
-            }
-            else if piece == "alfil" {
+            } else if piece == "alfil" {
                 let ret = self.generate_alfil_moves(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
                 return ret;
-            }
-            else if piece == "bard" {
+            } else if piece == "bard" {
                 let ret = self.generate_bard_moves(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
                 return ret;
-            }
-            else if piece == "zebra" {
+            } else if piece == "zebra" {
                 let ret = self.generate_ij_moves(board, position, 3, 2);
                 board.dp.insert((position.0, position.1), ret.clone());
                 return ret;
-            }
-            else if piece == "giraffe" {
+            } else if piece == "giraffe" {
                 let ret = self.generate_ij_moves(board, position, 4, 1);
                 board.dp.insert((position.0, position.1), ret.clone());
                 return ret;
-            }
-            else if piece == "camel" {
+            } else if piece == "camel" {
                 let ret = self.generate_ij_moves(board, position, 3, 1);
                 board.dp.insert((position.0, position.1), ret.clone());
                 return ret;
-            }
-            else if piece == "cannon" {
+            } else if piece == "cannon" {
                 let ret = self.generate_cannon_moves(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
                 return ret;
-            }
-            else {
+            } else {
                 let ret = self.generate_moves(board, position, check_danger);
-                board.dp.insert((position.0, position.1), ret.clone().unwrap_or(Vec::new()));
+                board
+                    .dp
+                    .insert((position.0, position.1), ret.clone().unwrap_or(Vec::new()));
                 return ret.unwrap_or(Vec::new());
             }
         }

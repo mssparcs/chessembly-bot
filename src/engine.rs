@@ -4,9 +4,9 @@
 pub mod game_logic {
     use crate::chessembly;
     use chessembly::board::Board;
+    use chessembly::board::BoardStatus;
     use chessembly::ChessMove;
     use chessembly::Color;
-    use chessembly::board::BoardStatus;
     use chessembly::MoveGen;
     // use crate::chess::{self, Board, ChessMove, Color, GameStatus, MoveGen, Piece};
 
@@ -62,7 +62,7 @@ pub mod game_logic {
             if self.is_terminal() {
                 return match self.status() {
                     // 현재 플레이어가 체크메이트 당함 (최악의 점수)
-                    BoardStatus::Checkmate => -1_000_000, 
+                    BoardStatus::Checkmate => -1_000_000,
                     // 무승부
                     BoardStatus::Stalemate => 0,
                     _ => 0,
@@ -78,16 +78,13 @@ pub mod game_logic {
                         if self.color_on(&(i, j)) == Some(Color::White) {
                             if self.side_to_move() == Color::White {
                                 score += value * 5;
-                            }
-                            else {
+                            } else {
                                 score += value * 5;
                             }
-                        }
-                        else {
+                        } else {
                             if self.side_to_move() == Color::White {
                                 score -= value * 5;
-                            }
-                            else {
+                            } else {
                                 score -= value * 5;
                             }
                         }
@@ -104,8 +101,7 @@ pub mod game_logic {
             // 흑의 턴이면 (흑 - 백) 점수 반환
             if self.side_to_move() == Color::White {
                 score
-            }
-            else {
+            } else {
                 -score
             }
         }
@@ -147,27 +143,20 @@ pub mod game_logic {
     fn get_piece_value(piece: &str) -> i32 {
         if piece == "pawn" {
             return 1;
-        }
-        else if piece == "knight" {
+        } else if piece == "knight" {
             return 3;
-        }
-        else if piece == "bishop" {
+        } else if piece == "bishop" {
             return 3;
-        }
-        else if piece == "rook" {
+        } else if piece == "rook" {
             return 5;
-        }
-        else if piece == "queen" {
+        } else if piece == "queen" {
             return 9;
-        }
-        else if piece == "king" {
+        } else if piece == "king" {
             return 10000;
-        }
-        else {
+        } else {
             return 8;
         }
 
-        
         // match piece {
         //     Piece::Pawn => 1,
         //     Piece::Knight => 3,
@@ -205,7 +194,7 @@ pub mod search {
 
     //     for m in moves {
     //         let new_state = state.make_move(&m);
-            
+
     //         // 네가맥스 호출:
     //         // 점수에 -를 붙이고, alpha/beta를 뒤집어(-beta, -alpha) 전달합니다.
     //         let score = -negamax(&new_state, depth - 1, -beta, -alpha);
@@ -281,21 +270,22 @@ pub mod search {
         // score_move 점수가 높은 순 (내림차순)으로 정렬합니다.
         // b가 a보다 앞에 오도록 비교합니다. (unstable_by가 더 빠름)
         // worker::js_sys::Math::random()
-        
+
         let len = moves.len();
         for i in (1..len).rev() {
             let j = unsafe { (worker::js_sys::Math::random() * len as f64).to_int_unchecked() };
             moves.swap(i, j);
         }
-        
+
         moves.sort_by(|a, b| state.score_move(b).cmp(&state.score_move(a)));
         // --- (끝) ---
 
-        for m in moves { // 정렬된 리스트를 사용합니다.
+        for m in moves {
+            // 정렬된 리스트를 사용합니다.
             let mut new_state = state.make_move(&m);
-            
+
             let score = -negamax(&mut new_state, depth - 1, -beta, -alpha);
-            
+
             if score > best_score {
                 best_score = score;
                 best_move = Some(m);
@@ -305,7 +295,6 @@ pub mod search {
 
         best_move.map(|m| (m, best_score)).ok_or(n)
     }
-
 
     fn negamax<S: GameState>(state: &mut S, depth: u8, mut alpha: i32, beta: i32) -> i32 {
         if depth == 0 || state.is_terminal() {
@@ -321,7 +310,8 @@ pub mod search {
         moves.sort_unstable_by(|a, b| state.score_move(b).cmp(&state.score_move(a)));
         // --- (끝) ---
 
-        for m in moves { // 정렬된 리스트를 사용합니다.
+        for m in moves {
+            // 정렬된 리스트를 사용합니다.
             let mut new_state = state.make_move(&m);
             let score = -negamax(&mut new_state, depth - 1, -beta, -alpha);
             value = value.max(score);
@@ -345,7 +335,7 @@ pub mod search {
 // pub fn search_best(board :&Board) {
 //     // FEN 표기법을 사용해 특정 보드 상태에서 시작할 수도 있습니다.
 //     // let board = Board::from_str("r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3").unwrap();
-    
+
 //     // 기본 시작 위치
 //     // let board = Board::from_str("r1bqkbnr/ppp1p1pp/2np1p2/4Q3/8/8/PPPPPPPP/RNB1KBNR b KQkq - 0 1").unwrap();
 //     // let compiled = ChessemblyCompiled::from_script("do take-move(1, -1) while peek(0, 0) edge-right(1, -1) jne(0) take-move(-1, -1) repeat(1) label(0) edge-bottom(1, -1) jne(1) take-move(1, 1) repeat(1) label(1);do take-move(1, -1) while peek(0, 0) edge-right(1, -1) jne(0) take-move(-1, -1) repeat(1) label(0) edge-bottom(1, -1) jne(1) take-move(1, 1) repeat(1) label(1);").unwrap();
@@ -362,7 +352,7 @@ pub mod search {
 //             // println!("\n--- 결과 ---");
 //             // println!("찾은 최선의 수: {:?}", best_move);
 //             println!("예상 점수: {}", score);
-            
+
 //             let final_board = board.make_move_new(&best_move);
 //             println!("\n적용 후 보드 상태:\n{}", final_board.to_string());
 //         }
