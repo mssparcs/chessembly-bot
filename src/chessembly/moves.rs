@@ -262,7 +262,11 @@ impl<'a> ChessemblyCompiled<'a> {
                 vec![Behavior::Do, Behavior::Take((1, 0)), Behavior::Enemy((0, 0)), Behavior::Not, Behavior::While, Behavior::Jump((1, 0)), Behavior::Repeat(1)],
                 vec![Behavior::Do, Behavior::Take((-1, 0)), Behavior::Enemy((0, 0)), Behavior::Not, Behavior::While, Behavior::Jump((-1, 0)), Behavior::Repeat(1)],
                 vec![Behavior::Do, Behavior::Take((0, 1)), Behavior::Enemy((0, 0)), Behavior::Not, Behavior::While, Behavior::Jump((0, 1)), Behavior::Repeat(1)],
-                vec![Behavior::Do, Behavior::Take((0, -1)), Behavior::Enemy((0, 0)), Behavior::Not, Behavior::While, Behavior::Jump((0, -1)), Behavior::Repeat(1)]
+                vec![Behavior::Do, Behavior::Take((0, -1)), Behavior::Enemy((0, 0)), Behavior::Not, Behavior::While, Behavior::Jump((0, -1)), Behavior::Repeat(1)],
+                vec![Behavior::Do, Behavior::Peek((1, 0)), Behavior::While, Behavior::Friendly((0, 0)), Behavior::Move((1, 0)), Behavior::Repeat(1)],
+                vec![Behavior::Do, Behavior::Peek((-1, 0)), Behavior::While, Behavior::Friendly((0, 0)), Behavior::Move((-1, 0)), Behavior::Repeat(1)],
+                vec![Behavior::Do, Behavior::Peek((0, 1)), Behavior::While, Behavior::Friendly((0, 0)), Behavior::Move((0, 1)), Behavior::Repeat(1)],
+                vec![Behavior::Do, Behavior::Peek((0, -1)), Behavior::While, Behavior::Friendly((0, 0)), Behavior::Move((0, -1)), Behavior::Repeat(1)]
             ]
         }.generate_moves(board, position, false).unwrap()
     }
