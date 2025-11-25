@@ -2,11 +2,7 @@ use super::ChessemblyCompiled;
 use crate::chessembly::{Behavior, Board, ChessMove, Color, MoveType, Position, WallCollision};
 
 impl<'a> ChessemblyCompiled<'a> {
-    pub fn generate_pawn_moves(
-        &self,
-        board: &mut Board<'a>,
-        position: &Position,
-    ) -> Vec<ChessMove<'a>> {
+    pub fn generate_pawn_moves(&self, board: &mut Board<'a>, position: &Position) -> Vec<ChessMove<'a>> {
         let mut ret = Vec::new();
         let color = board.color_on(position).unwrap();
         let rank = if color == Color::White { 6 } else { 1 };
