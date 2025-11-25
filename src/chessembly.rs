@@ -4,7 +4,7 @@ mod behavior;
 pub mod board;
 pub mod moves;
 use behavior::{Behavior, BehaviorChain};
-use board::Board;
+pub(crate) use board::Board;
 
 #[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Debug, Hash)]
 pub enum GameResult {
@@ -205,121 +205,28 @@ impl<'a> ChessemblyCompiled<'a> {
         Ok(ret)
     }
 
-    fn wall_collision(
-        anchor: &Position,
-        delta: &DeltaPosition,
-        board: &Board,
-        color: Color,
-    ) -> WallCollision {
+    fn wall_collision(anchor: &Position, delta: &DeltaPosition, board: &Board, color: Color) -> WallCollision {
         let a0 = (anchor.0 as i8) + delta.0;
         let a1 = (anchor.1 as i8) - delta.1;
-        match (
-            a0.cmp(&0),
-            a0.cmp(&(board.get_width() as i8)),
-            a1.cmp(&0),
-            a1.cmp(&(board.get_height() as i8)),
-        ) {
-            (Ordering::Less, _, Ordering::Less, _) => {
-                if color == Color::White {
-                    WallCollision::CornerTopLeft
-                } else {
-                    WallCollision::CornerBottomRight
-                }
-            }
-            (_, Ordering::Equal, Ordering::Less, _) => {
-                if color == Color::White {
-                    WallCollision::CornerTopRight
-                } else {
-                    WallCollision::CornerBottomLeft
-                }
-            }
-            (_, Ordering::Greater, Ordering::Less, _) => {
-                if color == Color::White {
-                    WallCollision::CornerTopRight
-                } else {
-                    WallCollision::CornerBottomLeft
-                }
-            }
-            (Ordering::Less, _, _, Ordering::Equal) => {
-                if color == Color::White {
-                    WallCollision::CornerBottomLeft
-                } else {
-                    WallCollision::CornerTopRight
-                }
-            }
-            (Ordering::Less, _, _, Ordering::Greater) => {
-                if color == Color::White {
-                    WallCollision::CornerBottomLeft
-                } else {
-                    WallCollision::CornerTopRight
-                }
-            }
-            (_, Ordering::Equal, _, Ordering::Equal) => {
-                if color == Color::White {
-                    WallCollision::CornerBottomRight
-                } else {
-                    WallCollision::CornerTopLeft
-                }
-            }
-            (_, Ordering::Greater, _, Ordering::Greater) => {
-                if color == Color::White {
-                    WallCollision::CornerBottomRight
-                } else {
-                    WallCollision::CornerTopLeft
-                }
-            }
-            (Ordering::Less, _, _, _) => {
-                if color == Color::White {
-                    WallCollision::EdgeLeft
-                } else {
-                    WallCollision::EdgeRight
-                }
-            }
-            (_, Ordering::Equal, _, _) => {
-                if color == Color::White {
-                    WallCollision::EdgeRight
-                } else {
-                    WallCollision::EdgeLeft
-                }
-            }
-            (_, Ordering::Greater, _, _) => {
-                if color == Color::White {
-                    WallCollision::EdgeRight
-                } else {
-                    WallCollision::EdgeLeft
-                }
-            }
-            (_, _, Ordering::Less, _) => {
-                if color == Color::White {
-                    WallCollision::EdgeTop
-                } else {
-                    WallCollision::EdgeBottom
-                }
-            }
-            (_, _, _, Ordering::Equal) => {
-                if color == Color::White {
-                    WallCollision::EdgeBottom
-                } else {
-                    WallCollision::EdgeTop
-                }
-            }
-            (_, _, _, Ordering::Greater) => {
-                if color == Color::White {
-                    WallCollision::EdgeBottom
-                } else {
-                    WallCollision::EdgeTop
-                }
-            }
-            _ => WallCollision::NoCollision,
+        match (a0.cmp(&0), a0.cmp(&(board.get_width() as i8)), a1.cmp(&0), a1.cmp(&(board.get_height() as i8))) {
+            (Ordering::Less, _, Ordering::Less, _) => if color == Color::White { WallCollision::CornerTopLeft } else { WallCollision::CornerBottomRight }
+            (_, Ordering::Equal, Ordering::Less, _) => if color == Color::White { WallCollision::CornerTopRight } else { WallCollision::CornerBottomLeft }
+            (_, Ordering::Greater, Ordering::Less, _) => if color == Color::White { WallCollision::CornerTopRight } else { WallCollision::CornerBottomLeft }
+            (Ordering::Less, _, _, Ordering::Equal) => if color == Color::White { WallCollision::CornerBottomLeft } else { WallCollision::CornerTopRight }
+            (Ordering::Less, _, _, Ordering::Greater) => if color == Color::White { WallCollision::CornerBottomLeft } else { WallCollision::CornerTopRight }
+            (_, Ordering::Equal, _, Ordering::Equal) => if color == Color::White { WallCollision::CornerBottomRight } else { WallCollision::CornerTopLeft }
+            (_, Ordering::Greater, _, Ordering::Greater) => if color == Color::White { WallCollision::CornerBottomRight } else { WallCollision::CornerTopLeft }
+            (Ordering::Less, _, _, _) => if color == Color::White { WallCollision::EdgeLeft } else { WallCollision::EdgeRight }
+            (_, Ordering::Equal, _, _) => if color == Color::White { WallCollision::EdgeRight } else { WallCollision::EdgeLeft }
+            (_, Ordering::Greater, _, _) => if color == Color::White { WallCollision::EdgeRight } else { WallCollision::EdgeLeft }
+            (_, _, Ordering::Less, _) => if color == Color::White { WallCollision::EdgeTop } else { WallCollision::EdgeBottom }
+            (_, _, _, Ordering::Equal) => if color == Color::White { WallCollision::EdgeBottom } else { WallCollision::EdgeTop }
+            (_, _, _, Ordering::Greater) => if color == Color::White { WallCollision::EdgeBottom } else { WallCollision::EdgeTop }
+            _ => WallCollision::NoCollision
         }
     }
 
-    fn move_anchor(
-        anchor: &mut Position,
-        delta: &DeltaPosition,
-        board: &Board,
-        color: Color,
-    ) -> WallCollision {
+    fn move_anchor(anchor: &mut Position, delta: &DeltaPosition, board: &Board, color: Color) -> WallCollision {
         let wc = ChessemblyCompiled::wall_collision(anchor, delta, board, color);
         if wc == WallCollision::NoCollision {
             anchor.0 = ((anchor.0 as i8) + delta.0) as u8;
@@ -1200,91 +1107,93 @@ impl<'a> ChessemblyCompiled<'a> {
         ret
     }
 
-    pub fn get_moves(
-        &self,
-        board: &mut Board<'a>,
-        position: &Position,
-        check_danger: bool,
-    ) -> Vec<ChessMove<'a>> {
+    pub fn get_moves(&self, board: &mut Board<'a>, position: &Position, check_danger: bool) -> Vec<ChessMove<'a>> {
         if let Some(cached) = board.dp.get(position) {
             return cached.clone();
         }
 
         let piece_on = board.piece_on(position);
-        if let Some(piece) = piece_on {
-            if piece == "pawn" {
+        let Some(piece) = piece_on else {
+            return Vec::new()
+        };
+        // worker::console_log!("{}", piece);
+        match piece {
+            "pawn" => {
                 let ret = self.generate_pawn_moves(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
-                return ret;
-            } else if piece == "king" {
-                let danger_zones = if check_danger {
-                    MoveGen::get_danger_zones(board, board.color_on(position).unwrap().invert())
-                } else {
-                    Vec::new()
-                };
+                ret
+            }
+            "king" => {
+                let danger_zones = if check_danger { MoveGen::get_danger_zones(board, board.color_on(position).unwrap().invert()) } else { Vec::new() };
                 let ret = self.generate_king_moves(board, position, &danger_zones);
                 board.dp.insert((position.0, position.1), ret.clone());
-                return ret;
-            } else if piece == "rook" {
+                ret
+            }
+            "rook" => {
                 let ret = self.generate_rook_moves(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
-                return ret;
-            } else if piece == "knight" {
+                ret
+            }
+            "knight" => {
                 let ret = self.generate_knight_moves(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
-                return ret;
-            } else if piece == "bishop" {
+                ret
+            }
+            "bishop" => {
                 let ret = self.generate_bishop_moves(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
-                return ret;
-            } else if piece == "queen" {
+                ret
+            }
+            "queen" => {
                 let ret = self.generate_queen_moves(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
-                return ret;
-            } else if piece == "tempest-rook" {
+                ret
+            }
+            "tempest-rook" => {
                 let ret = self.generate_tempest_rook_moves(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
-                return ret;
-            } else if piece == "bouncing-bishop" {
+                ret
+            }
+            "bouncing-bishop" => {
                 let ret = self.generate_bouncing_bishop_moves(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
-                return ret;
-            } else if piece == "dozer" {
+                ret
+            }
+            "dozer" => {
                 let ret = self.generate_dozer_moves(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
-                return ret;
-            } else if piece == "alfil" {
+                ret
+            }
+            "alfil" => {
                 let ret = self.generate_alfil_moves(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
-                return ret;
-            } else if piece == "bard" {
+                ret
+            }
+            "bard" => {
                 let ret = self.generate_bard_moves(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
-                return ret;
-            } else if piece == "zebra" {
+                ret
+            }
+            "zebra" => {
                 let ret = self.generate_ij_moves(board, position, 3, 2);
                 board.dp.insert((position.0, position.1), ret.clone());
-                return ret;
-            } else if piece == "giraffe" {
+                ret
+            }
+            "giraffe" => {
                 let ret = self.generate_ij_moves(board, position, 4, 1);
                 board.dp.insert((position.0, position.1), ret.clone());
-                return ret;
-            } else if piece == "camel" {
+                ret
+            }
+            "camel" => {
                 let ret = self.generate_ij_moves(board, position, 3, 1);
                 board.dp.insert((position.0, position.1), ret.clone());
-                return ret;
-            } else if piece == "cannon" {
-                let ret = self.generate_cannon_moves(board, position);
-                board.dp.insert((position.0, position.1), ret.clone());
-                return ret;
-            } else {
+                ret
+            }
+            _ => {
                 let ret = self.generate_moves(board, position, check_danger);
-                board
-                    .dp
-                    .insert((position.0, position.1), ret.clone().unwrap_or(Vec::new()));
-                return ret.unwrap_or(Vec::new());
+                board.dp.insert((position.0, position.1), ret.clone().unwrap_or(Vec::new()));
+                ret.unwrap_or(Vec::new())
             }
         }
-        Vec::new()
     }
 }
