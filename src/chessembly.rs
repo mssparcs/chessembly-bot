@@ -1021,7 +1021,6 @@ impl<'a> ChessemblyCompiled<'a> {
                             continue;
                         }
                         if let Some(_) = board.color_on(&stack.last().unwrap().0) {
-                            ChessemblyCompiled::cancel_move_anchor(&mut stack.last_mut().unwrap().0, &delta);
                             *states.last_mut().unwrap() = false;
                             rip += 1;
                             continue;
