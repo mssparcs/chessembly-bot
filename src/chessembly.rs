@@ -5,6 +5,7 @@ pub mod board;
 pub mod moves;
 use behavior::{Behavior, BehaviorChain};
 pub(crate) use board::Board;
+use serde::Serialize;
 
 #[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Debug, Hash)]
 pub enum GameResult {
@@ -44,9 +45,7 @@ pub enum PieceSpan<'a> {
     Empty,
 }
 
-use serde::Serialize;
-
-#[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Debug, Hash, Serialize)]
+#[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Debug, Hash, serde::Serialize)]
 pub enum MoveType {
     Move,
     TakeMove,

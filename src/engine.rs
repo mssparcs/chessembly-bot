@@ -6,8 +6,9 @@ pub mod game_logic {
     use chessembly::board::Board;
     use chessembly::board::BoardStatus;
     use chessembly::ChessMove;
-    use chessembly::Color;
     use chessembly::MoveGen;
+    use chessembly::Color;
+    // use rand::prelude::*; 
     // use crate::chess::{self, Board, ChessMove, Color, GameStatus, MoveGen, Piece};
 
     /// 모든 게임의 '수'가 구현해야 하는 기본 트레이트.
@@ -172,6 +173,8 @@ pub mod game_logic {
 // 모듈 2: 알파-베타 검색 (네가맥스 구현)
 // -----------------------------------------------------------------------------
 pub mod search {
+    use rand::seq::SliceRandom;
+
     use super::game_logic::GameState;
 
     /// 지정된 깊이(depth)까지 탐색하여 최선의 수를 찾습니다.
@@ -270,12 +273,14 @@ pub mod search {
         // score_move 점수가 높은 순 (내림차순)으로 정렬합니다.
         // b가 a보다 앞에 오도록 비교합니다. (unstable_by가 더 빠름)
         // worker::js_sys::Math::random()
-
-        let len = moves.len();
-        for i in (1..len).rev() {
-            let j = unsafe { (worker::js_sys::Math::random() * len as f64).to_int_unchecked() };
-            moves.swap(i, j);
-        }
+        let mut rng = rand::rng();
+        moves.shuffle(&mut rng);
+        // let len = moves.len();
+        // for i in (1..len).rev() {
+            
+        //     let j = unsafe { (worker::js_sys::Math::random() * len as f64).to_int_unchecked() };
+        //     moves.swap(i, j);
+        // }
 
         moves.sort_by(|a, b| state.score_move(b).cmp(&state.score_move(a)));
         // --- (끝) ---
