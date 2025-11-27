@@ -6,8 +6,9 @@ use axum::{
 };
 use chessembly_bot::{
     chessembly::{self, board::Board, ChessemblyCompiled},
-    engine
+    engine,
 };
+use std::env;
 use std::net::SocketAddr;
 use tracing::info;
 
@@ -20,7 +21,12 @@ async fn main() {
 
     let app = Router::new().route("/", post(run_engine));
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
+    let port = env::var("PORT")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(8080); // PORT 환경 변수를 읽고, 없으면 8080 사용
+
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
     info!("listening on {}", addr);
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
