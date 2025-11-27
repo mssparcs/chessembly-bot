@@ -1,5 +1,5 @@
 # 공식 Rust 이미지를 사용합니다.
-FROM rust:1.73.0
+FROM rust:latest AS builder
 
 WORKDIR /usr/src/app
 COPY . .
