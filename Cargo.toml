@@ -2,7 +2,6 @@
 name = "chessembly-bot"
 version = "0.1.0"
 edition = "2021"
-authors = ["heartleth <myjmyjmyj237@gmail.com>"]
 
 [[bin]]
 name = "chessembly-bot"
