@@ -1174,6 +1174,26 @@ impl<'a> ChessemblyCompiled<'a> {
                 board.dp.insert((position.0, position.1), ret.clone());
                 ret
             }
+            "amazon" => {
+                let ret = self.generate_amazon_moves(board, position);
+                board.dp.insert((position.0, position.1), ret.clone());
+                ret
+            }
+            "chancellor" => {
+                let ret = self.generate_chancellor_moves(board, position);
+                board.dp.insert((position.0, position.1), ret.clone());
+                ret
+            }
+            "archbishop" => {
+                let ret = self.generate_archbishop_moves(board, position);
+                board.dp.insert((position.0, position.1), ret.clone());
+                ret
+            }
+            "centaur" => {
+                let ret = self.generate_centaur_moves(board, position);
+                board.dp.insert((position.0, position.1), ret.clone());
+                ret
+            }
             "zebra" => {
                 let ret = self.generate_ij_moves(board, position, 3, 2);
                 board.dp.insert((position.0, position.1), ret.clone());

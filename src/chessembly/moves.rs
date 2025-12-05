@@ -410,6 +410,114 @@ impl<'a> ChessemblyCompiled<'a> {
             .unwrap()
     }
 
+    pub fn generate_amazon_moves(
+        &self,
+        board: &mut Board<'a>,
+        position: &Position,
+    ) -> Vec<ChessMove<'a>> {
+        ChessemblyCompiled {
+            chains: vec![
+                vec![Behavior::TakeMove((2, 1))],
+                vec![Behavior::TakeMove((-2, 1))],
+                vec![Behavior::TakeMove((2, -1))],
+                vec![Behavior::TakeMove((-2, -1))],
+                vec![Behavior::TakeMove((1, 2))],
+                vec![Behavior::TakeMove((-1, 2))],
+                vec![Behavior::TakeMove((1, -2))],
+                vec![Behavior::TakeMove((-1, -2))],
+                vec![Behavior::TakeMove((1, 0)), Behavior::Repeat(1)],
+                vec![Behavior::TakeMove((-1, 0)), Behavior::Repeat(1)],
+                vec![Behavior::TakeMove((0, 1)), Behavior::Repeat(1)],
+                vec![Behavior::TakeMove((0, -1)), Behavior::Repeat(1)],
+                vec![Behavior::TakeMove((1, 1)), Behavior::Repeat(1)],
+                vec![Behavior::TakeMove((1, -1)), Behavior::Repeat(1)],
+                vec![Behavior::TakeMove((-1, 1)), Behavior::Repeat(1)],
+                vec![Behavior::TakeMove((-1, -1)), Behavior::Repeat(1)],
+            ],
+        }
+            .generate_moves(board, position, false)
+            .unwrap()
+    }
+
+    pub fn generate_centaur_moves(
+        &self,
+        board: &mut Board<'a>,
+        position: &Position,
+    ) -> Vec<ChessMove<'a>> {
+        ChessemblyCompiled {
+            chains: vec![
+                vec![Behavior::TakeMove((2, 1))],
+                vec![Behavior::TakeMove((-2, 1))],
+                vec![Behavior::TakeMove((2, -1))],
+                vec![Behavior::TakeMove((-2, -1))],
+                vec![Behavior::TakeMove((1, 2))],
+                vec![Behavior::TakeMove((-1, 2))],
+                vec![Behavior::TakeMove((1, -2))],
+                vec![Behavior::TakeMove((-1, -2))],
+                vec![Behavior::TakeMove((1, 0))],
+                vec![Behavior::TakeMove((-1, 0))],
+                vec![Behavior::TakeMove((0, 1))],
+                vec![Behavior::TakeMove((0, -1))],
+                vec![Behavior::TakeMove((1, 1))],
+                vec![Behavior::TakeMove((1, -1))],
+                vec![Behavior::TakeMove((-1, 1))],
+                vec![Behavior::TakeMove((-1, -1))],
+            ],
+        }
+            .generate_moves(board, position, false)
+            .unwrap()
+    }
+
+    pub fn generate_archbishop_moves(
+        &self,
+        board: &mut Board<'a>,
+        position: &Position,
+    ) -> Vec<ChessMove<'a>> {
+        ChessemblyCompiled {
+            chains: vec![
+                vec![Behavior::TakeMove((2, 1))],
+                vec![Behavior::TakeMove((-2, 1))],
+                vec![Behavior::TakeMove((2, -1))],
+                vec![Behavior::TakeMove((-2, -1))],
+                vec![Behavior::TakeMove((1, 2))],
+                vec![Behavior::TakeMove((-1, 2))],
+                vec![Behavior::TakeMove((1, -2))],
+                vec![Behavior::TakeMove((-1, -2))],
+                vec![Behavior::TakeMove((1, 1)), Behavior::Repeat(1)],
+                vec![Behavior::TakeMove((1, -1)), Behavior::Repeat(1)],
+                vec![Behavior::TakeMove((-1, 1)), Behavior::Repeat(1)],
+                vec![Behavior::TakeMove((-1, -1)), Behavior::Repeat(1)],
+            ],
+        }
+            .generate_moves(board, position, false)
+            .unwrap()
+    }
+
+    pub fn generate_chancellor_moves(
+        &self,
+        board: &mut Board<'a>,
+        position: &Position,
+    ) -> Vec<ChessMove<'a>> {
+        ChessemblyCompiled {
+            chains: vec![
+                vec![Behavior::TakeMove((2, 1))],
+                vec![Behavior::TakeMove((-2, 1))],
+                vec![Behavior::TakeMove((2, -1))],
+                vec![Behavior::TakeMove((-2, -1))],
+                vec![Behavior::TakeMove((1, 2))],
+                vec![Behavior::TakeMove((-1, 2))],
+                vec![Behavior::TakeMove((1, -2))],
+                vec![Behavior::TakeMove((-1, -2))],
+                vec![Behavior::TakeMove((1, 0)), Behavior::Repeat(1)],
+                vec![Behavior::TakeMove((-1, 0)), Behavior::Repeat(1)],
+                vec![Behavior::TakeMove((0, 1)), Behavior::Repeat(1)],
+                vec![Behavior::TakeMove((0, -1)), Behavior::Repeat(1)],
+            ],
+        }
+            .generate_moves(board, position, false)
+            .unwrap()
+    }
+
     pub fn generate_cannon_moves(
         &self,
         board: &mut Board<'a>,
