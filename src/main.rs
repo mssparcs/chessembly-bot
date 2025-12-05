@@ -1,8 +1,5 @@
 use axum::{
-    http::{HeaderMap, StatusCode},
-    response::{IntoResponse, Json},
-    routing::post,
-    Router,
+    Router, http::{self, HeaderMap, StatusCode}, response::{IntoResponse, Json}, routing::post
 };
 use chessembly_bot::{
     chessembly::{self, board::Board, ChessemblyCompiled},
@@ -33,32 +30,22 @@ async fn main() {
 }
 
 async fn run_engine(headers: HeaderMap) -> impl IntoResponse {
-        let (Some(position), Some(script), Some(data)) = (
+    let (Some(position), Some(script), Some(data)) = (
         headers.get("position"),
         headers.get("Chessembly"),
         headers.get("Turn"),
     ) else {
         return (StatusCode::OK, "asdf").into_response();
-        // return Ok(Response::from_body(ResponseBody::Body(
-        //     "asdf".as_bytes().to_vec(),
-        // ))?);
     };
-
-    let Ok(str_script) = script.to_str() else {
+    
+    let Ok(str_script) = script.to_str().map(|x| urlencoding::decode(x).expect("UTF-8")) else {
         return (StatusCode::OK, "asdf").into_response();
-        // return Ok(Response::from_body(ResponseBody::Body(
-        //     "asdf".as_bytes().to_vec(),
-        // ))?);
     };
 
-    let Ok(compiled) = ChessemblyCompiled::from_script(str_script) else {
+    let Ok(compiled) = ChessemblyCompiled::from_script(&str_script[..]) else {
         return (StatusCode::OK, "asdf").into_response();
-        // return Ok(Response::from_body(ResponseBody::Body(
-        //     "asdf".as_bytes().to_vec(),
-        // ))?);
     };
 
-    // console_log!("{:?}", compiled.chains);
     let mut board = Board::empty(&compiled);
     let mut i = 0;
     for line in position.to_str().unwrap().split('/') {
@@ -84,17 +71,12 @@ async fn run_engine(headers: HeaderMap) -> impl IntoResponse {
         chessembly::Color::Black
     };
 
-    // worker::console_log!("{}", board.to_string());
-
     let best_move = engine::search::find_best_move(&mut board, 3);
     if let Ok(node) = best_move {
-        // return Ok(Response::from_json(&node)?);
         return (StatusCode::OK, Json(node)).into_response();
     } else if let Err(n) = best_move {
-        // console_log!("????? {}", n);
         return (StatusCode::OK, "null").into_response();
     }
-    // println!("{:?}", req.body());
     return (StatusCode::OK, "asdf").into_response();
 
     /*

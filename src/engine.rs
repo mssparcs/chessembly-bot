@@ -282,7 +282,7 @@ pub mod search {
         //     moves.swap(i, j);
         // }
 
-        moves.sort_by(|a, b| state.score_move(b).cmp(&state.score_move(a)));
+        // moves.sort_by(|a, b| state.score_move(b).cmp(&state.score_move(a)));
         // --- (끝) ---
 
         for m in moves {
