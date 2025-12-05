@@ -1169,6 +1169,11 @@ impl<'a> ChessemblyCompiled<'a> {
                 board.dp.insert((position.0, position.1), ret.clone());
                 ret
             }
+            "wasp" => {
+                let ret = self.generate_wasp_moves(board, position);
+                board.dp.insert((position.0, position.1), ret.clone());
+                ret
+            }
             "zebra" => {
                 let ret = self.generate_ij_moves(board, position, 3, 2);
                 board.dp.insert((position.0, position.1), ret.clone());
