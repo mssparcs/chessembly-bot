@@ -1,11 +1,11 @@
 use axum::{
-    Router, http::{self, HeaderMap, StatusCode}, response::{IntoResponse, Json}, routing::post
+    Router, http::{HeaderMap, StatusCode}, response::{IntoResponse, Json}, routing::post
 };
 use chessembly_bot::{
-    chessembly::{self, board::Board, ChessemblyCompiled},
+    chessembly::{self, board::Board, ChessemblyCompiled, board::BoardState, board::BothBoardState},
     engine,
 };
-use std::env;
+use std::{collections::HashMap, env};
 use std::net::SocketAddr;
 use tracing::info;
 
@@ -30,10 +30,26 @@ async fn main() {
 }
 
 async fn run_engine(headers: HeaderMap) -> impl IntoResponse {
-    let (Some(position), Some(script), Some(data)) = (
-        headers.get("position"),
+    let (
+        Some(position),
+        Some(script),
+        Some(turn),
+        Some(castling_oo),
+        Some(castling_ooo),
+        Some(en_passant_white),
+        Some(en_passant_black),
+        Some(register_white),
+        Some(register_black),
+    ) = (
+        headers.get("Position"),
         headers.get("Chessembly"),
         headers.get("Turn"),
+        headers.get("Castling-OO"),
+        headers.get("Castling-OOO"),
+        headers.get("En-Passant-White"),
+        headers.get("En-Passant-Black"),
+        headers.get("Register-White"),
+        headers.get("Register-Black"),
     ) else {
         return (StatusCode::OK, "asdf").into_response();
     };
@@ -46,7 +62,69 @@ async fn run_engine(headers: HeaderMap) -> impl IntoResponse {
         return (StatusCode::OK, "asdf").into_response();
     };
 
+    let (
+        Ok(castling_oo_tuple),
+        Ok(castling_ooo_tuple),
+        Ok(en_passant_white_str),
+        Ok(en_passant_black_str),
+        Ok(register_white_str),
+        Ok(register_black_str)
+    ) = (
+        castling_oo.to_str().map(|x| (x.chars().nth(0) == Some('1'), x.chars().nth(1) == Some('1'))),
+        castling_ooo.to_str().map(|x| (x.chars().nth(0) == Some('1'), x.chars().nth(1) == Some('1'))),
+        en_passant_white.to_str(),
+        en_passant_black.to_str(),
+        register_white.to_str(),
+        register_black.to_str()
+    ) else {
+        return (StatusCode::OK, "asdf").into_response();
+    };
+    let mut en_passant_white_positions: Vec<chessembly::Position> = Vec::new();
+    let mut en_passant_black_positions: Vec<chessembly::Position> = Vec::new();
+    let mut register_white_map: HashMap<&str, u8> = HashMap::new();
+    let mut register_black_map: HashMap<&str, u8> = HashMap::new();
+    for coord in en_passant_white_str.split('/') {
+        if let Some((x, y)) = coord.split_once(',') {
+            en_passant_white_positions.push((x.parse().unwrap_or(0), y.parse().unwrap_or(0)));
+        }
+    }
+    for coord in en_passant_black_str.split('/') {
+        if let Some((x, y)) = coord.split_once(',') {
+            en_passant_black_positions.push((x.parse().unwrap_or(0), y.parse().unwrap_or(0)));
+        }
+    }
+    for register in register_white_str.split('/') {
+        if let Some((key, value)) = register.split_once(',') {
+            register_white_map.insert(key, value.parse().unwrap_or(0));
+        }
+    }
+    for register in register_black_str.split('/') {
+        if let Some((key, value)) = register.split_once(',') {
+            register_black_map.insert(key, value.parse().unwrap_or(0));
+        }
+    }
+
+    let board_state_white = BoardState {
+        castling_oo: castling_oo_tuple.0,
+        castling_ooo: castling_ooo_tuple.0,
+        enpassant: en_passant_white_positions,
+        register: register_white_map
+    };
+
+    let board_state_black = BoardState {
+        castling_oo: castling_oo_tuple.1,
+        castling_ooo: castling_ooo_tuple.1,
+        enpassant: en_passant_black_positions,
+        register: register_black_map
+    };
+
+    let board_state = BothBoardState {
+        white: board_state_white,
+        black: board_state_black,
+    };
+
     let mut board = Board::empty(&compiled);
+    board.board_state = board_state;
     let mut i = 0;
     for line in position.to_str().unwrap().split('/') {
         let mut j = 0;
@@ -65,7 +143,7 @@ async fn run_engine(headers: HeaderMap) -> impl IntoResponse {
         }
         i += 1;
     }
-    board.turn = if data.to_str().unwrap() == "white" {
+    board.turn = if turn.to_str().unwrap() == "white" {
         chessembly::Color::White
     } else {
         chessembly::Color::Black
@@ -74,7 +152,7 @@ async fn run_engine(headers: HeaderMap) -> impl IntoResponse {
     let best_move = engine::search::find_best_move(&mut board, 3);
     if let Ok(node) = best_move {
         return (StatusCode::OK, Json(node)).into_response();
-    } else if let Err(n) = best_move {
+    } else if let Err(_) = best_move {
         return (StatusCode::OK, "null").into_response();
     }
     return (StatusCode::OK, "asdf").into_response();

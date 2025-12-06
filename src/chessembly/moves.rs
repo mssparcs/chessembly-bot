@@ -78,10 +78,42 @@ impl<'a> ChessemblyCompiled<'a> {
             }
         }
 
+        if position.1 == match color {
+            Color::White => 3,
+            Color::Black => 4
+        } {
+            let board_state = match color {
+                Color::White => &board.board_state.white,
+                Color::Black => &board.board_state.black
+            };
+            if position.0 > 0 {
+                if board_state.enpassant.contains(&(position.0 - 1, position.1)) {
+                    ret.push(ChessMove {
+                        from: position.clone(),
+                        move_to: (position.0 - 1, step1),
+                        take: (position.0 - 1, position.1),
+                        move_type: MoveType::TakeJump,
+                        state_change: None,
+                        transition: None
+                    });
+                }
+            }
+            if position.0 < 7 {
+                if board_state.enpassant.contains(&(position.0 + 1, position.1)) {
+                    ret.push(ChessMove {
+                        from: position.clone(),
+                        move_to: (position.0 + 1, step1),
+                        take: (position.0 + 1, position.1),
+                        move_type: MoveType::TakeJump,
+                        state_change: None,
+                        transition: None
+                    });
+                }
+            }
+        }
+
         if position.0 > 0 {
-            if board.color_on(&(position.0 - 1, step1))
-                == board.color_on(position).map(|x| x.invert())
-            {
+            if board.color_on(&(position.0 - 1, step1)) == Some(color.invert()) {
                 if position.1 == promotion {
                     ret.push(ChessMove {
                         from: position.clone(),
@@ -128,9 +160,7 @@ impl<'a> ChessemblyCompiled<'a> {
             }
         }
         if position.0 < board.get_width() as u8 - 1 {
-            if board.color_on(&(position.0 + 1, step1))
-                == board.color_on(position).map(|x| x.invert())
-            {
+            if board.color_on(&(position.0 + 1, step1)) == Some(color.invert()) {
                 if position.1 == promotion {
                     ret.push(ChessMove {
                         from: position.clone(),
@@ -224,7 +254,42 @@ impl<'a> ChessemblyCompiled<'a> {
             }
         }
 
-        // 캐슬링은 나중에
+        let color = board.color_on(position).unwrap();
+
+        let castling_oo = if color == Color::White { board.board_state.white.castling_oo } else { board.board_state.black.castling_oo };
+        let castling_ooo = if color == Color::White { board.board_state.white.castling_ooo } else { board.board_state.black.castling_ooo };
+        if castling_oo {
+            if board.piece_on(&(7, position.1)) == Some("rook") && board.color_on(&(7, position.1)) == Some(color) {
+                if board.color_on(&(6, position.1)) == None && board.color_on(&(5, position.1)) == None {
+                    if !danger_zones.iter().any(|&x| x == *position) {
+                        ret.push(ChessMove {
+                            from: position.clone(),
+                            take: (6, position.1),
+                            move_to: (6, position.1),
+                            move_type: MoveType::Castling,
+                            state_change: Some(state_transition.clone()),
+                            transition: None,
+                        });
+                    }
+                }
+            }
+        }
+        if castling_ooo {
+            if board.piece_on(&(0, position.1)) == Some("rook") && board.color_on(&(0, position.1)) == Some(color) {
+                if board.color_on(&(1, position.1)) == None && board.color_on(&(2, position.1)) == None && board.color_on(&(3, position.1)) == None {
+                    if !danger_zones.iter().any(|&x| x == *position) {
+                        ret.push(ChessMove {
+                            from: position.clone(),
+                            take: (2, position.1),
+                            move_to: (2, position.1),
+                            move_type: MoveType::Castling,
+                            state_change: Some(state_transition),
+                            transition: None,
+                        });
+                    }
+                }
+            }
+        }
 
         ret
     }

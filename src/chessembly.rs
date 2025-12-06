@@ -52,7 +52,7 @@ pub enum MoveType {
     Take,
     TakeJump,
     Catch,
-    // Castling,
+    Castling
 
     // Void, Pause, Shift Block
 }

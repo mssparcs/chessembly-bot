@@ -136,6 +136,7 @@ pub mod game_logic {
             // 4. TODO (고급): 나중에는 'History Heuristic' (과거에 좋았던 수)
 
             // 캡처나 프로모션이 아닌 '조용한 수(quiet move)'는 0점을 반환합니다.
+            
             score
         }
     }
@@ -272,7 +273,7 @@ pub mod search {
         // --- (수 정렬 추가) ---
         // score_move 점수가 높은 순 (내림차순)으로 정렬합니다.
         // b가 a보다 앞에 오도록 비교합니다. (unstable_by가 더 빠름)
-        // worker::js_sys::Math::random()
+
         let mut rng = rand::rng();
         moves.shuffle(&mut rng);
 

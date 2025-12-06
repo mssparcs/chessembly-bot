@@ -1,3 +1,5 @@
+use crate::chessembly::MoveType;
+
 use super::{ChessMove, ChessemblyCompiled, Color, HashMap, MoveGen, Piece, PieceSpan, Position};
 
 #[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Eq)]
@@ -239,20 +241,33 @@ impl<'a> Board<'a> {
     pub fn make_move_new_nc(&self, node: &ChessMove<'a>, decide: bool) -> Board<'a> {
         let mut ret = self.clone();
         ret.dp = HashMap::new();
-        ret.board[node.take.1 as usize][node.take.0 as usize] = PieceSpan::Empty;
-        ret.board[node.move_to.1 as usize][node.move_to.0 as usize] = node
-            .transition
-            .as_ref()
-            .map(|x| {
-                PieceSpan::Piece(Piece {
-                    piece_type: x,
-                    color: match &ret.board[node.from.1 as usize][node.from.0 as usize] {
-                        PieceSpan::Empty => Color::White,
-                        PieceSpan::Piece(piece) => piece.color,
-                    },
+        
+        if node.move_type == MoveType::Castling {
+            ret.board[node.move_to.1 as usize].swap(node.move_to.0 as usize, node.from.0 as usize);
+            if node.from.0 < node.move_to.0 { // O-O
+                ret.board[node.move_to.1 as usize].swap(7, 5);
+            }
+            else if node.from.0 > node.move_to.0 { // O-O-O
+                ret.board[node.move_to.1 as usize].swap(0, 3);
+            }
+        }
+        else {
+            ret.board[node.take.1 as usize][node.take.0 as usize] = PieceSpan::Empty;
+            ret.board[node.move_to.1 as usize][node.move_to.0 as usize] = node
+                .transition
+                .as_ref()
+                .map(|x| {
+                    PieceSpan::Piece(Piece {
+                        piece_type: x,
+                        color: match &ret.board[node.from.1 as usize][node.from.0 as usize] {
+                            PieceSpan::Empty => Color::White,
+                            PieceSpan::Piece(piece) => piece.color,
+                        },
+                    })
                 })
-            })
-            .unwrap_or(ret.board[node.from.1 as usize][node.from.0 as usize].clone());
+                .unwrap_or(ret.board[node.from.1 as usize][node.from.0 as usize].clone());
+        }
+
         ret.board[node.from.1 as usize][node.from.0 as usize] = PieceSpan::Empty;
         if let Some(state_changes) = &node.state_change {
             for (key, n) in state_changes {
@@ -280,6 +295,12 @@ impl<'a> Board<'a> {
 
         if !decide {
             return ret;
+        }
+
+        if ret.turn == Color::White {
+            ret.board_state.white.enpassant.clear();
+        } else if ret.turn == Color::Black {
+            ret.board_state.black.enpassant.clear();
         }
 
         ret.turn = ret.turn.invert();
