@@ -275,6 +275,7 @@ pub mod search {
         // worker::js_sys::Math::random()
         let mut rng = rand::rng();
         moves.shuffle(&mut rng);
+
         // let len = moves.len();
         // for i in (1..len).rev() {
             
@@ -282,7 +283,7 @@ pub mod search {
         //     moves.swap(i, j);
         // }
 
-        // moves.sort_by(|a, b| state.score_move(b).cmp(&state.score_move(a)));
+        moves.sort_by(|a, b| state.score_move(b).cmp(&state.score_move(a)));
         // --- (끝) ---
 
         for m in moves {
