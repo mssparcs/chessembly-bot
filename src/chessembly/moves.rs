@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use super::ChessemblyCompiled;
 use crate::chessembly::{
     Behavior, ChessMove, Color, MoveType, Position, WallCollision, board::Board
@@ -316,16 +318,33 @@ impl<'a> ChessemblyCompiled<'a> {
         board: &mut Board<'a>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
-        ChessemblyCompiled {
-            chains: vec![
-                vec![Behavior::TakeMove((1, 0)), Behavior::Repeat(1)],
-                vec![Behavior::TakeMove((-1, 0)), Behavior::Repeat(1)],
-                vec![Behavior::TakeMove((0, 1)), Behavior::Repeat(1)],
-                vec![Behavior::TakeMove((0, -1)), Behavior::Repeat(1)],
-            ],
+        let state_change = match (position.0.cmp(&0), position.0.cmp(&7), position.1.cmp(&0), position.1.cmp(&7), board.color_on(position).unwrap()) {
+            (Ordering::Equal, _, _, Ordering::Equal, Color::White) => Some(("castling-ooo", 0)),
+            (_, Ordering::Equal, _, Ordering::Equal, Color::White) => Some(("castling-oo", 0)),
+            (Ordering::Equal, _, Ordering::Equal, _, Color::Black) => Some(("castling-ooo", 0)),
+            (_, Ordering::Equal, Ordering::Equal, _, Color::Black) => Some(("castling-oo", 0)),
+            (_, _, _, _, _) => None,
+        };
+        if let Some(state_transition) = state_change {
+            ChessemblyCompiled {
+                chains: vec![
+                    vec![Behavior::SetState(state_transition), Behavior::TakeMove((1, 0)), Behavior::Repeat(1)],
+                    vec![Behavior::SetState(state_transition), Behavior::TakeMove((-1, 0)), Behavior::Repeat(1)],
+                    vec![Behavior::SetState(state_transition), Behavior::TakeMove((0, 1)), Behavior::Repeat(1)],
+                    vec![Behavior::SetState(state_transition), Behavior::TakeMove((0, -1)), Behavior::Repeat(1)],
+                ],
+            }.generate_moves(board, position, false).unwrap()
         }
-            .generate_moves(board, position, false)
-            .unwrap()
+        else {
+            ChessemblyCompiled {
+                chains: vec![
+                    vec![Behavior::TakeMove((1, 0)), Behavior::Repeat(1)],
+                    vec![Behavior::TakeMove((-1, 0)), Behavior::Repeat(1)],
+                    vec![Behavior::TakeMove((0, 1)), Behavior::Repeat(1)],
+                    vec![Behavior::TakeMove((0, -1)), Behavior::Repeat(1)],
+                ],
+            }.generate_moves(board, position, false).unwrap()
+        }
     }
 
     pub fn generate_knight_moves(
