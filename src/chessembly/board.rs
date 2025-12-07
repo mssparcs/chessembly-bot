@@ -238,10 +238,21 @@ impl<'a> Board<'a> {
         ret
     }
 
+    #[inline]
+    pub fn clone_without_dp(&self) -> Board<'a> {
+        Board {
+            board: self.board.clone(),
+            board_state: self.board_state.clone(),
+            turn: self.turn,
+            script: self.script,
+            status: self.status,
+            dp: HashMap::new()
+        }
+    }
+
     pub fn make_move_new_nc(&self, node: &ChessMove<'a>, decide: bool) -> Board<'a> {
-        let mut ret = self.clone();
-        ret.dp = HashMap::new();
-        
+        let mut ret = self.clone_without_dp();
+
         if node.move_type == MoveType::Castling {
             ret.board[node.move_to.1 as usize].swap(node.move_to.0 as usize, node.from.0 as usize);
             if node.from.0 < node.move_to.0 { // O-O
