@@ -231,19 +231,19 @@ impl<'a> ChessemblyCompiled<'a> {
         wc
     }
 
-    fn cancel_move_anchor(anchor: &mut Position, delta: &DeltaPosition) {
+    pub fn cancel_move_anchor(anchor: &mut Position, delta: &DeltaPosition) {
         anchor.0 = ((anchor.0 as i8) - delta.0) as u8;
         anchor.1 = ((anchor.1 as i8) + delta.1) as u8;
     }
 
-    fn is_enemy(anchor: &Position, board: &Board, color: Color) -> bool {
+    pub fn is_enemy(anchor: &Position, board: &Board, color: Color) -> bool {
         if board.color_on(anchor) == Some(color.invert()) {
             return true;
         }
         false
     }
 
-    fn is_friendly(anchor: &Position, board: &Board, color: Color) -> bool {
+    pub fn is_friendly(anchor: &Position, board: &Board, color: Color) -> bool {
         if board.color_on(anchor) == Some(color) {
             return true;
         }

@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 
 use super::ChessemblyCompiled;
 use crate::chessembly::{
-    Behavior, ChessMove, Color, MoveType, Position, WallCollision, board::Board
+    Behavior, ChessMove, Color, DeltaPosition, MoveType, Position, WallCollision, board::Board
 };
 
 impl<'a> ChessemblyCompiled<'a> {
@@ -295,22 +295,75 @@ impl<'a> ChessemblyCompiled<'a> {
 
         ret
     }
+    
+    pub fn generate_ij_abs_take_move(
+        &self,
+        moves: &mut Vec<ChessMove<'a>>,
+        board: &mut Board<'a>,
+        position: &Position,
+        delta: &DeltaPosition,
+    ) -> bool {
+        let mut anchor = position.clone();
+        let color = board.color_on(position).unwrap();
+        let wc = ChessemblyCompiled::move_anchor(&mut anchor, delta, board, color);
+        if wc == WallCollision::NoCollision {
+            let color_on = board.color_on(&anchor);
+            if color_on == Some(color) {
+                false
+            }
+            else if color_on == None {
+                moves.push(ChessMove {
+                    from: *position,
+                    take: anchor,
+                    move_to: anchor,
+                    move_type: MoveType::TakeMove,
+                    state_change: None,
+                    transition: None
+                });
+                true
+            }
+            else {
+                moves.push(ChessMove {
+                    from: *position,
+                    take: anchor,
+                    move_to: anchor,
+                    move_type: MoveType::TakeMove,
+                    state_change: None,
+                    transition: None
+                });
+                false
+            }
+        }
+        else {
+            false
+        }
+    }
+
+    pub fn generate_ij_abs_take_move_slide(
+        &self,
+        moves: &mut Vec<ChessMove<'a>>,
+        board: &mut Board<'a>,
+        position: &Position,
+        delta: &DeltaPosition,
+    ) {
+        let mut sliding_delta = delta.clone();
+        while self.generate_ij_abs_take_move(moves, board, position, delta) {
+            sliding_delta.0 += delta.0;
+            sliding_delta.1 += delta.1;
+        }
+    }
 
     pub fn generate_bishop_moves(
         &self,
         board: &mut Board<'a>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
-        ChessemblyCompiled {
-            chains: vec![
-                vec![Behavior::TakeMove((1, 1)), Behavior::Repeat(1)],
-                vec![Behavior::TakeMove((1, -1)), Behavior::Repeat(1)],
-                vec![Behavior::TakeMove((-1, 1)), Behavior::Repeat(1)],
-                vec![Behavior::TakeMove((-1, -1)), Behavior::Repeat(1)],
-            ],
-        }
-            .generate_moves(board, position, false)
-            .unwrap()
+        let mut moves = Vec::new();
+        self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(1, 1));
+        self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(1, -1));
+        self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(-1, 1));
+        self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(-1, -1));
+        moves
     }
 
     pub fn generate_rook_moves(
@@ -352,20 +405,7 @@ impl<'a> ChessemblyCompiled<'a> {
         board: &mut Board<'a>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
-        ChessemblyCompiled {
-            chains: vec![
-                vec![Behavior::TakeMove((2, 1))],
-                vec![Behavior::TakeMove((-2, 1))],
-                vec![Behavior::TakeMove((2, -1))],
-                vec![Behavior::TakeMove((-2, -1))],
-                vec![Behavior::TakeMove((1, 2))],
-                vec![Behavior::TakeMove((-1, 2))],
-                vec![Behavior::TakeMove((1, -2))],
-                vec![Behavior::TakeMove((-1, -2))],
-            ],
-        }
-            .generate_moves(board, position, false)
-            .unwrap()
+        self.generate_ij_moves(board, position, 2, 1)
     }
 
     pub fn generate_queen_moves(
@@ -373,20 +413,16 @@ impl<'a> ChessemblyCompiled<'a> {
         board: &mut Board<'a>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
-        ChessemblyCompiled {
-            chains: vec![
-                vec![Behavior::TakeMove((1, 0)), Behavior::Repeat(1)],
-                vec![Behavior::TakeMove((-1, 0)), Behavior::Repeat(1)],
-                vec![Behavior::TakeMove((0, 1)), Behavior::Repeat(1)],
-                vec![Behavior::TakeMove((0, -1)), Behavior::Repeat(1)],
-                vec![Behavior::TakeMove((1, 1)), Behavior::Repeat(1)],
-                vec![Behavior::TakeMove((1, -1)), Behavior::Repeat(1)],
-                vec![Behavior::TakeMove((-1, 1)), Behavior::Repeat(1)],
-                vec![Behavior::TakeMove((-1, -1)), Behavior::Repeat(1)],
-            ],
-        }
-            .generate_moves(board, position, false)
-            .unwrap()
+        let mut moves = Vec::new();
+        self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(1, 0));
+        self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(-1, 0));
+        self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(0, 1));
+        self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(0, -1));
+        self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(1, 1));
+        self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(1, -1));
+        self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(-1, 1));
+        self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(-1, -1));
+        moves
     }
 
     pub fn generate_dozer_moves(
@@ -394,17 +430,22 @@ impl<'a> ChessemblyCompiled<'a> {
         board: &mut Board<'a>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
-        ChessemblyCompiled {
-            chains: vec![
-                vec![Behavior::TakeMove((-2, 1))],
-                vec![Behavior::TakeMove((-1, 1))],
-                vec![Behavior::TakeMove((0, 1))],
-                vec![Behavior::TakeMove((1, 1))],
-                vec![Behavior::TakeMove((2, 1))],
-            ],
+        let mut moves = Vec::new();
+        if board.color_on(position) == Some(Color::Black) {
+            self.generate_ij_abs_take_move(&mut moves, board, position, &(-2, -1));
+            self.generate_ij_abs_take_move(&mut moves, board, position, &(-1, -1));
+            self.generate_ij_abs_take_move(&mut moves, board, position, &(0, -1));
+            self.generate_ij_abs_take_move(&mut moves, board, position, &(1, -1));
+            self.generate_ij_abs_take_move(&mut moves, board, position, &(2, -1));
         }
-            .generate_moves(board, position, false)
-            .unwrap()
+        else {
+            self.generate_ij_abs_take_move(&mut moves, board, position, &(-2, 1));
+            self.generate_ij_abs_take_move(&mut moves, board, position, &(-1, 1));
+            self.generate_ij_abs_take_move(&mut moves, board, position, &(0, 1));
+            self.generate_ij_abs_take_move(&mut moves, board, position, &(1, 1));
+            self.generate_ij_abs_take_move(&mut moves, board, position, &(2, 1));
+        }
+        moves
     }
 
     pub fn generate_bouncing_bishop_moves(
@@ -422,16 +463,12 @@ impl<'a> ChessemblyCompiled<'a> {
         board: &mut Board<'a>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
-        ChessemblyCompiled {
-            chains: vec![
-                vec![Behavior::TakeMove((2, 2))],
-                vec![Behavior::TakeMove((-2, 2))],
-                vec![Behavior::TakeMove((2, -2))],
-                vec![Behavior::TakeMove((-2, -2))],
-            ],
-        }
-            .generate_moves(board, position, false)
-            .unwrap()
+        let mut ret = Vec::new();
+        self.generate_ij_abs_take_move(&mut ret, board, position, &(2, 2));
+        self.generate_ij_abs_take_move(&mut ret, board, position, &(2, -2));
+        self.generate_ij_abs_take_move(&mut ret, board, position, &(-2, 2));
+        self.generate_ij_abs_take_move(&mut ret, board, position, &(-2, -2));
+        ret
     }
 
     pub fn generate_ij_moves(
@@ -441,20 +478,16 @@ impl<'a> ChessemblyCompiled<'a> {
         i: i8,
         j: i8,
     ) -> Vec<ChessMove<'a>> {
-        ChessemblyCompiled {
-            chains: vec![
-                vec![Behavior::TakeMove((i, j))],
-                vec![Behavior::TakeMove((-i, j))],
-                vec![Behavior::TakeMove((i, -j))],
-                vec![Behavior::TakeMove((-i, -j))],
-                vec![Behavior::TakeMove((j, i))],
-                vec![Behavior::TakeMove((-j, i))],
-                vec![Behavior::TakeMove((j, -i))],
-                vec![Behavior::TakeMove((-j, -i))],
-            ],
-        }
-            .generate_moves(board, position, false)
-            .unwrap()
+        let mut ret = Vec::new();
+        self.generate_ij_abs_take_move(&mut ret, board, position, &(i, j));
+        self.generate_ij_abs_take_move(&mut ret, board, position, &(-i, j));
+        self.generate_ij_abs_take_move(&mut ret, board, position, &(i, -j));
+        self.generate_ij_abs_take_move(&mut ret, board, position, &(-i, -j));
+        self.generate_ij_abs_take_move(&mut ret, board, position, &(j, i));
+        self.generate_ij_abs_take_move(&mut ret, board, position, &(-j, i));
+        self.generate_ij_abs_take_move(&mut ret, board, position, &(j, -i));
+        self.generate_ij_abs_take_move(&mut ret, board, position, &(-j, -i));
+        ret
     }
 
     pub fn generate_bard_moves(
@@ -462,20 +495,16 @@ impl<'a> ChessemblyCompiled<'a> {
         board: &mut Board<'a>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
-        ChessemblyCompiled {
-            chains: vec![
-                vec![Behavior::TakeMove((2, 2))],
-                vec![Behavior::TakeMove((-2, 2))],
-                vec![Behavior::TakeMove((2, -2))],
-                vec![Behavior::TakeMove((-2, -2))],
-                vec![Behavior::TakeMove((2, 0))],
-                vec![Behavior::TakeMove((-2, 0))],
-                vec![Behavior::TakeMove((0, 2))],
-                vec![Behavior::TakeMove((0, -2))],
-            ],
-        }
-            .generate_moves(board, position, false)
-            .unwrap()
+        let mut ret = Vec::new();
+        self.generate_ij_abs_take_move(&mut ret, board, position, &(2, 0));
+        self.generate_ij_abs_take_move(&mut ret, board, position, &(-2, 0));
+        self.generate_ij_abs_take_move(&mut ret, board, position, &(0, 2));
+        self.generate_ij_abs_take_move(&mut ret, board, position, &(0, -2));
+        self.generate_ij_abs_take_move(&mut ret, board, position, &(2, 2));
+        self.generate_ij_abs_take_move(&mut ret, board, position, &(2, -2));
+        self.generate_ij_abs_take_move(&mut ret, board, position, &(-2, 2));
+        self.generate_ij_abs_take_move(&mut ret, board, position, &(-2, -2));
+        ret
     }
     
     pub fn generate_wasp_moves(
@@ -499,28 +528,16 @@ impl<'a> ChessemblyCompiled<'a> {
         board: &mut Board<'a>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
-        ChessemblyCompiled {
-            chains: vec![
-                vec![Behavior::TakeMove((2, 1))],
-                vec![Behavior::TakeMove((-2, 1))],
-                vec![Behavior::TakeMove((2, -1))],
-                vec![Behavior::TakeMove((-2, -1))],
-                vec![Behavior::TakeMove((1, 2))],
-                vec![Behavior::TakeMove((-1, 2))],
-                vec![Behavior::TakeMove((1, -2))],
-                vec![Behavior::TakeMove((-1, -2))],
-                vec![Behavior::TakeMove((1, 0)), Behavior::Repeat(1)],
-                vec![Behavior::TakeMove((-1, 0)), Behavior::Repeat(1)],
-                vec![Behavior::TakeMove((0, 1)), Behavior::Repeat(1)],
-                vec![Behavior::TakeMove((0, -1)), Behavior::Repeat(1)],
-                vec![Behavior::TakeMove((1, 1)), Behavior::Repeat(1)],
-                vec![Behavior::TakeMove((1, -1)), Behavior::Repeat(1)],
-                vec![Behavior::TakeMove((-1, 1)), Behavior::Repeat(1)],
-                vec![Behavior::TakeMove((-1, -1)), Behavior::Repeat(1)],
-            ],
-        }
-            .generate_moves(board, position, false)
-            .unwrap()
+        let mut moves = self.generate_knight_moves(board, position);
+        self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(1, 0));
+        self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(-1, 0));
+        self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(0, 1));
+        self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(0, -1));
+        self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(1, 1));
+        self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(1, -1));
+        self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(-1, 1));
+        self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(-1, -1));
+        moves
     }
 
     pub fn generate_centaur_moves(
@@ -528,28 +545,16 @@ impl<'a> ChessemblyCompiled<'a> {
         board: &mut Board<'a>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
-        ChessemblyCompiled {
-            chains: vec![
-                vec![Behavior::TakeMove((2, 1))],
-                vec![Behavior::TakeMove((-2, 1))],
-                vec![Behavior::TakeMove((2, -1))],
-                vec![Behavior::TakeMove((-2, -1))],
-                vec![Behavior::TakeMove((1, 2))],
-                vec![Behavior::TakeMove((-1, 2))],
-                vec![Behavior::TakeMove((1, -2))],
-                vec![Behavior::TakeMove((-1, -2))],
-                vec![Behavior::TakeMove((1, 0))],
-                vec![Behavior::TakeMove((-1, 0))],
-                vec![Behavior::TakeMove((0, 1))],
-                vec![Behavior::TakeMove((0, -1))],
-                vec![Behavior::TakeMove((1, 1))],
-                vec![Behavior::TakeMove((1, -1))],
-                vec![Behavior::TakeMove((-1, 1))],
-                vec![Behavior::TakeMove((-1, -1))],
-            ],
-        }
-            .generate_moves(board, position, false)
-            .unwrap()
+        let mut moves = self.generate_knight_moves(board, position);
+        self.generate_ij_abs_take_move(&mut moves, board, position, &(1, 0));
+        self.generate_ij_abs_take_move(&mut moves, board, position, &(-1, 0));
+        self.generate_ij_abs_take_move(&mut moves, board, position, &(0, 1));
+        self.generate_ij_abs_take_move(&mut moves, board, position, &(0, -1));
+        self.generate_ij_abs_take_move(&mut moves, board, position, &(1, 1));
+        self.generate_ij_abs_take_move(&mut moves, board, position, &(1, -1));
+        self.generate_ij_abs_take_move(&mut moves, board, position, &(-1, 1));
+        self.generate_ij_abs_take_move(&mut moves, board, position, &(-1, -1));
+        moves
     }
 
     pub fn generate_archbishop_moves(
@@ -557,24 +562,12 @@ impl<'a> ChessemblyCompiled<'a> {
         board: &mut Board<'a>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
-        ChessemblyCompiled {
-            chains: vec![
-                vec![Behavior::TakeMove((2, 1))],
-                vec![Behavior::TakeMove((-2, 1))],
-                vec![Behavior::TakeMove((2, -1))],
-                vec![Behavior::TakeMove((-2, -1))],
-                vec![Behavior::TakeMove((1, 2))],
-                vec![Behavior::TakeMove((-1, 2))],
-                vec![Behavior::TakeMove((1, -2))],
-                vec![Behavior::TakeMove((-1, -2))],
-                vec![Behavior::TakeMove((1, 1)), Behavior::Repeat(1)],
-                vec![Behavior::TakeMove((1, -1)), Behavior::Repeat(1)],
-                vec![Behavior::TakeMove((-1, 1)), Behavior::Repeat(1)],
-                vec![Behavior::TakeMove((-1, -1)), Behavior::Repeat(1)],
-            ],
-        }
-            .generate_moves(board, position, false)
-            .unwrap()
+        let mut moves = self.generate_knight_moves(board, position);
+        self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(1, 1));
+        self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(1, -1));
+        self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(-1, 1));
+        self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(-1, -1));
+        moves
     }
 
     pub fn generate_chancellor_moves(
@@ -582,24 +575,12 @@ impl<'a> ChessemblyCompiled<'a> {
         board: &mut Board<'a>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
-        ChessemblyCompiled {
-            chains: vec![
-                vec![Behavior::TakeMove((2, 1))],
-                vec![Behavior::TakeMove((-2, 1))],
-                vec![Behavior::TakeMove((2, -1))],
-                vec![Behavior::TakeMove((-2, -1))],
-                vec![Behavior::TakeMove((1, 2))],
-                vec![Behavior::TakeMove((-1, 2))],
-                vec![Behavior::TakeMove((1, -2))],
-                vec![Behavior::TakeMove((-1, -2))],
-                vec![Behavior::TakeMove((1, 0)), Behavior::Repeat(1)],
-                vec![Behavior::TakeMove((-1, 0)), Behavior::Repeat(1)],
-                vec![Behavior::TakeMove((0, 1)), Behavior::Repeat(1)],
-                vec![Behavior::TakeMove((0, -1)), Behavior::Repeat(1)],
-            ],
-        }
-            .generate_moves(board, position, false)
-            .unwrap()
+        let mut moves = self.generate_knight_moves(board, position);
+        self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(1, 0));
+        self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(-1, 0));
+        self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(0, 1));
+        self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(0, -1));
+        moves
     }
 
     pub fn generate_cannon_moves(
