@@ -347,7 +347,7 @@ impl<'a> ChessemblyCompiled<'a> {
         delta: &DeltaPosition,
     ) {
         let mut sliding_delta = delta.clone();
-        while self.generate_ij_abs_take_move(moves, board, position, delta) {
+        while self.generate_ij_abs_take_move(moves, board, position, &sliding_delta) {
             sliding_delta.0 += delta.0;
             sliding_delta.1 += delta.1;
         }
