@@ -716,4 +716,187 @@ impl<'a> ChessemblyCompiled<'a> {
             .generate_moves(board, position, false)
             .unwrap()
     }
+
+    pub fn generate_chameleon_moves(
+        &self,
+        board: &mut Board<'a>,
+        position: &Position,
+    ) -> Vec<ChessMove<'a>> {
+        let mut moves = ChessemblyCompiled {
+            chains: vec![
+                vec![Behavior::Move((1, 0))],
+                vec![Behavior::Move((-1, 0))],
+                vec![Behavior::Move((0, 1))],
+                vec![Behavior::Move((0, -1))],
+                vec![Behavior::Move((1, 1))],
+                vec![Behavior::Move((1, -1))],
+                vec![Behavior::Move((-1, 1))],
+                vec![Behavior::Move((-1, -1))],
+            ],
+        }
+            .generate_moves(board, position, false)
+            .unwrap();
+
+        let catch_list = [(2, 2), (2, -2), (-2, 2), (-2, -2)];
+        for catch_delta in catch_list {
+            let mut anchor = position.clone();
+            let wc = ChessemblyCompiled::move_anchor(&mut anchor, &catch_delta, board, board.color_on(position).unwrap());
+            if wc == WallCollision::NoCollision {
+                if board.color_on(&anchor) == Some(board.color_on(position).unwrap().invert()) {
+                    match board.piece_on(&anchor).unwrap() {
+                        "pawn" => {
+                            moves.push(ChessMove {
+                                from: *position,
+                                take: anchor.clone(),
+                                move_to: *position,
+                                move_type: MoveType::Catch,
+                                state_change: None,
+                                transition: Some("mirrored-pawn")
+                            });
+                        },
+                        "queen" => {
+                            moves.push(ChessMove {
+                                from: *position,
+                                take: anchor.clone(),
+                                move_to: *position,
+                                move_type: MoveType::Catch,
+                                state_change: None,
+                                transition: Some("mirrored-queen")
+                            });
+                        },
+                        "bishop" => {
+                            moves.push(ChessMove {
+                                from: *position,
+                                take: anchor.clone(),
+                                move_to: *position,
+                                move_type: MoveType::Catch,
+                                state_change: None,
+                                transition: Some("mirrored-bishop")
+                            });
+                        },
+                        "knight" => {
+                            moves.push(ChessMove {
+                                from: *position,
+                                take: anchor.clone(),
+                                move_to: *position,
+                                move_type: MoveType::Catch,
+                                state_change: None,
+                                transition: Some("mirrored-knight")
+                            });
+                        },
+                        "rook" => {
+                            moves.push(ChessMove {
+                                from: *position,
+                                take: anchor.clone(),
+                                move_to: *position,
+                                move_type: MoveType::Catch,
+                                state_change: None,
+                                transition: Some("mirrored-rook")
+                            });
+                        },
+                        _ => {}
+                    }
+                }
+            }
+        }
+        moves
+    }
+
+    pub fn generate_pseudo_pawn_moves(
+        &self,
+        board: &mut Board<'a>,
+        position: &Position,
+    ) -> Vec<ChessMove<'a>> {
+        ChessemblyCompiled {
+            chains: vec![
+                vec![Behavior::Move((0, 1))],
+                vec![Behavior::Take((1, 1))],
+                vec![Behavior::Take((-1, 1))],
+            ],
+        }
+            .generate_moves(board, position, false)
+            .unwrap()
+    }
+
+    pub fn generate_pseudo_rook_moves(
+        &self,
+        board: &mut Board<'a>,
+        position: &Position,
+    ) -> Vec<ChessMove<'a>> {
+        let mut moves = Vec::new();
+        self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(1, 0));
+        self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(-1, 0));
+        self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(0, 1));
+        self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(0, -1));
+        moves
+    }
+    
+    pub fn generate_mirrored_moves(
+        &self,
+        board: &mut Board<'a>,
+        position: &Position,
+        piece: &str,
+    ) -> Vec<ChessMove<'a>> {
+        let moves = match piece {
+            "mirrored-pawn" => self.generate_pseudo_pawn_moves(board, position),
+            "mirrored-bishop" => self.generate_bishop_moves(board, position),
+            "mirrored-rook" => self.generate_pseudo_rook_moves(board, position),
+            "mirrored-knight" => self.generate_knight_moves(board, position),
+            "mirrored-queen" => self.generate_queen_moves(board, position),
+            _ => Vec::new()
+        };
+        let enemy_color = board.color_on(position).unwrap().invert();
+
+        moves.into_iter().map(|node| {
+            let take_color = board.color_on(&node.take);
+            if take_color == Some(enemy_color) {
+                match board.piece_on(&node.take).unwrap() {
+                    "pawn" => ChessMove {
+                        from: node.from,
+                        take: node.take,
+                        move_to: node.move_to,
+                        move_type: node.move_type,
+                        state_change: None,
+                        transition: Some("mirrored-pawn")
+                    },
+                    "bishop" => ChessMove {
+                        from: node.from,
+                        take: node.take,
+                        move_to: node.move_to,
+                        move_type: node.move_type,
+                        state_change: None,
+                        transition: Some("mirrored-bishop")
+                    },
+                    "rook" => ChessMove {
+                        from: node.from,
+                        take: node.take,
+                        move_to: node.move_to,
+                        move_type: node.move_type,
+                        state_change: None,
+                        transition: Some("mirrored-rook")
+                    },
+                    "knight" => ChessMove {
+                        from: node.from,
+                        take: node.take,
+                        move_to: node.move_to,
+                        move_type: node.move_type,
+                        state_change: None,
+                        transition: Some("mirrored-knight")
+                    },
+                    "queen" => ChessMove {
+                        from: node.from,
+                        take: node.take,
+                        move_to: node.move_to,
+                        move_type: node.move_type,
+                        state_change: None,
+                        transition: Some("mirrored-queen")
+                    },
+                    _ => node
+                }
+            }
+            else {
+                node
+            }
+        }).collect()
+    }
 }

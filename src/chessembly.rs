@@ -1209,6 +1209,36 @@ impl<'a> ChessemblyCompiled<'a> {
                 board.dp.insert((position.0, position.1), ret.clone());
                 ret
             }
+            "chameleon" => {
+                let ret = self.generate_chameleon_moves(board, position);
+                board.dp.insert((position.0, position.1), ret.clone());
+                ret
+            }
+            "mirrored-pawn" => {
+                let ret = self.generate_mirrored_moves(board, position, "mirrored-pawn");
+                board.dp.insert((position.0, position.1), ret.clone());
+                ret
+            }
+            "mirrored-bishop" => {
+                let ret = self.generate_mirrored_moves(board, position, "mirrored-bishop");
+                board.dp.insert((position.0, position.1), ret.clone());
+                ret
+            }
+            "mirrored-rook" => {
+                let ret = self.generate_mirrored_moves(board, position, "mirrored-rook");
+                board.dp.insert((position.0, position.1), ret.clone());
+                ret
+            }
+            "mirrored-knight" => {
+                let ret = self.generate_mirrored_moves(board, position, "mirrored-knight");
+                board.dp.insert((position.0, position.1), ret.clone());
+                ret
+            }
+            "mirrored-queen" => {
+                let ret = self.generate_mirrored_moves(board, position, "mirrored-queen");
+                board.dp.insert((position.0, position.1), ret.clone());
+                ret
+            }
             _ => {
                 let ret = self.generate_moves(board, position, check_danger);
                 board.dp.insert((position.0, position.1), ret.clone().unwrap_or(Vec::new()));

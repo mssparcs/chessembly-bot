@@ -3,6 +3,7 @@
 // -----------------------------------------------------------------------------
 pub mod game_logic {
     use crate::chessembly;
+    use crate::chessembly::MoveType;
     use chessembly::board::Board;
     use chessembly::board::BoardStatus;
     use chessembly::ChessMove;
@@ -136,7 +137,6 @@ pub mod game_logic {
             // 4. TODO (고급): 나중에는 'History Heuristic' (과거에 좋았던 수)
 
             // 캡처나 프로모션이 아닌 '조용한 수(quiet move)'는 0점을 반환합니다.
-            
             score
         }
     }
