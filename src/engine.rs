@@ -3,7 +3,6 @@
 // -----------------------------------------------------------------------------
 pub mod game_logic {
     use crate::chessembly;
-    use crate::chessembly::MoveType;
     use chessembly::board::Board;
     use chessembly::board::BoardStatus;
     use chessembly::ChessMove;
@@ -79,15 +78,15 @@ pub mod game_logic {
                         let value = get_piece_value(piece);
                         if self.color_on(&(i, j)) == Some(Color::White) {
                             if self.side_to_move() == Color::White {
-                                score += value * 5;
+                                score += value;
                             } else {
-                                score += value * 5;
+                                score += value;
                             }
                         } else {
                             if self.side_to_move() == Color::White {
-                                score -= value * 5;
+                                score -= value;
                             } else {
-                                score -= value * 5;
+                                score -= value;
                             }
                         }
                     }
@@ -158,15 +157,6 @@ pub mod game_logic {
         } else {
             return 8;
         }
-
-        // match piece {
-        //     Piece::Pawn => 1,
-        //     Piece::Knight => 3,
-        //     Piece::Bishop => 3, // 비숍을 나이트보다 약간 높게 평가
-        //     Piece::Rook => 5,
-        //     Piece::Queen => 9,
-        //     Piece::King => 10000, // 킹은 사실상 무한대 가치지만, 평가에서는 제외
-        // }
     }
 }
 
@@ -269,11 +259,7 @@ pub mod search {
 
         let mut moves = state.get_legal_moves();
         let n = moves.len();
-
-        // --- (수 정렬 추가) ---
-        // score_move 점수가 높은 순 (내림차순)으로 정렬합니다.
-        // b가 a보다 앞에 오도록 비교합니다. (unstable_by가 더 빠름)
-
+        
         let mut rng = rand::rng();
         moves.shuffle(&mut rng);
 
@@ -313,11 +299,12 @@ pub mod search {
         // --- (수 정렬 추가) ---
         // 루트 노드(find_best_move)뿐만 아니라 모든 자식 노드에서도
         // 수 정렬을 수행해야 합니다.
-        let mut moves = state.get_legal_moves();
-        moves.sort_unstable_by(|a, b| state.score_move(b).cmp(&state.score_move(a)));
+        let mut moves: Vec<_> = state.get_legal_moves().into_iter().map(|node| (state.score_move(&node), node)).collect();
+        // moves.sort_unstable_by(|a, b| state.score_move(b).cmp(&state.score_move(a)));
+        moves.sort_unstable_by(|a, b| b.0.cmp(&a.0));
         // --- (끝) ---
 
-        for m in moves {
+        for (_, m) in moves {
             // 정렬된 리스트를 사용합니다.
             let mut new_state = state.make_move(&m);
             let score = -negamax(&mut new_state, depth - 1, -beta, -alpha);

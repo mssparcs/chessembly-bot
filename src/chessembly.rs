@@ -320,7 +320,7 @@ impl<'a> ChessemblyCompiled<'a> {
         for chain in &self.chains {
             let mut rip: usize = 0;
             let mut loops = 0;
-            let mut stack: Vec<(Position, usize)> = vec![(position.clone(), chain.len())];
+            let mut stack: Vec<(Position, usize)> = vec![(*position, chain.len())];
             let mut take_stack: Vec<Option<Position>> = vec![None];
             let mut states: Vec<bool> = vec![true];
             let mut transition: Option<*const str> = None;
@@ -397,9 +397,9 @@ impl<'a> ChessemblyCompiled<'a> {
                             ChessemblyCompiled::push_node(
                                 &mut nodes,
                                 ChessMove {
-                                    from: position.clone(),
-                                    take: stack.last_mut().unwrap().0.clone(),
-                                    move_to: stack.last_mut().unwrap().0.clone(),
+                                    from: *position,
+                                    take: stack.last_mut().unwrap().0,
+                                    move_to: stack.last_mut().unwrap().0,
                                     move_type: MoveType::TakeMove,
                                     state_change: state_change.clone().map(|x| {
                                         x.iter()
@@ -416,9 +416,9 @@ impl<'a> ChessemblyCompiled<'a> {
                             ChessemblyCompiled::push_node(
                                 &mut nodes,
                                 ChessMove {
-                                    from: position.clone(),
-                                    take: stack.last_mut().unwrap().0.clone(),
-                                    move_to: stack.last_mut().unwrap().0.clone(),
+                                    from: *position,
+                                    take: stack.last_mut().unwrap().0,
+                                    move_to: stack.last_mut().unwrap().0,
                                     move_type: MoveType::TakeMove,
                                     state_change: state_change.clone().map(|x| {
                                         x.iter()
@@ -516,7 +516,6 @@ impl<'a> ChessemblyCompiled<'a> {
                     }
                     Behavior::Piece(piece_name) => {
                         if let Some(piece) = board.piece_on(position) {
-                            // worker::console_log!("{}, {}", piece_name, piece);
                             *states.last_mut().unwrap() = piece == piece_name;
                         } else {
                             *states.last_mut().unwrap() = false;
@@ -810,9 +809,9 @@ impl<'a> ChessemblyCompiled<'a> {
                             ChessemblyCompiled::push_node(
                                 &mut nodes,
                                 ChessMove {
-                                    from: position.clone(),
-                                    take: stack.last().unwrap().0.clone(),
-                                    move_to: stack.last().unwrap().0.clone(),
+                                    from: *position,
+                                    take: stack.last().unwrap().0,
+                                    move_to: stack.last().unwrap().0,
                                     move_type: MoveType::Take,
                                     state_change: state_change.clone().map(|x| {
                                         x.iter()
@@ -823,9 +822,9 @@ impl<'a> ChessemblyCompiled<'a> {
                                 },
                             );
                             if let Some(_) = take_stack.pop() {
-                                take_stack.push(Some(stack.last().unwrap().0.clone()));
+                                take_stack.push(Some(stack.last().unwrap().0));
                             } else {
-                                take_stack.push(Some(stack.last().unwrap().0.clone()));
+                                take_stack.push(Some(stack.last().unwrap().0));
                             }
                         }
                         rip += 1;
@@ -853,9 +852,9 @@ impl<'a> ChessemblyCompiled<'a> {
                                             ChessemblyCompiled::push_node(
                                                 &mut nodes,
                                                 ChessMove {
-                                                    from: position.clone(),
-                                                    take: tpc.clone(),
-                                                    move_to: stack.last().unwrap().0.clone(),
+                                                    from: *position,
+                                                    take: *tpc,
+                                                    move_to: stack.last().unwrap().0,
                                                     move_type: MoveType::TakeJump,
                                                     state_change: state_change.clone().map(|x| {
                                                         x.iter()
@@ -919,9 +918,9 @@ impl<'a> ChessemblyCompiled<'a> {
                             ChessemblyCompiled::push_node(
                                 &mut nodes,
                                 ChessMove {
-                                    from: position.clone(),
-                                    take: stack.last_mut().unwrap().0.clone(),
-                                    move_to: position.clone(),
+                                    from: *position,
+                                    take: stack.last_mut().unwrap().0,
+                                    move_to: *position,
                                     move_type: MoveType::Catch,
                                     state_change: state_change.clone().map(|x| {
                                         x.iter()
@@ -977,9 +976,9 @@ impl<'a> ChessemblyCompiled<'a> {
                             ChessemblyCompiled::push_node(
                                 &mut nodes,
                                 ChessMove {
-                                    from: position.clone(),
-                                    take: stack.last_mut().unwrap().0.clone(),
-                                    move_to: stack.last_mut().unwrap().0.clone(),
+                                    from: *position,
+                                    take: stack.last_mut().unwrap().0,
+                                    move_to: stack.last_mut().unwrap().0,
                                     move_type: MoveType::Move,
                                     state_change: state_change.clone().map(|x| {
                                         x.iter()
