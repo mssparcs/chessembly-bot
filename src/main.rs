@@ -40,6 +40,7 @@ async fn run_engine(headers: HeaderMap) -> impl IntoResponse {
         Some(en_passant_black),
         Some(register_white),
         Some(register_black),
+        Some(depth_header_str),
     ) = (
         headers.get("Position"),
         headers.get("Chessembly"),
@@ -50,10 +51,19 @@ async fn run_engine(headers: HeaderMap) -> impl IntoResponse {
         headers.get("En-Passant-Black"),
         headers.get("Register-White"),
         headers.get("Register-Black"),
+        headers.get("Depth"),
     ) else {
         return (StatusCode::OK, "asdf").into_response();
     };
     
+    let Ok(depth) = depth_header_str.to_str().map(|x| x.parse::<u8>().unwrap_or(3)) else {
+        return (StatusCode::OK, "asdf").into_response();
+    };
+    
+    if depth <= 0 || depth > 4 {
+        return (StatusCode::OK, "asdf").into_response();
+    }
+
     let Ok(str_script) = script.to_str().map(|x| urlencoding::decode(x).expect("UTF-8")) else {
         return (StatusCode::OK, "asdf").into_response();
     };
@@ -149,7 +159,7 @@ async fn run_engine(headers: HeaderMap) -> impl IntoResponse {
         chessembly::Color::Black
     };
 
-    let best_move = engine::search::find_best_move(&mut board, 3);
+    let best_move = engine::search::find_best_move(&mut board, depth);
     if let Ok(node) = best_move {
         return (StatusCode::OK, Json(node)).into_response();
     } else if let Err(_) = best_move {
