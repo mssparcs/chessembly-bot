@@ -52,9 +52,10 @@ pub enum MoveType {
     Take,
     TakeJump,
     Catch,
+    Shift,
     Castling
 
-    // Void, Pause, Shift Block
+    // Void, Pause, Block
 }
 
 pub type Position = (u8, u8);
@@ -398,8 +399,8 @@ impl<'a> ChessemblyCompiled<'a> {
                                 &mut nodes,
                                 ChessMove {
                                     from: *position,
-                                    take: stack.last_mut().unwrap().0,
-                                    move_to: stack.last_mut().unwrap().0,
+                                    take: stack.last().unwrap().0,
+                                    move_to: stack.last().unwrap().0,
                                     move_type: MoveType::TakeMove,
                                     state_change: state_change.clone().map(|x| {
                                         x.iter()
@@ -417,8 +418,8 @@ impl<'a> ChessemblyCompiled<'a> {
                                 &mut nodes,
                                 ChessMove {
                                     from: *position,
-                                    take: stack.last_mut().unwrap().0,
-                                    move_to: stack.last_mut().unwrap().0,
+                                    take: stack.last().unwrap().0,
+                                    move_to: stack.last().unwrap().0,
                                     move_type: MoveType::TakeMove,
                                     state_change: state_change.clone().map(|x| {
                                         x.iter()
@@ -919,7 +920,7 @@ impl<'a> ChessemblyCompiled<'a> {
                                 &mut nodes,
                                 ChessMove {
                                     from: *position,
-                                    take: stack.last_mut().unwrap().0,
+                                    take: stack.last().unwrap().0,
                                     move_to: *position,
                                     move_type: MoveType::Catch,
                                     state_change: state_change.clone().map(|x| {
@@ -977,8 +978,8 @@ impl<'a> ChessemblyCompiled<'a> {
                                 &mut nodes,
                                 ChessMove {
                                     from: *position,
-                                    take: stack.last_mut().unwrap().0,
-                                    move_to: stack.last_mut().unwrap().0,
+                                    take: stack.last().unwrap().0,
+                                    move_to: stack.last().unwrap().0,
                                     move_type: MoveType::Move,
                                     state_change: state_change.clone().map(|x| {
                                         x.iter()
@@ -1080,6 +1081,44 @@ impl<'a> ChessemblyCompiled<'a> {
                             rip += 1;
                             *states.last_mut().unwrap() = true;
                         }
+                    }
+                    Behavior::Anchor(delta) => {
+                        let wc = ChessemblyCompiled::move_anchor(
+                            &mut stack.last_mut().unwrap().0,
+                            &delta,
+                            board,
+                            board.color_on(position).unwrap(),
+                        );
+                        if wc != WallCollision::NoCollision {
+                            *states.last_mut().unwrap() = false;
+                        }
+                        rip += 1;
+                    }
+                    Behavior::Shift(delta) => {
+                        let wc = ChessemblyCompiled::move_anchor(
+                            &mut stack.last_mut().unwrap().0,
+                            &delta,
+                            board,
+                            board.color_on(position).unwrap(),
+                        );
+                        if wc != WallCollision::NoCollision {
+                            *states.last_mut().unwrap() = false;
+                        }
+                        else if let Some(_) = board.color_on(&stack.last().unwrap().0) {
+                            ChessemblyCompiled::push_node(&mut nodes, ChessMove {
+                                from: *position,
+                                move_to: stack.last().unwrap().0,
+                                take: *position,
+                                move_type: MoveType::Shift,
+                                state_change: state_change.clone().map(|x| {
+                                    x.iter()
+                                        .map(|(k, v)| (unsafe { k.as_ref().unwrap() }, *v))
+                                        .collect()
+                                }),
+                                transition: transition.map(|x| unsafe { x.as_ref().unwrap() }),
+                            });
+                        }
+                        rip += 1;
                     }
                     _ => break,
                 };

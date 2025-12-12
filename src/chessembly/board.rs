@@ -262,6 +262,23 @@ impl<'a> Board<'a> {
                 ret.board[node.move_to.1 as usize].swap(0, 3);
             }
         }
+        else if node.move_type == MoveType::Shift {
+            let shifter = node
+                .transition
+                .as_ref()
+                .map(|x| {
+                    PieceSpan::Piece(Piece {
+                        piece_type: x,
+                        color: match &ret.board[node.from.1 as usize][node.from.0 as usize] {
+                            PieceSpan::Empty => Color::White,
+                            PieceSpan::Piece(piece) => piece.color,
+                        },
+                    })
+                })
+                .unwrap_or(ret.board[node.from.1 as usize][node.from.0 as usize].clone());
+            ret.board[node.from.1 as usize][node.from.0 as usize] = ret.board[node.move_to.1 as usize][node.move_to.0 as usize].clone();
+            ret.board[node.move_to.1 as usize][node.move_to.0 as usize] = shifter;
+        }
         else {
             ret.board[node.take.1 as usize][node.take.0 as usize] = PieceSpan::Empty;
             ret.board[node.move_to.1 as usize][node.move_to.0 as usize] = node
@@ -277,9 +294,9 @@ impl<'a> Board<'a> {
                     })
                 })
                 .unwrap_or(ret.board[node.from.1 as usize][node.from.0 as usize].clone());
+            ret.board[node.from.1 as usize][node.from.0 as usize] = PieceSpan::Empty;
         }
 
-        ret.board[node.from.1 as usize][node.from.0 as usize] = PieceSpan::Empty;
         if let Some(state_changes) = &node.state_change {
             for (key, n) in state_changes {
                 if key == &"castling-oo" {

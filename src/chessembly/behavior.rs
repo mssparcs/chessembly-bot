@@ -7,6 +7,8 @@ pub enum Behavior<'a> {
     Repeat(i8),
     Move(DeltaPosition),
     Catch(DeltaPosition),
+    Shift(DeltaPosition),
+    Anchor(DeltaPosition),
     Peek(DeltaPosition),
     Observe(DeltaPosition),
     While,
@@ -196,6 +198,17 @@ impl<'a> Behavior<'a> {
                     .map(|s| s.parse::<i8>().unwrap_or(0))
                     .unwrap_or(0),
             ));
+        } else if cmd == "shift" {
+            return Behavior::Shift((
+                params_vec
+                    .get(0)
+                    .map(|s| s.parse::<i8>().unwrap_or(0))
+                    .unwrap_or(0),
+                params_vec
+                    .get(1)
+                    .map(|s| s.parse::<i8>().unwrap_or(0))
+                    .unwrap_or(0),
+            ));
         } else if cmd == "danger" {
             return Behavior::Danger((
                 params_vec
@@ -231,6 +244,17 @@ impl<'a> Behavior<'a> {
             ));
         } else if cmd == "peek" {
             return Behavior::Peek((
+                params_vec
+                    .get(0)
+                    .map(|s| s.parse::<i8>().unwrap_or(0))
+                    .unwrap_or(0),
+                params_vec
+                    .get(1)
+                    .map(|s| s.parse::<i8>().unwrap_or(0))
+                    .unwrap_or(0),
+            ));
+        } else if cmd == "anchor" {
+            return Behavior::Anchor((
                 params_vec
                     .get(0)
                     .map(|s| s.parse::<i8>().unwrap_or(0))
