@@ -818,6 +818,38 @@ impl<'a> ChessemblyCompiled<'a> {
             .unwrap()
     }
 
+    pub fn generate_beacon_moves(
+        &self,
+        board: &mut Board<'a>,
+        position: &Position,
+    ) -> Vec<ChessMove<'a>> {
+        let color = board.color_on(position).unwrap();
+        let mut moves = Vec::new();
+        for i in 0..8 {
+            for j in 0..8 {
+                let Some(target_color) = board.color_on(&(j, i)) else { continue; };
+                if target_color == color {
+                    let target_piece = board.piece_on(&(j, i)).unwrap();
+                    if target_piece == "pawn" {
+                        continue;
+                    }
+                    else if target_piece == "beacon" {
+                        continue;
+                    }
+                    moves.push(ChessMove {
+                        from: *position,
+                        take: *position,
+                        move_to: (j, i),
+                        move_type: MoveType::Shift,
+                        state_change: None,
+                        transition: None
+                    });
+                }
+            }
+        }
+        moves
+    }
+
     pub fn generate_pseudo_rook_moves(
         &self,
         board: &mut Board<'a>,

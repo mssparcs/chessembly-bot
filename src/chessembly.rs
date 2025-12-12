@@ -1247,6 +1247,11 @@ impl<'a> ChessemblyCompiled<'a> {
                 board.dp.insert((position.0, position.1), ret.clone());
                 ret
             }
+            "beacon" => {
+                let ret = self.generate_beacon_moves(board, position);
+                board.dp.insert((position.0, position.1), ret.clone());
+                ret
+            }
             "chameleon" => {
                 let ret = self.generate_chameleon_moves(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
