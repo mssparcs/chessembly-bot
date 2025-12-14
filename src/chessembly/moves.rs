@@ -861,6 +861,26 @@ impl<'a> ChessemblyCompiled<'a> {
         moves
     }
     
+    pub fn generate_windmill_rook_moves(
+        &self,
+        board: &mut Board<'a>,
+        position: &Position,
+    ) -> Vec<ChessMove<'a>> {
+        let fs = ChessemblyCompiled::from_script("piece(windmill-rook) transition(windmill-bishop) { take-move(1, 0) repeat(1) } { take-move(0, 1) repeat(1) } { take-move(-1, 0) repeat(1) } { take-move(0, -1) repeat(1) };").unwrap();
+        let ret = fs.generate_moves(board, position, false).unwrap();
+        ret
+    }
+
+    pub fn generate_windmill_bishop_moves(
+        &self,
+        board: &mut Board<'a>,
+        position: &Position,
+    ) -> Vec<ChessMove<'a>> {
+        let fs = ChessemblyCompiled::from_script("piece(windmill-bishop) transition(windmill-rook) { take-move(1, 1) repeat(1) } { take-move(-1, 1) repeat(1) } { take-move(1, -1) repeat(1) } { take-move(-1, -1) repeat(1) };").unwrap();
+        let ret = fs.generate_moves(board, position, false).unwrap();
+        ret
+    }
+
     pub fn generate_mirrored_moves(
         &self,
         board: &mut Board<'a>,

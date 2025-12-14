@@ -1294,6 +1294,16 @@ impl<'a> ChessemblyCompiled<'a> {
                 board.dp.insert((position.0, position.1), ret.clone());
                 ret
             }
+            "windmill-rook" => {
+                let ret = self.generate_windmill_rook_moves(board, position);
+                board.dp.insert((position.0, position.1), ret.clone());
+                ret
+            }
+            "windmill-bishop" => {
+                let ret = self.generate_windmill_bishop_moves(board, position);
+                board.dp.insert((position.0, position.1), ret.clone());
+                ret
+            }
             _ => {
                 let ret = self.generate_moves(board, position, check_danger);
                 board.dp.insert((position.0, position.1), ret.clone().unwrap_or(Vec::new()));
