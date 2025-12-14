@@ -147,6 +147,14 @@ impl MoveGen {
             .map(|x| x.take)
             .collect()
     }
+
+    pub fn get_danger_zones_bit(board: &mut Board, enemy: Color) -> u64 {
+        let mut ret: u64 = 0;
+        for node in MoveGen::get_all_moves(board, enemy, false) {
+            ret |= 1 << (node.take.1 * 8 + node.take.0);
+        }
+        ret
+    }
 }
 
 impl<'a> ChessemblyCompiled<'a> {
@@ -256,8 +264,12 @@ impl<'a> ChessemblyCompiled<'a> {
     }
 
     pub fn is_danger(&self, board: &mut Board, position: &Position, color: Color) -> bool {
-        let danger_zones = MoveGen::get_danger_zones(board, color);
-        danger_zones.iter().any(|x| x == position)
+        let danger_zones = MoveGen::get_danger_zones_bit(board, color);
+        ChessemblyCompiled::is_danger_bit(danger_zones, position.0, position.1)
+    }
+
+    pub fn is_danger_bit(danger_zones_bit: u64, x: u8, y: u8) -> bool {
+        (danger_zones_bit & (1 << (8 * y + x))) != 0
     }
 
     pub fn is_check(&self, board: &mut Board, color: Color) -> bool {
@@ -1157,8 +1169,8 @@ impl<'a> ChessemblyCompiled<'a> {
                 ret
             }
             "king" => {
-                let danger_zones = if check_danger { MoveGen::get_danger_zones(board, board.color_on(position).unwrap().invert()) } else { Vec::new() };
-                let ret = self.generate_king_moves(board, position, &danger_zones);
+                let danger_zones = if check_danger { MoveGen::get_danger_zones_bit(board, board.color_on(position).unwrap().invert()) } else { 0 };
+                let ret = self.generate_king_moves(board, position, danger_zones);
                 board.dp.insert((position.0, position.1), ret.clone());
                 ret
             }

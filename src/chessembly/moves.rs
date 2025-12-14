@@ -216,7 +216,7 @@ impl<'a> ChessemblyCompiled<'a> {
         &self,
         board: &mut Board<'a>,
         position: &Position,
-        danger_zones: &Vec<Position>,
+        danger_zones: u64,
     ) -> Vec<ChessMove<'a>> {
         let state_transition = vec![("castling-oo", 0), ("castling-ooo", 0)];
         let mut ret = Vec::new();
@@ -236,9 +236,7 @@ impl<'a> ChessemblyCompiled<'a> {
                     if board.color_on(&((position.0 as i8 + i) as u8, (position.1 as i8 - j) as u8))
                         != board.color_on(position)
                     {
-                        if !danger_zones.iter().any(|&x| {
-                            x == ((position.0 as i8 + i) as u8, (position.1 as i8 - j) as u8)
-                        }) {
+                        if !ChessemblyCompiled::is_danger_bit(danger_zones, (position.0 as i8 + i) as u8, (position.1 as i8 - j) as u8) {
                             ret.push(ChessMove {
                                 from: position.clone(),
                                 take: ((position.0 as i8 + i) as u8, (position.1 as i8 - j) as u8),
@@ -263,7 +261,7 @@ impl<'a> ChessemblyCompiled<'a> {
         if castling_oo {
             if board.piece_on(&(7, position.1)) == Some("rook") && board.color_on(&(7, position.1)) == Some(color) {
                 if board.color_on(&(6, position.1)) == None && board.color_on(&(5, position.1)) == None {
-                    if !danger_zones.iter().any(|&x| x == *position) {
+                    if !ChessemblyCompiled::is_danger_bit(danger_zones, position.0, position.1) {
                         ret.push(ChessMove {
                             from: position.clone(),
                             take: (6, position.1),
@@ -279,7 +277,7 @@ impl<'a> ChessemblyCompiled<'a> {
         if castling_ooo {
             if board.piece_on(&(0, position.1)) == Some("rook") && board.color_on(&(0, position.1)) == Some(color) {
                 if board.color_on(&(1, position.1)) == None && board.color_on(&(2, position.1)) == None && board.color_on(&(3, position.1)) == None {
-                    if !danger_zones.iter().any(|&x| x == *position) {
+                    if !ChessemblyCompiled::is_danger_bit(danger_zones, position.0, position.1) {
                         ret.push(ChessMove {
                             from: position.clone(),
                             take: (2, position.1),
