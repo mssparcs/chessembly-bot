@@ -2,7 +2,7 @@ use axum::{
     Router, http::{HeaderMap, StatusCode}, response::{IntoResponse, Json}, routing::post
 };
 use chessembly_bot::{
-    chessembly::{self, board::Board, ChessemblyCompiled, board::BoardState, board::BothBoardState},
+    chessembly::{self, ChessemblyCompiled, board::{Board, BoardState, BothBoardState}},
     engine,
 };
 use std::{collections::HashMap, env};
@@ -27,6 +27,38 @@ async fn main() {
     info!("listening on {}", addr);
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
+}
+
+fn setup_board<'a, const MACHO: bool, const IMPRISONED: bool>(
+    compiled: &'a ChessemblyCompiled<'a>,
+    position: &'a str,
+    board_state: BothBoardState<'a>,
+    turn: chessembly::Color,
+) -> Board<'a, MACHO, IMPRISONED> {
+    let mut board = Board::<'a, MACHO, IMPRISONED>::empty(&compiled);
+    let mut i = 0;
+    for line in position.split('/') {
+        let mut j = 0;
+        for pc in line.split_whitespace() {
+            if let Some((piece_name, color)) = pc.split_once(':') {
+                board.board[i][j] = chessembly::PieceSpan::Piece(chessembly::Piece {
+                    piece_type: piece_name,
+                    color: if color == "white" {
+                        chessembly::Color::White
+                    } else {
+                        chessembly::Color::Black
+                    },
+                });
+            }
+            j += 1;
+        }
+        i += 1;
+    }
+
+    board.board_state = board_state;
+    board.turn = turn;
+
+    board
 }
 
 async fn run_engine(headers: HeaderMap) -> impl IntoResponse {
@@ -133,86 +165,58 @@ async fn run_engine(headers: HeaderMap) -> impl IntoResponse {
         black: board_state_black,
     };
 
-    let mut board = Board::empty(&compiled);
-    board.board_state = board_state;
-    let mut i = 0;
-    for line in position.to_str().unwrap().split('/') {
-        let mut j = 0;
-        for pc in line.split_whitespace() {
-            if let Some((piece_name, color)) = pc.split_once(':') {
-                board.board[i][j] = chessembly::PieceSpan::Piece(chessembly::Piece {
-                    piece_type: piece_name,
-                    color: if color == "white" {
-                        chessembly::Color::White
-                    } else {
-                        chessembly::Color::Black
-                    },
-                });
-            }
-            j += 1;
-        }
-        i += 1;
-    }
-    board.turn = if turn.to_str().unwrap() == "white" {
+    let turn = if turn.to_str().unwrap() == "white" {
         chessembly::Color::White
     } else {
         chessembly::Color::Black
     };
+    
+    let is_macho = headers.get("Macho").is_some();
+    let is_imprisoned = headers.get("Imprisoned").is_some();
 
-    let best_move = engine::search::find_best_move(&mut board, depth);
+    let best_move = match (is_macho, is_imprisoned) {
+        (true, true) => {
+            let mut board: Board<true, true> = setup_board(
+                &compiled,
+                position.to_str().unwrap(),
+                board_state,
+                turn
+            );
+            engine::search::find_best_move(&mut board, depth)
+        },
+        (true, false) => {
+            let mut board: Board<true, false> = setup_board(
+                &compiled,
+                position.to_str().unwrap(),
+                board_state,
+                turn
+            );
+            engine::search::find_best_move(&mut board, depth)
+        }
+        (false, true) => {
+            let mut board: Board<false, true> = setup_board(
+                &compiled,
+                position.to_str().unwrap(),
+                board_state,
+                turn
+            );
+            engine::search::find_best_move(&mut board, depth)
+        }
+        (false, false) => {
+            let mut board: Board<false, false> = setup_board(
+                &compiled,
+                position.to_str().unwrap(),
+                board_state,
+                turn
+            );
+            engine::search::find_best_move(&mut board, depth)
+        }
+    };
+
     if let Ok(node) = best_move {
         return (StatusCode::OK, Json(node)).into_response();
     } else if let Err(_) = best_move {
         return (StatusCode::OK, "null").into_response();
     }
     return (StatusCode::OK, "asdf").into_response();
-
-    /*
-    let (Some(position), Some(script), Some(data)) = (
-        headers.get("position"),
-        headers.get("Chessembly"),
-        headers.get("Turn"),
-    ) else {
-        return (StatusCode::BAD_REQUEST, "Missing required headers").into_response();
-    };
-
-    let (Ok(str_script), Ok(position_str), Ok(turn_str)) = (
-        script.to_str(),
-        position.to_str(),
-        data.to_str(),
-    ) else {
-        return (StatusCode::BAD_REQUEST, "Invalid header format").into_response();
-    };
-
-    let Ok(compiled) = ChessemblyCompiled::from_script(str_script) else {
-        return (StatusCode::BAD_REQUEST, "Failed to compile Chessembly script").into_response();
-    };
-
-    let mut board = Board::empty(&compiled);
-    for (i, line) in position_str.split('/').enumerate().take(board.board.len()) {
-        for (j, pc) in line.split_whitespace().enumerate().take(board.board[i].len()) {
-            if let Some((piece_name, color)) = pc.split_once(':') {
-                board.board[i][j] = PieceSpan::Piece(Piece {
-                    piece_type: piece_name,
-                    color: if color == "white" {
-                        chessembly_bot::chessembly::Color::White
-                    } else {
-                        chessembly_bot::chessembly::Color::Black
-                    },
-                });
-            }
-        }
-    }
-
-    board.turn = if turn_str == "white" {
-        chessembly_bot::chessembly::Color::White
-    } else {
-        chessembly_bot::chessembly::Color::Black
-    };
-
-    match engine::search::find_best_move(&mut board, 3) {
-        Ok(node) => (StatusCode::OK, Json(node)).into_response(),
-        Err(_) => (StatusCode::OK, Json(Value::Null)).into_response(),
-    }
-    */
 }

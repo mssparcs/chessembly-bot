@@ -24,7 +24,7 @@ pub struct BothBoardState<'a> {
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Board<'a> {
+pub struct Board<'a, const MACHO: bool, const IMPRISONED: bool> {
     pub board: [[PieceSpan<'a>; 8]; 8],
     pub board_state: BothBoardState<'a>,
     pub turn: Color,
@@ -33,8 +33,8 @@ pub struct Board<'a> {
     pub dp: HashMap<Position, Vec<ChessMove<'a>>>,
 }
 
-impl<'a> Board<'a> {
-    pub fn from_str(placement: &str, script: &'a ChessemblyCompiled) -> Board<'a> {
+impl<'a, const MACHO: bool, const IMPRISONED: bool> Board<'a, MACHO, IMPRISONED> {
+    pub fn from_str(placement: &str, script: &'a ChessemblyCompiled) -> Board<'a, MACHO, IMPRISONED> {
         let mut ret = Board {
             dp: HashMap::new(),
             board: [
@@ -98,7 +98,7 @@ impl<'a> Board<'a> {
         ret
     }
 
-    pub fn empty(script: &'a ChessemblyCompiled) -> Board<'a> {
+    pub fn empty(script: &'a ChessemblyCompiled) -> Board<'a, MACHO, IMPRISONED> {
         Board {
             dp: HashMap::new(),
             board: [
@@ -131,7 +131,7 @@ impl<'a> Board<'a> {
         }
     }
 
-    pub fn new(script: &'a ChessemblyCompiled) -> Board<'a> {
+    pub fn new(script: &'a ChessemblyCompiled) -> Board<'a, MACHO, IMPRISONED> {
         Board {
             dp: HashMap::new(),
             board: [
@@ -239,7 +239,7 @@ impl<'a> Board<'a> {
     }
 
     #[inline]
-    pub fn clone_without_dp(&self) -> Board<'a> {
+    pub fn clone_without_dp(&self) -> Board<'a, MACHO, IMPRISONED> {
         Board {
             board: self.board.clone(),
             board_state: self.board_state.clone(),
@@ -250,7 +250,7 @@ impl<'a> Board<'a> {
         }
     }
 
-    pub fn make_move_new_nc(&self, node: &ChessMove<'a>, decide: bool) -> Board<'a> {
+    pub fn make_move_new_nc(&self, node: &ChessMove<'a>, decide: bool) -> Board<'a, MACHO, IMPRISONED> {
         let mut ret = self.clone_without_dp();
 
         if node.move_type == MoveType::Castling {
@@ -334,18 +334,46 @@ impl<'a> Board<'a> {
         ret.turn = ret.turn.invert();
 
         let turn = ret.side_to_move();
-        if MoveGen::get_all_moves(&mut ret, turn, true).len() == 0 {
-            if self.script.is_check(&mut ret, turn.invert()) {
+        if MACHO {
+            if MoveGen::get_all_moves(&mut ret, turn, true).len() == 0 {
                 ret.status = BoardStatus::Checkmate;
-            } else {
-                ret.status = BoardStatus::Stalemate;
+            }
+            else {
+                let mut found_king = false;
+                for i in 0..8 {
+                    for j in 0..8 {
+                        if ret.color_on(&(j, i)) == Some(turn) {
+                            if ret.piece_on(&(j, i)).unwrap() == "king" {
+                                found_king = true;
+                                if turn == Color::White && i == 0 {
+                                    ret.status = BoardStatus::Checkmate;
+                                }
+                                else if turn == Color::Black && i == 7 {
+                                    ret.status = BoardStatus::Checkmate;
+                                }
+                            }
+                        }
+                    }
+                }
+                if !found_king {
+                    ret.status = BoardStatus::Checkmate;
+                }
+            }
+        }
+        else {
+            if MoveGen::get_all_moves(&mut ret, turn, true).len() == 0 {
+                if self.script.is_check(&mut ret, turn.invert()) {
+                    ret.status = BoardStatus::Checkmate;
+                } else {
+                    ret.status = BoardStatus::Stalemate;
+                }
             }
         }
         ret
     }
 
     #[inline]
-    pub fn make_move_new(&self, node: &ChessMove<'a>) -> Board<'a> {
+    pub fn make_move_new(&self, node: &ChessMove<'a>) -> Board<'a, MACHO, IMPRISONED> {
         self.make_move_new_nc(node, true)
     }
 

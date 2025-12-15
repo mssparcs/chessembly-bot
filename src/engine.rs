@@ -39,7 +39,7 @@ pub mod game_logic {
     // 'chess::Board'에 우리가 정의한 GameState 트레이트를 구현합니다.
     // 만약 '변형 체스'를 만드신다면,
     // 'MyVariantBoard' 같은 자신만의 구조체를 만들고 이 트레이트를 구현하면 됩니다.
-    impl<'a> GameState for Board<'a> {
+    impl<'a, const MACHO: bool, const IMPRISONED: bool> GameState for Board<'a, MACHO, IMPRISONED> {
         type Move = ChessMove<'a>;
 
         fn get_legal_moves(&mut self) -> Vec<Self::Move> {
