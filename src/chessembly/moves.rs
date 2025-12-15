@@ -22,7 +22,7 @@ impl<'a> ChessemblyCompiled<'a> {
         let promotion = if color == Color::White { 1 } else { 6 };
 
         if board.color_on(&(position.0, step1)) == None {
-            if position.1 == promotion {
+            if (position.1 == promotion) && !MACHO {
                 ret.push(ChessMove {
                     from: position.clone(),
                     take: (position.0, step1),
@@ -120,9 +120,9 @@ impl<'a> ChessemblyCompiled<'a> {
             }
         }
 
-        if position.1 == promotion {
-            if position.0 > 0 {
-                if board.color_on(&(position.0 - 1, step1)) == Some(color.invert()) {
+        if position.0 > 0 {
+            if board.color_on(&(position.0 - 1, step1)) == Some(color.invert()) {
+                if position.1 == promotion && !MACHO {
                     ret.push(ChessMove {
                         from: position.clone(),
                         take: (position.0 - 1, step1),
@@ -166,8 +166,10 @@ impl<'a> ChessemblyCompiled<'a> {
                     });
                 }
             }
-            if position.0 < board.get_width() as u8 - 1 {
-                if board.color_on(&(position.0 + 1, step1)) == Some(color.invert()) {
+        }
+        if position.0 < board.get_width() as u8 - 1 {
+            if board.color_on(&(position.0 + 1, step1)) == Some(color.invert()) {
+                if position.1 == promotion && !MACHO {            
                     ret.push(ChessMove {
                         from: position.clone(),
                         take: (position.0 + 1, step1),
