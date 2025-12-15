@@ -320,23 +320,6 @@ impl<'a, const MACHO: bool, const IMPRISONED: bool> Board<'a, MACHO, IMPRISONED>
                 }
             }
         }
-
-        if MACHO {
-            for i in 0..8 {
-                for j in 0..8 {
-                    if ret.color_on(&(j, i)) == Some(ret.turn) {
-                        if ret.piece_on(&(j, i)).unwrap() == "pawn" {
-                            if ret.turn == Color::White && i == 0 {
-                                ret.board[i as usize][j as usize] = PieceSpan::Empty;
-                            }
-                            else if ret.turn == Color::Black && i == 7 {
-                                ret.board[i as usize][j as usize] = PieceSpan::Empty;
-                            }
-                        }
-                    }
-                }
-            }
-        }
         
         if !decide {
             return ret;
