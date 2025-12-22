@@ -24,7 +24,7 @@ impl<'a> ChessemblyCompiled<'a> {
         if board.color_on(&(position.0, step1)) == None {
             if (position.1 == promotion) && !MACHO {
                 ret.push(ChessMove {
-                    from: position.clone(),
+                    from: *position,
                     take: (position.0, step1),
                     move_to: (position.0, step1),
                     move_type: MoveType::Move,
@@ -32,7 +32,7 @@ impl<'a> ChessemblyCompiled<'a> {
                     transition: Some("knight"),
                 });
                 ret.push(ChessMove {
-                    from: position.clone(),
+                    from: *position,
                     take: (position.0, step1),
                     move_to: (position.0, step1),
                     move_type: MoveType::Move,
@@ -40,7 +40,7 @@ impl<'a> ChessemblyCompiled<'a> {
                     transition: Some("bishop"),
                 });
                 ret.push(ChessMove {
-                    from: position.clone(),
+                    from: *position,
                     take: (position.0, step1),
                     move_to: (position.0, step1),
                     move_type: MoveType::Move,
@@ -48,7 +48,7 @@ impl<'a> ChessemblyCompiled<'a> {
                     transition: Some("rook"),
                 });
                 ret.push(ChessMove {
-                    from: position.clone(),
+                    from: *position,
                     take: (position.0, step1),
                     move_to: (position.0, step1),
                     move_type: MoveType::Move,
@@ -57,7 +57,7 @@ impl<'a> ChessemblyCompiled<'a> {
                 });
             } else {
                 ret.push(ChessMove {
-                    from: position.clone(),
+                    from: *position,
                     take: (position.0, step1),
                     move_to: (position.0, step1),
                     move_type: MoveType::Move,
@@ -69,7 +69,7 @@ impl<'a> ChessemblyCompiled<'a> {
                 let step2 = if color == Color::White { 4 } else { 3 };
                 if board.color_on(&(position.0, step2)) == None {
                     ret.push(ChessMove {
-                        from: position.clone(),
+                        from: *position,
                         take: (position.0, step2),
                         move_to: (position.0, step2),
                         move_type: MoveType::Move,
@@ -94,7 +94,7 @@ impl<'a> ChessemblyCompiled<'a> {
                         ret.clear();
                     }
                     ret.push(ChessMove {
-                        from: position.clone(),
+                        from: *position,
                         move_to: (position.0 - 1, step1),
                         take: (position.0 - 1, position.1),
                         move_type: MoveType::TakeJump,
@@ -109,7 +109,7 @@ impl<'a> ChessemblyCompiled<'a> {
                         ret.clear();
                     }
                     ret.push(ChessMove {
-                        from: position.clone(),
+                        from: *position,
                         move_to: (position.0 + 1, step1),
                         take: (position.0 + 1, position.1),
                         move_type: MoveType::TakeJump,
@@ -124,7 +124,7 @@ impl<'a> ChessemblyCompiled<'a> {
             if board.color_on(&(position.0 - 1, step1)) == Some(color.invert()) {
                 if position.1 == promotion && !MACHO {
                     ret.push(ChessMove {
-                        from: position.clone(),
+                        from: *position,
                         take: (position.0 - 1, step1),
                         move_to: (position.0 - 1, step1),
                         move_type: MoveType::Take,
@@ -132,7 +132,7 @@ impl<'a> ChessemblyCompiled<'a> {
                         transition: Some("knight"),
                     });
                     ret.push(ChessMove {
-                        from: position.clone(),
+                        from: *position,
                         take: (position.0 - 1, step1),
                         move_to: (position.0 - 1, step1),
                         move_type: MoveType::Take,
@@ -140,7 +140,7 @@ impl<'a> ChessemblyCompiled<'a> {
                         transition: Some("bishop"),
                     });
                     ret.push(ChessMove {
-                        from: position.clone(),
+                        from: *position,
                         take: (position.0 - 1, step1),
                         move_to: (position.0 - 1, step1),
                         move_type: MoveType::Take,
@@ -148,7 +148,7 @@ impl<'a> ChessemblyCompiled<'a> {
                         transition: Some("rook"),
                     });
                     ret.push(ChessMove {
-                        from: position.clone(),
+                        from: *position,
                         take: (position.0 - 1, step1),
                         move_to: (position.0 - 1, step1),
                         move_type: MoveType::Take,
@@ -157,7 +157,7 @@ impl<'a> ChessemblyCompiled<'a> {
                     });
                 } else {
                     ret.push(ChessMove {
-                        from: position.clone(),
+                        from: *position,
                         take: (position.0 - 1, step1),
                         move_to: (position.0 - 1, step1),
                         move_type: MoveType::Take,
@@ -171,7 +171,7 @@ impl<'a> ChessemblyCompiled<'a> {
             if board.color_on(&(position.0 + 1, step1)) == Some(color.invert()) {
                 if position.1 == promotion && !MACHO {            
                     ret.push(ChessMove {
-                        from: position.clone(),
+                        from: *position,
                         take: (position.0 + 1, step1),
                         move_to: (position.0 + 1, step1),
                         move_type: MoveType::Take,
@@ -179,7 +179,7 @@ impl<'a> ChessemblyCompiled<'a> {
                         transition: Some("knight"),
                     });
                     ret.push(ChessMove {
-                        from: position.clone(),
+                        from: *position,
                         take: (position.0 + 1, step1),
                         move_to: (position.0 + 1, step1),
                         move_type: MoveType::Take,
@@ -187,7 +187,7 @@ impl<'a> ChessemblyCompiled<'a> {
                         transition: Some("bishop"),
                     });
                     ret.push(ChessMove {
-                        from: position.clone(),
+                        from: *position,
                         take: (position.0 + 1, step1),
                         move_to: (position.0 + 1, step1),
                         move_type: MoveType::Take,
@@ -195,7 +195,7 @@ impl<'a> ChessemblyCompiled<'a> {
                         transition: Some("rook"),
                     });
                     ret.push(ChessMove {
-                        from: position.clone(),
+                        from: *position,
                         take: (position.0 + 1, step1),
                         move_to: (position.0 + 1, step1),
                         move_type: MoveType::Take,
@@ -204,7 +204,7 @@ impl<'a> ChessemblyCompiled<'a> {
                     });
                 } else {
                     ret.push(ChessMove {
-                        from: position.clone(),
+                        from: *position,
                         take: (position.0 + 1, step1),
                         move_to: (position.0 + 1, step1),
                         move_type: MoveType::Take,
@@ -248,7 +248,7 @@ impl<'a> ChessemblyCompiled<'a> {
                     {
                         if MACHO || !ChessemblyCompiled::is_danger_bit(danger_zones, (position.0 as i8 + i) as u8, (position.1 as i8 - j) as u8) {
                             ret.push(ChessMove {
-                                from: position.clone(),
+                                from: *position,
                                 take: ((position.0 as i8 + i) as u8, (position.1 as i8 - j) as u8),
                                 move_to: (
                                     (position.0 as i8 + i) as u8,
@@ -277,7 +277,7 @@ impl<'a> ChessemblyCompiled<'a> {
                 if board.color_on(&(6, position.1)) == None && board.color_on(&(5, position.1)) == None {
                     if !ChessemblyCompiled::is_danger_bit(danger_zones, position.0, position.1) {
                         ret.push(ChessMove {
-                            from: position.clone(),
+                            from: *position,
                             take: (6, position.1),
                             move_to: (6, position.1),
                             move_type: MoveType::Castling,
@@ -293,7 +293,7 @@ impl<'a> ChessemblyCompiled<'a> {
                 if board.color_on(&(1, position.1)) == None && board.color_on(&(2, position.1)) == None && board.color_on(&(3, position.1)) == None {
                     if !ChessemblyCompiled::is_danger_bit(danger_zones, position.0, position.1) {
                         ret.push(ChessMove {
-                            from: position.clone(),
+                            from: *position,
                             take: (2, position.1),
                             move_to: (2, position.1),
                             move_type: MoveType::Castling,
@@ -315,7 +315,7 @@ impl<'a> ChessemblyCompiled<'a> {
         position: &Position,
         delta: &DeltaPosition,
     ) -> bool {
-        let mut anchor = position.clone();
+        let mut anchor = *position;
         let color = board.color_on(position).unwrap();
         let wc = ChessemblyCompiled::move_anchor(&mut anchor, delta, board, color);
         if wc == WallCollision::NoCollision {
@@ -358,7 +358,7 @@ impl<'a> ChessemblyCompiled<'a> {
         position: &Position,
         delta: &DeltaPosition,
     ) {
-        let mut sliding_delta = delta.clone();
+        let mut sliding_delta = *delta;
         while self.generate_ij_abs_take_move(moves, board, position, &sliding_delta) {
             sliding_delta.0 += delta.0;
             sliding_delta.1 += delta.1;

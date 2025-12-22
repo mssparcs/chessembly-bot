@@ -135,6 +135,33 @@ impl MoveGen {
         ret
     }
 
+    pub fn has_any_moves<'a, const MACHO: bool, const IMPRISONED: bool>(board: &mut Board<'a, MACHO, IMPRISONED>, turn: Color, check_danger: bool) -> bool {
+        for j in 0..board.get_height() {
+            for i in 0..board.get_width() {
+                if board.color_on(&(i as u8, j as u8)) == Some(turn) {
+                    if check_danger || MACHO {
+                        let a = board
+                            .script
+                            .get_moves::<MACHO, IMPRISONED>(board, &(i as u8, j as u8), check_danger);
+                        let b = board.script.filter_nodes::<MACHO, IMPRISONED>(a, board);
+                        if !b.is_empty() {
+                            return true;
+                        }
+                    } else {
+                        if !board.script.get_moves::<MACHO, IMPRISONED>(
+                            board,
+                            &(i as u8, j as u8),
+                            check_danger,
+                        ).is_empty() {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        false
+    }
+
     #[inline]
     pub fn new_legal<'a, const MACHO: bool, const IMPRISONED: bool>(board: &mut Board<'a, MACHO, IMPRISONED>) -> Vec<ChessMove<'a>> {
         MoveGen::get_all_moves::<MACHO, IMPRISONED>(board, board.side_to_move(), true)

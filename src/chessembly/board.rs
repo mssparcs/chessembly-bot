@@ -313,9 +313,9 @@ impl<'a, const MACHO: bool, const IMPRISONED: bool> Board<'a, MACHO, IMPRISONED>
                     }
                 } else if key == &"en-passant" {
                     if ret.turn == Color::White {
-                        ret.board_state.black.enpassant.push(node.move_to.clone());
+                        ret.board_state.black.enpassant.push(node.move_to);
                     } else if ret.turn == Color::Black {
-                        ret.board_state.white.enpassant.push(node.move_to.clone());
+                        ret.board_state.white.enpassant.push(node.move_to);
                     }
                 }
             }
@@ -335,7 +335,7 @@ impl<'a, const MACHO: bool, const IMPRISONED: bool> Board<'a, MACHO, IMPRISONED>
 
         let turn = ret.side_to_move();
         if MACHO {
-            if MoveGen::get_all_moves(&mut ret, turn, true).len() == 0 {
+            if !MoveGen::has_any_moves(&mut ret, turn, true) {
                 ret.status = BoardStatus::Checkmate;
             }
             else {
@@ -361,7 +361,7 @@ impl<'a, const MACHO: bool, const IMPRISONED: bool> Board<'a, MACHO, IMPRISONED>
             }
         }
         else {
-            if MoveGen::get_all_moves(&mut ret, turn, true).len() == 0 {
+            if !MoveGen::has_any_moves(&mut ret, turn, true) {
                 if self.script.is_check(&mut ret, turn.invert()) {
                     ret.status = BoardStatus::Checkmate;
                 } else {
