@@ -171,6 +171,13 @@ impl MoveGen {
     pub fn get_danger_zones<const MACHO: bool, const IMPRISONED: bool>(board: &mut Board<MACHO, IMPRISONED>, enemy: Color) -> Vec<Position> {
         MoveGen::get_all_moves::<MACHO, IMPRISONED>(board, enemy, false)
             .iter()
+            .filter(|x| match x.move_type {
+                MoveType::Take => true,
+                MoveType::TakeMove => true,
+                MoveType::TakeJump => true,
+                MoveType::Catch => true,
+                _ => false,
+            })
             .map(|x| x.take)
             .collect()
     }
