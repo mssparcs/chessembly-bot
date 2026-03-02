@@ -6,20 +6,20 @@ use crate::chessembly::{
 };
 
 impl<'a> ChessemblyCompiled<'a> {
-    pub fn generate_pawn_moves<const MACHO: bool, const IMPRISONED: bool>(
+    pub fn generate_pawn_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
-        board: &mut Board<'a, MACHO, IMPRISONED>,
+        board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
         let mut ret = Vec::new();
         let color = board.color_on(position).unwrap();
-        let rank = if color == Color::White { 6 } else { 1 };
+        let rank = if color == Color::White { (SIZE as u8) - 2 } else { 1 };
         let step1 = if color == Color::White {
             position.1 - 1
         } else {
             position.1 + 1
         };
-        let promotion = if color == Color::White { 1 } else { 6 };
+        let promotion = if color == Color::White { 1 } else { (SIZE as u8) - 2 };
 
         if board.color_on(&(position.0, step1)) == None {
             if (position.1 == promotion) && !MACHO {
@@ -218,9 +218,9 @@ impl<'a> ChessemblyCompiled<'a> {
         ret
     }
 
-    pub fn generate_king_moves<const MACHO: bool, const IMPRISONED: bool>(
+    pub fn generate_king_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
-        board: &mut Board<'a, MACHO, IMPRISONED>,
+        board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
         danger_zones: u64,
     ) -> Vec<ChessMove<'a>> {
@@ -308,10 +308,10 @@ impl<'a> ChessemblyCompiled<'a> {
         ret
     }
     
-    pub fn generate_ij_abs_take_move<const MACHO: bool, const IMPRISONED: bool>(
+    pub fn generate_ij_abs_take_move<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
         moves: &mut Vec<ChessMove<'a>>,
-        board: &mut Board<'a, MACHO, IMPRISONED>,
+        board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
         delta: &DeltaPosition,
     ) -> bool {
@@ -351,10 +351,10 @@ impl<'a> ChessemblyCompiled<'a> {
         }
     }
 
-    pub fn generate_ij_abs_take_move_slide<const MACHO: bool, const IMPRISONED: bool>(
+    pub fn generate_ij_abs_take_move_slide<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
         moves: &mut Vec<ChessMove<'a>>,
-        board: &mut Board<'a, MACHO, IMPRISONED>,
+        board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
         delta: &DeltaPosition,
     ) {
@@ -365,9 +365,9 @@ impl<'a> ChessemblyCompiled<'a> {
         }
     }
 
-    pub fn generate_bishop_moves<const MACHO: bool, const IMPRISONED: bool>(
+    pub fn generate_bishop_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
-        board: &mut Board<'a, MACHO, IMPRISONED>,
+        board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
         let mut moves = Vec::new();
@@ -378,9 +378,9 @@ impl<'a> ChessemblyCompiled<'a> {
         moves
     }
 
-    pub fn generate_rook_moves<const MACHO: bool, const IMPRISONED: bool>(
+    pub fn generate_rook_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
-        board: &mut Board<'a, MACHO, IMPRISONED>,
+        board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
         let state_change = match (position.0.cmp(&0), position.0.cmp(&7), position.1.cmp(&0), position.1.cmp(&7), board.color_on(position).unwrap()) {
@@ -398,7 +398,7 @@ impl<'a> ChessemblyCompiled<'a> {
                     vec![Behavior::SetState(state_transition), Behavior::TakeMove((0, 1)), Behavior::Repeat(1)],
                     vec![Behavior::SetState(state_transition), Behavior::TakeMove((0, -1)), Behavior::Repeat(1)],
                 ],
-            }.generate_moves::<MACHO, IMPRISONED>(board, position, false).unwrap()
+            }.generate_moves::<MACHO, IMPRISONED, SIZE>(board, position, false).unwrap()
         }
         else {
             ChessemblyCompiled {
@@ -408,21 +408,21 @@ impl<'a> ChessemblyCompiled<'a> {
                     vec![Behavior::TakeMove((0, 1)), Behavior::Repeat(1)],
                     vec![Behavior::TakeMove((0, -1)), Behavior::Repeat(1)],
                 ],
-            }.generate_moves::<MACHO, IMPRISONED>(board, position, false).unwrap()
+            }.generate_moves::<MACHO, IMPRISONED, SIZE>(board, position, false).unwrap()
         }
     }
 
-    pub fn generate_knight_moves<const MACHO: bool, const IMPRISONED: bool>(
+    pub fn generate_knight_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
-        board: &mut Board<'a, MACHO, IMPRISONED>,
+        board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
-        self.generate_ij_moves::<MACHO, IMPRISONED>(board, position, 2, 1)
+        self.generate_ij_moves::<MACHO, IMPRISONED, SIZE>(board, position, 2, 1)
     }
 
-    pub fn generate_queen_moves<const MACHO: bool, const IMPRISONED: bool>(
+    pub fn generate_queen_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
-        board: &mut Board<'a, MACHO, IMPRISONED>,
+        board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
         let mut moves = Vec::new();
@@ -437,9 +437,9 @@ impl<'a> ChessemblyCompiled<'a> {
         moves
     }
 
-    pub fn generate_dozer_moves<const MACHO: bool, const IMPRISONED: bool>(
+    pub fn generate_dozer_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
-        board: &mut Board<'a, MACHO, IMPRISONED>,
+        board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
         let mut moves = Vec::new();
@@ -460,19 +460,19 @@ impl<'a> ChessemblyCompiled<'a> {
         moves
     }
 
-    pub fn generate_bouncing_bishop_moves<const MACHO: bool, const IMPRISONED: bool>(
+    pub fn generate_bouncing_bishop_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
-        board: &mut Board<'a, MACHO, IMPRISONED>,
+        board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
         let fs = ChessemblyCompiled::from_script("do take-move(1, 1) while peek(0, 0) edge-right(1, 1) jne(0) take-move(-1, 1) repeat(1) label(0) edge-top(1, 1) jne(1) take-move(1, -1) repeat(1) label(1);do take-move(-1, 1) while peek(0, 0) edge-left(-1, 1) jne(0) take-move(1, 1) repeat(1) label(0) edge-top(-1, 1) jne(1) take-move(-1, -1) repeat(1) label(1);do take-move(1, -1) while peek(0, 0) edge-right(1, -1) jne(0) take-move(-1, -1) repeat(1) label(0) edge-bottom(1, -1) jne(1) take-move(1, 1) repeat(1) label(1);do take-move(-1, -1) while peek(0, 0) edge-left(-1, -1) jne(0) take-move(1, -1) repeat(1) label(0) edge-bottom(-1, -1) jne(1) take-move(-1, 1) repeat(1) label(1);").unwrap();
-        let ret = fs.generate_moves::<MACHO, IMPRISONED>(board, position, false).unwrap();
+        let ret = fs.generate_moves::<MACHO, IMPRISONED, SIZE>(board, position, false).unwrap();
         ret
     }
 
-    pub fn generate_alfil_moves<const MACHO: bool, const IMPRISONED: bool>(
+    pub fn generate_alfil_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
-        board: &mut Board<'a, MACHO, IMPRISONED>,
+        board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
         let mut ret = Vec::new();
@@ -483,9 +483,9 @@ impl<'a> ChessemblyCompiled<'a> {
         ret
     }
 
-    pub fn generate_ij_moves<const MACHO: bool, const IMPRISONED: bool>(
+    pub fn generate_ij_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
-        board: &mut Board<'a, MACHO, IMPRISONED>,
+        board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
         i: i8,
         j: i8,
@@ -502,9 +502,9 @@ impl<'a> ChessemblyCompiled<'a> {
         ret
     }
 
-    pub fn generate_bard_moves<const MACHO: bool, const IMPRISONED: bool>(
+    pub fn generate_bard_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
-        board: &mut Board<'a, MACHO, IMPRISONED>,
+        board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
         let mut ret = Vec::new();
@@ -519,9 +519,9 @@ impl<'a> ChessemblyCompiled<'a> {
         ret
     }
     
-    pub fn generate_wasp_moves<const MACHO: bool, const IMPRISONED: bool>(
+    pub fn generate_wasp_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
-        board: &mut Board<'a, MACHO, IMPRISONED>,
+        board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
         ChessemblyCompiled {
@@ -531,16 +531,16 @@ impl<'a> ChessemblyCompiled<'a> {
                 vec![Behavior::Move((-1, -1)), Behavior::Repeat(1)],
             ],
         }
-            .generate_moves::<MACHO, IMPRISONED>(board, position, false)
+            .generate_moves::<MACHO, IMPRISONED, SIZE>(board, position, false)
             .unwrap()
     }
 
-    pub fn generate_amazon_moves<const MACHO: bool, const IMPRISONED: bool>(
+    pub fn generate_amazon_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
-        board: &mut Board<'a, MACHO, IMPRISONED>,
+        board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
-        let mut moves = self.generate_knight_moves::<MACHO, IMPRISONED>(board, position);
+        let mut moves = self.generate_knight_moves::<MACHO, IMPRISONED, SIZE>(board, position);
         self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(1, 0));
         self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(-1, 0));
         self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(0, 1));
@@ -552,12 +552,12 @@ impl<'a> ChessemblyCompiled<'a> {
         moves
     }
 
-    pub fn generate_centaur_moves<const MACHO: bool, const IMPRISONED: bool>(
+    pub fn generate_centaur_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
-        board: &mut Board<'a, MACHO, IMPRISONED>,
+        board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
-        let mut moves = self.generate_knight_moves::<MACHO, IMPRISONED>(board, position);
+        let mut moves = self.generate_knight_moves::<MACHO, IMPRISONED, SIZE>(board, position);
         self.generate_ij_abs_take_move(&mut moves, board, position, &(1, 0));
         self.generate_ij_abs_take_move(&mut moves, board, position, &(-1, 0));
         self.generate_ij_abs_take_move(&mut moves, board, position, &(0, 1));
@@ -569,12 +569,12 @@ impl<'a> ChessemblyCompiled<'a> {
         moves
     }
 
-    pub fn generate_archbishop_moves<const MACHO: bool, const IMPRISONED: bool>(
+    pub fn generate_archbishop_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
-        board: &mut Board<'a, MACHO, IMPRISONED>,
+        board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
-        let mut moves = self.generate_knight_moves::<MACHO, IMPRISONED>(board, position);
+        let mut moves = self.generate_knight_moves::<MACHO, IMPRISONED, SIZE>(board, position);
         self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(1, 1));
         self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(1, -1));
         self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(-1, 1));
@@ -582,12 +582,12 @@ impl<'a> ChessemblyCompiled<'a> {
         moves
     }
 
-    pub fn generate_chancellor_moves<const MACHO: bool, const IMPRISONED: bool>(
+    pub fn generate_chancellor_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
-        board: &mut Board<'a, MACHO, IMPRISONED>,
+        board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
-        let mut moves = self.generate_knight_moves::<MACHO, IMPRISONED>(board, position);
+        let mut moves = self.generate_knight_moves::<MACHO, IMPRISONED, SIZE>(board, position);
         self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(1, 0));
         self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(-1, 0));
         self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(0, 1));
@@ -595,9 +595,9 @@ impl<'a> ChessemblyCompiled<'a> {
         moves
     }
 
-    pub fn generate_cannon_moves<const MACHO: bool, const IMPRISONED: bool>(
+    pub fn generate_cannon_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
-        board: &mut Board<'a, MACHO, IMPRISONED>,
+        board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
         ChessemblyCompiled {
@@ -672,13 +672,13 @@ impl<'a> ChessemblyCompiled<'a> {
                 ],
             ],
         }
-            .generate_moves::<MACHO, IMPRISONED>(board, position, false)
+            .generate_moves::<MACHO, IMPRISONED, SIZE>(board, position, false)
             .unwrap()
     }
 
-    pub fn generate_tempest_rook_moves<const MACHO: bool, const IMPRISONED: bool>(
+    pub fn generate_tempest_rook_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
-        board: &mut Board<'a, MACHO, IMPRISONED>,
+        board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
         ChessemblyCompiled {
@@ -725,13 +725,13 @@ impl<'a> ChessemblyCompiled<'a> {
                 ],
             ],
         }
-            .generate_moves::<MACHO, IMPRISONED>(board, position, false)
+            .generate_moves::<MACHO, IMPRISONED, SIZE>(board, position, false)
             .unwrap()
     }
 
-    pub fn generate_chameleon_moves<const MACHO: bool, const IMPRISONED: bool>(
+    pub fn generate_chameleon_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
-        board: &mut Board<'a, MACHO, IMPRISONED>,
+        board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
         let mut moves = ChessemblyCompiled {
@@ -746,7 +746,7 @@ impl<'a> ChessemblyCompiled<'a> {
                 vec![Behavior::Move((-1, -1))],
             ],
         }
-            .generate_moves::<MACHO, IMPRISONED>(board, position, false)
+            .generate_moves::<MACHO, IMPRISONED, SIZE>(board, position, false)
             .unwrap();
 
         let catch_list = [(2, 2), (2, -2), (-2, 2), (-2, -2)];
@@ -814,9 +814,9 @@ impl<'a> ChessemblyCompiled<'a> {
         moves
     }
 
-    pub fn generate_pseudo_pawn_moves<const MACHO: bool, const IMPRISONED: bool>(
+    pub fn generate_pseudo_pawn_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
-        board: &mut Board<'a, MACHO, IMPRISONED>,
+        board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
         ChessemblyCompiled {
@@ -826,13 +826,13 @@ impl<'a> ChessemblyCompiled<'a> {
                 vec![Behavior::Take((-1, 1))],
             ],
         }
-            .generate_moves::<MACHO, IMPRISONED>(board, position, false)
+            .generate_moves::<MACHO, IMPRISONED, SIZE>(board, position, false)
             .unwrap()
     }
 
-    pub fn generate_beacon_moves<const MACHO: bool, const IMPRISONED: bool>(
+    pub fn generate_beacon_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
-        board: &mut Board<'a, MACHO, IMPRISONED>,
+        board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
         let color = board.color_on(position).unwrap();
@@ -862,9 +862,9 @@ impl<'a> ChessemblyCompiled<'a> {
         moves
     }
 
-    pub fn generate_pseudo_rook_moves<const MACHO: bool, const IMPRISONED: bool>(
+    pub fn generate_pseudo_rook_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
-        board: &mut Board<'a, MACHO, IMPRISONED>,
+        board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
         let mut moves = Vec::new();
@@ -875,38 +875,38 @@ impl<'a> ChessemblyCompiled<'a> {
         moves
     }
     
-    pub fn generate_windmill_rook_moves<const MACHO: bool, const IMPRISONED: bool>(
+    pub fn generate_windmill_rook_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
-        board: &mut Board<'a, MACHO, IMPRISONED>,
+        board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
         let fs = ChessemblyCompiled::from_script("piece(windmill-rook) transition(windmill-bishop) { take-move(1, 0) repeat(1) } { take-move(0, 1) repeat(1) } { take-move(-1, 0) repeat(1) } { take-move(0, -1) repeat(1) };").unwrap();
-        let ret = fs.generate_moves::<MACHO, IMPRISONED>(board, position, false).unwrap();
+        let ret = fs.generate_moves::<MACHO, IMPRISONED, SIZE>(board, position, false).unwrap();
         ret
     }
 
-    pub fn generate_windmill_bishop_moves<const MACHO: bool, const IMPRISONED: bool>(
+    pub fn generate_windmill_bishop_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
-        board: &mut Board<'a, MACHO, IMPRISONED>,
+        board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
         let fs = ChessemblyCompiled::from_script("piece(windmill-bishop) transition(windmill-rook) { take-move(1, 1) repeat(1) } { take-move(-1, 1) repeat(1) } { take-move(1, -1) repeat(1) } { take-move(-1, -1) repeat(1) };").unwrap();
-        let ret = fs.generate_moves::<MACHO, IMPRISONED>(board, position, false).unwrap();
+        let ret = fs.generate_moves::<MACHO, IMPRISONED, SIZE>(board, position, false).unwrap();
         ret
     }
 
-    pub fn generate_mirrored_moves<const MACHO: bool, const IMPRISONED: bool>(
+    pub fn generate_mirrored_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
-        board: &mut Board<'a, MACHO, IMPRISONED>,
+        board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
         piece: &str,
     ) -> Vec<ChessMove<'a>> {
         let moves = match piece {
-            "mirrored-pawn" => self.generate_pseudo_pawn_moves::<MACHO, IMPRISONED>(board, position),
-            "mirrored-bishop" => self.generate_bishop_moves::<MACHO, IMPRISONED>(board, position),
-            "mirrored-rook" => self.generate_pseudo_rook_moves::<MACHO, IMPRISONED>(board, position),
-            "mirrored-knight" => self.generate_knight_moves::<MACHO, IMPRISONED>(board, position),
-            "mirrored-queen" => self.generate_queen_moves::<MACHO, IMPRISONED>(board, position),
+            "mirrored-pawn" => self.generate_pseudo_pawn_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            "mirrored-bishop" => self.generate_bishop_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            "mirrored-rook" => self.generate_pseudo_rook_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            "mirrored-knight" => self.generate_knight_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            "mirrored-queen" => self.generate_queen_moves::<MACHO, IMPRISONED, SIZE>(board, position),
             _ => Vec::new()
         };
         let enemy_color = board.color_on(position).unwrap().invert();

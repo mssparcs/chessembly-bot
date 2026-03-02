@@ -33,13 +33,13 @@ impl Color {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Piece<'a> {
     pub piece_type: &'a str,
     pub color: Color,
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum PieceSpan<'a> {
     Piece(Piece<'a>),
     Empty,
@@ -111,7 +111,7 @@ enum WallCollision {
 pub struct MoveGen {}
 
 impl MoveGen {
-    pub fn get_all_moves<'a, const MACHO: bool, const IMPRISONED: bool>(board: &mut Board<'a, MACHO, IMPRISONED>, turn: Color, check_danger: bool) -> Vec<ChessMove<'a>> {
+    pub fn get_all_moves<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(board: &mut Board<'a, MACHO, IMPRISONED, SIZE>, turn: Color, check_danger: bool) -> Vec<ChessMove<'a>> {
         let mut ret = Vec::new();
         for j in 0..board.get_height() {
             for i in 0..board.get_width() {
@@ -119,11 +119,11 @@ impl MoveGen {
                     if check_danger || MACHO {
                         let a = board
                             .script
-                            .get_moves::<MACHO, IMPRISONED>(board, &(i as u8, j as u8), check_danger);
-                        let b = board.script.filter_nodes::<MACHO, IMPRISONED>(a, board);
+                            .get_moves::<MACHO, IMPRISONED, SIZE>(board, &(i as u8, j as u8), check_danger);
+                        let b = board.script.filter_nodes::<MACHO, IMPRISONED, SIZE>(a, board);
                         ret.extend(b);
                     } else {
-                        ret.extend(board.script.get_moves::<MACHO, IMPRISONED>(
+                        ret.extend(board.script.get_moves::<MACHO, IMPRISONED, SIZE>(
                             board,
                             &(i as u8, j as u8),
                             check_danger,
@@ -135,20 +135,20 @@ impl MoveGen {
         ret
     }
 
-    pub fn has_any_moves<'a, const MACHO: bool, const IMPRISONED: bool>(board: &mut Board<'a, MACHO, IMPRISONED>, turn: Color, check_danger: bool) -> bool {
+    pub fn has_any_moves<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(board: &mut Board<'a, MACHO, IMPRISONED, SIZE>, turn: Color, check_danger: bool) -> bool {
         for j in 0..board.get_height() {
             for i in 0..board.get_width() {
                 if board.color_on(&(i as u8, j as u8)) == Some(turn) {
                     if check_danger || MACHO {
                         let a = board
                             .script
-                            .get_moves::<MACHO, IMPRISONED>(board, &(i as u8, j as u8), check_danger);
-                        let b = board.script.filter_nodes::<MACHO, IMPRISONED>(a, board);
+                            .get_moves::<MACHO, IMPRISONED, SIZE>(board, &(i as u8, j as u8), check_danger);
+                        let b = board.script.filter_nodes::<MACHO, IMPRISONED, SIZE>(a, board);
                         if !b.is_empty() {
                             return true;
                         }
                     } else {
-                        if !board.script.get_moves::<MACHO, IMPRISONED>(
+                        if !board.script.get_moves::<MACHO, IMPRISONED, SIZE>(
                             board,
                             &(i as u8, j as u8),
                             check_danger,
@@ -163,13 +163,13 @@ impl MoveGen {
     }
 
     #[inline]
-    pub fn new_legal<'a, const MACHO: bool, const IMPRISONED: bool>(board: &mut Board<'a, MACHO, IMPRISONED>) -> Vec<ChessMove<'a>> {
-        MoveGen::get_all_moves::<MACHO, IMPRISONED>(board, board.side_to_move(), true)
+    pub fn new_legal<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(board: &mut Board<'a, MACHO, IMPRISONED, SIZE>) -> Vec<ChessMove<'a>> {
+        MoveGen::get_all_moves::<MACHO, IMPRISONED, SIZE>(board, board.side_to_move(), true)
     }
 
     #[inline]
-    pub fn get_danger_zones<const MACHO: bool, const IMPRISONED: bool>(board: &mut Board<MACHO, IMPRISONED>, enemy: Color) -> Vec<Position> {
-        MoveGen::get_all_moves::<MACHO, IMPRISONED>(board, enemy, false)
+    pub fn get_danger_zones<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(board: &mut Board<MACHO, IMPRISONED, SIZE>, enemy: Color) -> Vec<Position> {
+        MoveGen::get_all_moves::<MACHO, IMPRISONED, SIZE>(board, enemy, false)
             .iter()
             .filter(|x| match x.move_type {
                 MoveType::Take => true,
@@ -182,9 +182,9 @@ impl MoveGen {
             .collect()
     }
 
-    pub fn get_danger_zones_bit<const MACHO: bool, const IMPRISONED: bool>(board: &mut Board<MACHO, IMPRISONED>, enemy: Color) -> u64 {
+    pub fn get_danger_zones_bit<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(board: &mut Board<MACHO, IMPRISONED, SIZE>, enemy: Color) -> u64 {
         let mut ret: u64 = 0;
-        for node in MoveGen::get_all_moves::<MACHO, IMPRISONED>(board, enemy, false) {
+        for node in MoveGen::get_all_moves::<MACHO, IMPRISONED, SIZE>(board, enemy, false) {
             ret |= 1 << (node.take.1 * 8 + node.take.0);
         }
         ret
@@ -243,7 +243,7 @@ impl<'a> ChessemblyCompiled<'a> {
         Ok(ret)
     }
 
-    fn wall_collision<const MACHO: bool, const IMPRISONED: bool>(anchor: &Position, delta: &DeltaPosition, board: &Board<MACHO, IMPRISONED>, color: Color) -> WallCollision {
+    fn wall_collision<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(anchor: &Position, delta: &DeltaPosition, board: &Board<MACHO, IMPRISONED, SIZE>, color: Color) -> WallCollision {
         let a0 = (anchor.0 as i8) + delta.0;
         let a1 = (anchor.1 as i8) - delta.1;
         match (a0.cmp(&0), a0.cmp(&(board.get_width() as i8)), a1.cmp(&0), a1.cmp(&(board.get_height() as i8))) {
@@ -264,7 +264,7 @@ impl<'a> ChessemblyCompiled<'a> {
         }
     }
 
-    fn move_anchor<const MACHO: bool, const IMPRISONED: bool>(anchor: &mut Position, delta: &DeltaPosition, board: &Board<MACHO, IMPRISONED>, color: Color) -> WallCollision {
+    fn move_anchor<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(anchor: &mut Position, delta: &DeltaPosition, board: &Board<MACHO, IMPRISONED, SIZE>, color: Color) -> WallCollision {
         let wc = ChessemblyCompiled::wall_collision(anchor, delta, board, color);
         if wc == WallCollision::NoCollision {
             anchor.0 = ((anchor.0 as i8) + delta.0) as u8;
@@ -279,14 +279,14 @@ impl<'a> ChessemblyCompiled<'a> {
         anchor.1 = ((anchor.1 as i8) + delta.1) as u8;
     }
 
-    pub fn is_enemy<const MACHO: bool, const IMPRISONED: bool>(anchor: &Position, board: &Board<MACHO, IMPRISONED>, color: Color) -> bool {
+    pub fn is_enemy<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(anchor: &Position, board: &Board<MACHO, IMPRISONED, SIZE>, color: Color) -> bool {
         if board.color_on(anchor) == Some(color.invert()) {
             return true;
         }
         false
     }
 
-    pub fn is_friendly<const MACHO: bool, const IMPRISONED: bool>(anchor: &Position, board: &Board<MACHO, IMPRISONED>, color: Color) -> bool {
+    pub fn is_friendly<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(anchor: &Position, board: &Board<MACHO, IMPRISONED, SIZE>, color: Color) -> bool {
         if board.color_on(anchor) == Some(color) {
             return true;
         }
@@ -297,8 +297,8 @@ impl<'a> ChessemblyCompiled<'a> {
         delta.0 == 0 && delta.1 == 0
     }
 
-    pub fn is_danger<const MACHO: bool, const IMPRISONED: bool>(&self, board: &mut Board<MACHO, IMPRISONED>, position: &Position, color: Color) -> bool {
-        let danger_zones = MoveGen::get_danger_zones_bit::<MACHO, IMPRISONED>(board, color);
+    pub fn is_danger<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(&self, board: &mut Board<MACHO, IMPRISONED, SIZE>, position: &Position, color: Color) -> bool {
+        let danger_zones = MoveGen::get_danger_zones_bit::<MACHO, IMPRISONED, SIZE>(board, color);
         ChessemblyCompiled::is_danger_bit(danger_zones, position.0, position.1)
     }
 
@@ -306,15 +306,15 @@ impl<'a> ChessemblyCompiled<'a> {
         (danger_zones_bit & (1 << (8 * y + x))) != 0
     }
 
-    pub fn is_check<const MACHO: bool, const IMPRISONED: bool>(&self, board: &mut Board<MACHO, IMPRISONED>, color: Color) -> bool {
-        let danger_zones = MoveGen::get_danger_zones::<MACHO, IMPRISONED>(board, color);
+    pub fn is_check<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(&self, board: &mut Board<MACHO, IMPRISONED, SIZE>, color: Color) -> bool {
+        let danger_zones = MoveGen::get_danger_zones::<MACHO, IMPRISONED, SIZE>(board, color);
         danger_zones
             .iter()
             .any(|x| board.piece_on(x) == Some("king"))
     }
 
-    pub fn is_check_dbg<const MACHO: bool, const IMPRISONED: bool>(&self, board: &mut Board<MACHO, IMPRISONED>, color: Color) -> bool {
-        let danger_zones = MoveGen::get_danger_zones::<MACHO, IMPRISONED>(board, color);
+    pub fn is_check_dbg<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(&self, board: &mut Board<MACHO, IMPRISONED, SIZE>, color: Color) -> bool {
+        let danger_zones = MoveGen::get_danger_zones::<MACHO, IMPRISONED, SIZE>(board, color);
         for i in 0..8 {
             let mut x = String::new();
             for j in 0..8 {
@@ -356,9 +356,9 @@ impl<'a> ChessemblyCompiled<'a> {
         nodes.push(node);
     }
 
-    pub fn generate_moves<const MACHO: bool, const IMPRISONED: bool>(
+    pub fn generate_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
-        board: &mut Board<'a, MACHO, IMPRISONED>,
+        board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
         check_danger: bool,
     ) -> Result<Vec<ChessMove<'a>>, ()> {
@@ -696,7 +696,7 @@ impl<'a> ChessemblyCompiled<'a> {
                     }
                     Behavior::Check => {
                         *states.last_mut().unwrap() =
-                            self.is_check::<MACHO, IMPRISONED>(board, board.color_on(position).unwrap());
+                            self.is_check::<MACHO, IMPRISONED, SIZE>(board, board.color_on(position).unwrap());
                         rip += 1;
                     }
                     Behavior::Danger(delta) => {
@@ -717,7 +717,7 @@ impl<'a> ChessemblyCompiled<'a> {
                             continue;
                         }
 
-                        *states.last_mut().unwrap() = self.is_danger::<MACHO, IMPRISONED>(
+                        *states.last_mut().unwrap() = self.is_danger::<MACHO, IMPRISONED, SIZE>(
                             board,
                             &stack.last().unwrap().0,
                             board.color_on(position).unwrap(),
@@ -1173,7 +1173,7 @@ impl<'a> ChessemblyCompiled<'a> {
         return Ok(nodes);
     }
 
-    pub fn filter_nodes<const MACHO: bool, const IMPRISONED: bool>(&self, nodes: Vec<ChessMove<'a>>, board: &Board<'a, MACHO, IMPRISONED>) -> Vec<ChessMove<'a>> {
+    pub fn filter_nodes<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(&self, nodes: Vec<ChessMove<'a>>, board: &Board<'a, MACHO, IMPRISONED, SIZE>) -> Vec<ChessMove<'a>> {
         let mut ret: Vec<ChessMove> = Vec::new();
         if MACHO {
             for testnode in nodes {
@@ -1202,7 +1202,7 @@ impl<'a> ChessemblyCompiled<'a> {
             for testnode in nodes {
                 let mut new_board = board.make_move_new_nc(&testnode, false);
                 let turn = new_board.turn.invert();
-                if !self.is_check::<MACHO, IMPRISONED>(&mut new_board, turn) {
+                if !self.is_check::<MACHO, IMPRISONED, SIZE>(&mut new_board, turn) {
                     ret.push(testnode);
                 }
             }
@@ -1211,7 +1211,7 @@ impl<'a> ChessemblyCompiled<'a> {
         }
     }
 
-    pub fn get_moves<const MACHO: bool, const IMPRISONED: bool>(&self, board: &mut Board<'a, MACHO, IMPRISONED>, position: &Position, check_danger: bool) -> Vec<ChessMove<'a>> {
+    pub fn get_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(&self, board: &mut Board<'a, MACHO, IMPRISONED, SIZE>, position: &Position, check_danger: bool) -> Vec<ChessMove<'a>> {
         if let Some(cached) = board.dp.get(position) {
             return cached.clone();
         }
@@ -1223,148 +1223,148 @@ impl<'a> ChessemblyCompiled<'a> {
         // worker::console_log!("{}", piece);
         match piece {
             "pawn" => {
-                let ret = self.generate_pawn_moves::<MACHO, IMPRISONED>(board, position);
+                let ret = self.generate_pawn_moves::<MACHO, IMPRISONED, SIZE>(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
                 ret
             }
             "king" => {
-                let danger_zones = if check_danger { MoveGen::get_danger_zones_bit::<MACHO, IMPRISONED>(board, board.color_on(position).unwrap().invert()) } else { 0 };
-                let ret = self.generate_king_moves::<MACHO, IMPRISONED>(board, position, danger_zones);
+                let danger_zones = if check_danger { MoveGen::get_danger_zones_bit::<MACHO, IMPRISONED, SIZE>(board, board.color_on(position).unwrap().invert()) } else { 0 };
+                let ret = self.generate_king_moves::<MACHO, IMPRISONED, SIZE>(board, position, danger_zones);
                 board.dp.insert((position.0, position.1), ret.clone());
                 ret
             }
             "rook" => {
-                let ret = self.generate_rook_moves::<MACHO, IMPRISONED>(board, position);
+                let ret = self.generate_rook_moves::<MACHO, IMPRISONED, SIZE>(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
                 ret
             }
             "knight" => {
-                let ret = self.generate_knight_moves::<MACHO, IMPRISONED>(board, position);
+                let ret = self.generate_knight_moves::<MACHO, IMPRISONED, SIZE>(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
                 ret
             }
             "bishop" => {
-                let ret = self.generate_bishop_moves::<MACHO, IMPRISONED>(board, position);
+                let ret = self.generate_bishop_moves::<MACHO, IMPRISONED, SIZE>(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
                 ret
             }
             "queen" => {
-                let ret = self.generate_queen_moves::<MACHO, IMPRISONED>(board, position);
+                let ret = self.generate_queen_moves::<MACHO, IMPRISONED, SIZE>(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
                 ret
             }
             "tempest-rook" => {
-                let ret = self.generate_tempest_rook_moves::<MACHO, IMPRISONED>(board, position);
+                let ret = self.generate_tempest_rook_moves::<MACHO, IMPRISONED, SIZE>(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
                 ret
             }
             "bouncing-bishop" => {
-                let ret = self.generate_bouncing_bishop_moves::<MACHO, IMPRISONED>(board, position);
+                let ret = self.generate_bouncing_bishop_moves::<MACHO, IMPRISONED, SIZE>(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
                 ret
             }
             "dozer" => {
-                let ret = self.generate_dozer_moves::<MACHO, IMPRISONED>(board, position);
+                let ret = self.generate_dozer_moves::<MACHO, IMPRISONED, SIZE>(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
                 ret
             }
             "alfil" => {
-                let ret = self.generate_alfil_moves::<MACHO, IMPRISONED>(board, position);
+                let ret = self.generate_alfil_moves::<MACHO, IMPRISONED, SIZE>(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
                 ret
             }
             "bard" => {
-                let ret = self.generate_bard_moves::<MACHO, IMPRISONED>(board, position);
+                let ret = self.generate_bard_moves::<MACHO, IMPRISONED, SIZE>(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
                 ret
             }
             "wasp" => {
-                let ret = self.generate_wasp_moves::<MACHO, IMPRISONED>(board, position);
+                let ret = self.generate_wasp_moves::<MACHO, IMPRISONED, SIZE>(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
                 ret
             }
             "amazon" => {
-                let ret = self.generate_amazon_moves::<MACHO, IMPRISONED>(board, position);
+                let ret = self.generate_amazon_moves::<MACHO, IMPRISONED, SIZE>(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
                 ret
             }
             "chancellor" => {
-                let ret = self.generate_chancellor_moves::<MACHO, IMPRISONED>(board, position);
+                let ret = self.generate_chancellor_moves::<MACHO, IMPRISONED, SIZE>(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
                 ret
             }
             "archbishop" => {
-                let ret = self.generate_archbishop_moves::<MACHO, IMPRISONED>(board, position);
+                let ret = self.generate_archbishop_moves::<MACHO, IMPRISONED, SIZE>(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
                 ret
             }
             "centaur" => {
-                let ret = self.generate_centaur_moves::<MACHO, IMPRISONED>(board, position);
+                let ret = self.generate_centaur_moves::<MACHO, IMPRISONED, SIZE>(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
                 ret
             }
             "zebra" => {
-                let ret = self.generate_ij_moves::<MACHO, IMPRISONED>(board, position, 3, 2);
+                let ret = self.generate_ij_moves::<MACHO, IMPRISONED, SIZE>(board, position, 3, 2);
                 board.dp.insert((position.0, position.1), ret.clone());
                 ret
             }
             "giraffe" => {
-                let ret = self.generate_ij_moves::<MACHO, IMPRISONED>(board, position, 4, 1);
+                let ret = self.generate_ij_moves::<MACHO, IMPRISONED, SIZE>(board, position, 4, 1);
                 board.dp.insert((position.0, position.1), ret.clone());
                 ret
             }
             "camel" => {
-                let ret = self.generate_ij_moves::<MACHO, IMPRISONED>(board, position, 3, 1);
+                let ret = self.generate_ij_moves::<MACHO, IMPRISONED, SIZE>(board, position, 3, 1);
                 board.dp.insert((position.0, position.1), ret.clone());
                 ret
             }
             "beacon" => {
-                let ret = self.generate_beacon_moves::<MACHO, IMPRISONED>(board, position);
+                let ret = self.generate_beacon_moves::<MACHO, IMPRISONED, SIZE>(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
                 ret
             }
             "chameleon" => {
-                let ret = self.generate_chameleon_moves::<MACHO, IMPRISONED>(board, position);
+                let ret = self.generate_chameleon_moves::<MACHO, IMPRISONED, SIZE>(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
                 ret
             }
             "mirrored-pawn" => {
-                let ret = self.generate_mirrored_moves::<MACHO, IMPRISONED>(board, position, "mirrored-pawn");
+                let ret = self.generate_mirrored_moves::<MACHO, IMPRISONED, SIZE>(board, position, "mirrored-pawn");
                 board.dp.insert((position.0, position.1), ret.clone());
                 ret
             }
             "mirrored-bishop" => {
-                let ret = self.generate_mirrored_moves::<MACHO, IMPRISONED>(board, position, "mirrored-bishop");
+                let ret = self.generate_mirrored_moves::<MACHO, IMPRISONED, SIZE>(board, position, "mirrored-bishop");
                 board.dp.insert((position.0, position.1), ret.clone());
                 ret
             }
             "mirrored-rook" => {
-                let ret = self.generate_mirrored_moves::<MACHO, IMPRISONED>(board, position, "mirrored-rook");
+                let ret = self.generate_mirrored_moves::<MACHO, IMPRISONED, SIZE>(board, position, "mirrored-rook");
                 board.dp.insert((position.0, position.1), ret.clone());
                 ret
             }
             "mirrored-knight" => {
-                let ret = self.generate_mirrored_moves::<MACHO, IMPRISONED>(board, position, "mirrored-knight");
+                let ret = self.generate_mirrored_moves::<MACHO, IMPRISONED, SIZE>(board, position, "mirrored-knight");
                 board.dp.insert((position.0, position.1), ret.clone());
                 ret
             }
             "mirrored-queen" => {
-                let ret = self.generate_mirrored_moves::<MACHO, IMPRISONED>(board, position, "mirrored-queen");
+                let ret = self.generate_mirrored_moves::<MACHO, IMPRISONED, SIZE>(board, position, "mirrored-queen");
                 board.dp.insert((position.0, position.1), ret.clone());
                 ret
             }
             "windmill-rook" => {
-                let ret = self.generate_windmill_rook_moves::<MACHO, IMPRISONED>(board, position);
+                let ret = self.generate_windmill_rook_moves::<MACHO, IMPRISONED, SIZE>(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
                 ret
             }
             "windmill-bishop" => {
-                let ret = self.generate_windmill_bishop_moves::<MACHO, IMPRISONED>(board, position);
+                let ret = self.generate_windmill_bishop_moves::<MACHO, IMPRISONED, SIZE>(board, position);
                 board.dp.insert((position.0, position.1), ret.clone());
                 ret
             }
             _ => {
-                let ret = self.generate_moves::<MACHO, IMPRISONED>(board, position, check_danger);
+                let ret = self.generate_moves::<MACHO, IMPRISONED, SIZE>(board, position, check_danger);
                 board.dp.insert((position.0, position.1), ret.clone().unwrap_or(Vec::new()));
                 ret.unwrap_or(Vec::new())
             }

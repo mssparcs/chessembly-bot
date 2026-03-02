@@ -24,6 +24,7 @@ async fn main() {
         .unwrap_or(8080); // PORT 환경 변수를 읽고, 없으면 8080 사용
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
+    // let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
     info!("listening on {}", addr);
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
@@ -34,8 +35,8 @@ fn setup_board<'a, const MACHO: bool, const IMPRISONED: bool>(
     position: &'a str,
     board_state: BothBoardState<'a>,
     turn: chessembly::Color,
-) -> Board<'a, MACHO, IMPRISONED> {
-    let mut board = Board::<'a, MACHO, IMPRISONED>::empty(&compiled);
+) -> Board<'a, MACHO, IMPRISONED, 8> {
+    let mut board = Board::<'a, MACHO, IMPRISONED, 8>::empty(&compiled);
     let mut i = 0;
     for line in position.split('/') {
         let mut j = 0;
@@ -174,9 +175,27 @@ async fn run_engine(headers: HeaderMap) -> impl IntoResponse {
     let is_macho = headers.get("Macho").is_some();
     let is_imprisoned = headers.get("Imprisoned").is_some();
 
+
+    if let Some(to_evaluate) = headers.get("Target") {
+        let Ok(to_evaluate_str) = to_evaluate.to_str() else {
+            return (StatusCode::OK, "asdf").into_response();
+        };
+        let Some((from_str, position_str)) = to_evaluate_str.split_once('/') else {
+            return (StatusCode::OK, "asdf").into_response();
+        };
+        let Some(from) = from_str.split_once(',').map(|(x, y)| (x.parse().unwrap_or(0), y.parse().unwrap_or(0))) else {
+            return (StatusCode::OK, "asdf").into_response();
+        };
+        let Some(position) = position_str.split_once(',').map(|(x, y)| (x.parse().unwrap_or(0), y.parse().unwrap_or(0))) else {
+            return (StatusCode::OK, "asdf").into_response();
+        };
+        println!("{:?}/{:?}", from, position);
+        return (StatusCode::OK, format!("{:?}/{:?}", from, position)).into_response();
+    }
+
     let best_move = match (is_macho, is_imprisoned) {
         (true, true) => {
-            let mut board: Board<true, true> = setup_board(
+            let mut board: Board<true, true, 8> = setup_board(
                 &compiled,
                 position.to_str().unwrap(),
                 board_state,
@@ -185,7 +204,7 @@ async fn run_engine(headers: HeaderMap) -> impl IntoResponse {
             engine::search::find_best_move(&mut board, depth)
         },
         (true, false) => {
-            let mut board: Board<true, false> = setup_board(
+            let mut board: Board<true, false, 8> = setup_board(
                 &compiled,
                 position.to_str().unwrap(),
                 board_state,
@@ -194,7 +213,7 @@ async fn run_engine(headers: HeaderMap) -> impl IntoResponse {
             engine::search::find_best_move(&mut board, depth)
         }
         (false, true) => {
-            let mut board: Board<false, true> = setup_board(
+            let mut board: Board<false, true, 8> = setup_board(
                 &compiled,
                 position.to_str().unwrap(),
                 board_state,
@@ -203,7 +222,7 @@ async fn run_engine(headers: HeaderMap) -> impl IntoResponse {
             engine::search::find_best_move(&mut board, depth)
         }
         (false, false) => {
-            let mut board: Board<false, false> = setup_board(
+            let mut board: Board<false, false, 8> = setup_board(
                 &compiled,
                 position.to_str().unwrap(),
                 board_state,

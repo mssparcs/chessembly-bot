@@ -24,8 +24,8 @@ pub struct BothBoardState<'a> {
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Board<'a, const MACHO: bool, const IMPRISONED: bool> {
-    pub board: [[PieceSpan<'a>; 8]; 8],
+pub struct Board<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize> {
+    pub board: [[PieceSpan<'a>; SIZE]; SIZE],
     pub board_state: BothBoardState<'a>,
     pub turn: Color,
     pub script: &'a ChessemblyCompiled<'a>,
@@ -33,20 +33,11 @@ pub struct Board<'a, const MACHO: bool, const IMPRISONED: bool> {
     pub dp: HashMap<Position, Vec<ChessMove<'a>>>,
 }
 
-impl<'a, const MACHO: bool, const IMPRISONED: bool> Board<'a, MACHO, IMPRISONED> {
-    pub fn from_str(placement: &str, script: &'a ChessemblyCompiled) -> Board<'a, MACHO, IMPRISONED> {
+impl<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize> Board<'a, MACHO, IMPRISONED, SIZE> {
+    pub fn from_str(placement: &str, script: &'a ChessemblyCompiled) -> Board<'a, MACHO, IMPRISONED, 8> {
         let mut ret = Board {
             dp: HashMap::new(),
-            board: [
-                [PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty],
-                [PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty],
-                [PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty],
-                [PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty],
-                [PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty],
-                [PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty],
-                [PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty],
-                [PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty],
-            ],
+            board: [[PieceSpan::Empty; 8]; 8],
             board_state: BothBoardState {
                 black: BoardState {
                     castling_oo: true,
@@ -98,19 +89,10 @@ impl<'a, const MACHO: bool, const IMPRISONED: bool> Board<'a, MACHO, IMPRISONED>
         ret
     }
 
-    pub fn empty(script: &'a ChessemblyCompiled) -> Board<'a, MACHO, IMPRISONED> {
+    pub fn empty(script: &'a ChessemblyCompiled) -> Board<'a, MACHO, IMPRISONED, SIZE> {
         Board {
             dp: HashMap::new(),
-            board: [
-                [PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty],
-                [PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty],
-                [PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty],
-                [PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty],
-                [PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty],
-                [PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty],
-                [PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty],
-                [PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty, PieceSpan::Empty],
-            ],
+            board: [[PieceSpan::Empty; SIZE]; SIZE],
             board_state: BothBoardState {
                 black: BoardState {
                     castling_oo: true,
@@ -131,7 +113,7 @@ impl<'a, const MACHO: bool, const IMPRISONED: bool> Board<'a, MACHO, IMPRISONED>
         }
     }
 
-    pub fn new(script: &'a ChessemblyCompiled) -> Board<'a, MACHO, IMPRISONED> {
+    pub fn new(script: &'a ChessemblyCompiled) -> Board<'a, MACHO, IMPRISONED, 8> {
         Board {
             dp: HashMap::new(),
             board: [
@@ -202,8 +184,8 @@ impl<'a, const MACHO: bool, const IMPRISONED: bool> Board<'a, MACHO, IMPRISONED>
 
     pub fn to_string(&self) -> String {
         let mut ret = String::new();
-        for j in 0..8 {
-            for i in 0..8 {
+        for j in 0..(SIZE as u8) {
+            for i in 0..(SIZE as u8) {
                 let Some(color) = self.color_on(&[i, j].into()) else {
                     ret.push(' ');
                     continue;
@@ -239,7 +221,7 @@ impl<'a, const MACHO: bool, const IMPRISONED: bool> Board<'a, MACHO, IMPRISONED>
     }
 
     #[inline]
-    pub fn clone_without_dp(&self) -> Board<'a, MACHO, IMPRISONED> {
+    pub fn clone_without_dp(&self) -> Board<'a, MACHO, IMPRISONED, SIZE> {
         Board {
             board: self.board.clone(),
             board_state: self.board_state.clone(),
@@ -250,7 +232,7 @@ impl<'a, const MACHO: bool, const IMPRISONED: bool> Board<'a, MACHO, IMPRISONED>
         }
     }
 
-    pub fn make_move_new_nc(&self, node: &ChessMove<'a>, decide: bool) -> Board<'a, MACHO, IMPRISONED> {
+    pub fn make_move_new_nc(&self, node: &ChessMove<'a>, decide: bool) -> Board<'a, MACHO, IMPRISONED, SIZE> {
         let mut ret = self.clone_without_dp();
 
         if node.move_type == MoveType::Castling {
@@ -340,8 +322,8 @@ impl<'a, const MACHO: bool, const IMPRISONED: bool> Board<'a, MACHO, IMPRISONED>
             }
             else {
                 let mut found_king = false;
-                for i in 0..8 {
-                    for j in 0..8 {
+                for i in 0..(SIZE as u8) {
+                    for j in 0..(SIZE as u8) {
                         if ret.color_on(&(j, i)) == Some(turn) {
                             if ret.piece_on(&(j, i)).unwrap() == "king" {
                                 found_king = true;
@@ -373,7 +355,7 @@ impl<'a, const MACHO: bool, const IMPRISONED: bool> Board<'a, MACHO, IMPRISONED>
     }
 
     #[inline]
-    pub fn make_move_new(&self, node: &ChessMove<'a>) -> Board<'a, MACHO, IMPRISONED> {
+    pub fn make_move_new(&self, node: &ChessMove<'a>) -> Board<'a, MACHO, IMPRISONED, SIZE> {
         self.make_move_new_nc(node, true)
     }
 
@@ -384,7 +366,7 @@ impl<'a, const MACHO: bool, const IMPRISONED: bool> Board<'a, MACHO, IMPRISONED>
 
     #[inline]
     pub const fn piece_on(&self, position: &Position) -> Option<&str> {
-        if position.0 > 7 || position.1 > 7 {
+        if position.0 > (SIZE as u8) - 1 || position.1 > (SIZE as u8) - 1 {
             return None;
         } else if let PieceSpan::Piece(piece) =
             &self.board[position.1 as usize][position.0 as usize]
@@ -396,7 +378,7 @@ impl<'a, const MACHO: bool, const IMPRISONED: bool> Board<'a, MACHO, IMPRISONED>
 
     #[inline]
     pub const fn color_on(&self, position: &Position) -> Option<Color> {
-        if position.0 > 7 || position.1 > 7 {
+        if position.0 > (SIZE as u8) - 1 || position.1 > (SIZE as u8) - 1 {
             return None;
         } else if let PieceSpan::Piece(piece) =
             &self.board[position.1 as usize][position.0 as usize]
