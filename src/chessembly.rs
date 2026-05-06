@@ -222,8 +222,10 @@ impl<'a> ChessemblyCompiled<'a> {
                 let mut i = 0;
                 let mut j = 0;
                 while j < chain_str.len() - 1 {
-                    if chain_str[j..j + 1].chars().all(char::is_whitespace) {
-                        if chain_str[j + 1..j + 2]
+                    let jp1 = chain_str.ceil_char_boundary(j + 1);
+                    if chain_str[j..jp1].chars().all(char::is_whitespace) {
+                        let jp2 = chain_str.ceil_char_boundary(jp1 + 1);
+                        if chain_str[jp1..jp2]
                             .chars()
                             .all(|c| char::is_alphabetic(c) || c == '{' || c == '}')
                         {
@@ -233,7 +235,7 @@ impl<'a> ChessemblyCompiled<'a> {
                             }
                         }
                     }
-                    j += 1;
+                    j = jp1;
                 }
                 if !chain_str[i..].chars().all(char::is_whitespace) {
                     ret.push_behavior(Behavior::from_str(&chain_str[i..].trim()));

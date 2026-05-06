@@ -280,7 +280,7 @@ pub mod search {
             // 정렬된 리스트를 사용합니다.
             let mut new_state = state.make_move(&m);
 
-            let score = -negamax(&mut new_state, depth - 1, 15, -beta, -alpha);
+            let score = -negamax(&mut new_state, depth - 1, 10, -beta, -alpha);
 
             if score > best_score {
                 best_score = score;
@@ -310,7 +310,7 @@ pub mod search {
         // --- (끝) ---
         
         let mut i = 0;
-        let mut next_depth = if moves.len() < 5 {
+        let mut next_depth = if moves.len() < 4 {
             depth
         } else {
             depth - 1
