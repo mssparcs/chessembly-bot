@@ -399,6 +399,9 @@ impl<'a> ChessemblyCompiled<'a> {
                     }
                 }
 
+                if rip >= chain.len() {
+                    break;
+                }
                 let abs_inst = &chain[rip];
                 let inst = abs_inst.reflect_turn(board.side_to_move());
 

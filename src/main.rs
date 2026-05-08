@@ -101,7 +101,9 @@ async fn run_engine(headers: HeaderMap) -> impl IntoResponse {
         return (StatusCode::OK, "asdf").into_response();
     };
 
-    let Ok(compiled) = ChessemblyCompiled::from_script(&str_script[..]) else {
+    let str_script_fixed = str_script.replace('{', " { ").replace('}', " } ");
+
+    let Ok(compiled) = ChessemblyCompiled::from_script(&str_script_fixed[..]) else {
         return (StatusCode::OK, "asdf").into_response();
     };
 
@@ -174,7 +176,6 @@ async fn run_engine(headers: HeaderMap) -> impl IntoResponse {
     
     let is_macho = headers.get("Macho").is_some();
     let is_imprisoned = headers.get("Imprisoned").is_some();
-
 
     if let Some(to_evaluate) = headers.get("Target") {
         let Ok(to_evaluate_str) = to_evaluate.to_str() else {
