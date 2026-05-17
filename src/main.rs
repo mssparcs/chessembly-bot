@@ -96,9 +96,7 @@ async fn run_engine(headers: HeaderMap) -> impl IntoResponse {
     if depth <= 1 || depth > 4 {
         return (StatusCode::OK, "asdf").into_response();
     }
-
-    // let depth = 1;
-
+    
     let Ok(str_script) = script.to_str().map(|x| urlencoding::decode(x).expect("UTF-8")) else {
         return (StatusCode::OK, "asdf").into_response();
     };
