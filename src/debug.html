@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chessembly Debug Frontend</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        h1 { color: #e2b96d; margin-bottom: 20px; font-size: 1.5rem; letter-spacing: 0.02em; }
+
+        /* ─── position textarea ─── */
+        .pos-textarea-wrap { display: flex; flex-direction: column; gap: 6px; }
+        .pos-textarea-wrap label { font-size: 11px; color: #888; }
+        #positionText {
+            width: 460px;
+            height: 512px; /* 8 × 64px to match board height */
+            background: #080f1c;
+            border: 1px solid #2a3a5a;
+            color: #c8e6c9;
+            padding: 8px 10px;
+            border-radius: 6px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 12.5px;
+            line-height: 1.65;
+            resize: none;
+            outline: none;
+            tab-size: 4;
+        }
+        #positionText:focus { border-color: #e2b96d; }
+
+        /* ─── board ─── */
+        .board-wrap { display: flex; align-items: flex-start; gap: 0; }
+        .rank-labels { display: flex; flex-direction: column; margin-right: 4px; }
+        .rank-label {
+            width: 18px; height: 64px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 11px; color: #888; user-select: none;
+        }
+        .file-labels { display: flex; margin-top: 4px; margin-left: 22px; }
+        .file-label {
+            width: 64px; height: 18px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 11px; color: #888; user-select: none;
+        }
+        .board {
+            display: grid;
+            grid-template-columns: repeat(8, 64px);
+            grid-template-rows: repeat(8, 64px);
+            border: 2px solid #555;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        .cell {
+            width: 64px; height: 64px;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            font-size: 40px;
+            position: relative;
+            user-select: none;
+            overflow: hidden;
+        }
+        .cell.light { background: #f0d9b5; }
+        .cell.dark  { background: #b58863; }
+        .cell.hl-from  { background: rgba(80, 220, 80,  0.65) !important; }
+        .cell.hl-to    { background: rgba(80, 160, 255, 0.65) !important; }
+        .cell.hl-take  { background: rgba(255, 80,  80,  0.65) !important; }
+        .cell.hl-to.hl-take { background: rgba(190, 80, 255, 0.65) !important; }
+        .cell.has-piece { cursor: pointer; }
+        .cell.has-piece:hover { filter: brightness(1.12); }
+
+        /* standard piece (unicode) */
+        .piece-white { color: #fff; text-shadow: 0 0 3px #000, 1px 1px 3px #000; }
+        .piece-black { color: #111; text-shadow: 0 0 2px rgba(255,255,255,0.6); }
+
+        /* custom piece (first letter) */
+        .custom-piece {
+            font-size: 20px;
+            font-weight: 700;
+            font-family: 'Consolas', monospace;
+            line-height: 1;
+            padding: 1px 3px;
+            border-radius: 3px;
+        }
+        .custom-piece.piece-white {
+            color: #fff;
+            background: rgba(0,0,0,0.35);
+            text-shadow: none;
+        }
+        .custom-piece.piece-black {
+            color: #111;
+            background: rgba(255,255,255,0.35);
+            text-shadow: none;
+        }
+        .cell-coord {
+            position: absolute;
+            bottom: 2px; right: 3px;
+            font-size: 9px; color: rgba(0,0,0,0.3);
+            user-select: none; pointer-events: none;
+        }
+        .cell.light .cell-coord { color: rgba(0,0,0,0.25); }
+        .cell.dark  .cell-coord { color: rgba(255,255,255,0.25); }
+
+        /* ─── tool buttons ─── */
+        .tool-row { display: flex; gap: 8px; flex-wrap: wrap; }
+        .board-btn {
+            padding: 6px 12px;
+            border: 1px solid #445;
+            border-radius: 6px;
+            background: #1e2840;
+            color: #ccc;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.15s;
+        }
+        .board-btn:hover { background: #2a3a5a; }
+
+        /* ─── controls column ─── */
+        .controls-section { flex: 1; min-width: 340px; max-width: 560px; }
+        .panel {
+            background: #111928;
+            border: 1px solid #1e3060;
+            border-radius: 10px;
+            padding: 14px 16px;
+            margin-bottom: 12px;
+        }
+        .panel-title {
+            color: #e2b96d;
+            font-size: 0.88rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+        .form-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        .form-label { font-size: 12px; color: #aaa; min-width: 130px; }
+        input[type="text"], input[type="number"], select {
+            background: #080f1c;
+            border: 1px solid #2a3a5a;
+            color: #eee;
+            padding: 5px 8px;
+            border-radius: 5px;
+            font-size: 12px;
+            outline: none;
+        }
+        input[type="text"]:focus { border-color: #e2b96d; }
+        input[type="range"]    { accent-color: #e2b96d; }
+        input[type="checkbox"],
+        input[type="radio"]    { accent-color: #e2b96d; width: 14px; height: 14px; cursor: pointer; }
+        textarea {
+            width: 100%; min-height: 130px;
+            background: #080f1c;
+            border: 1px solid #2a3a5a;
+            color: #d0e8ff;
+            padding: 8px;
+            border-radius: 5px;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+            resize: vertical;
+            outline: none;
+        }
+        textarea:focus { border-color: #e2b96d; }
+        .checkbox-group { display: flex; gap: 14px; flex-wrap: wrap; }
+        .check-label { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #ccc; cursor: pointer; }
+        .radio-label  { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #ccc; cursor: pointer; }
+
+        .action-row { display: flex; gap: 10px; margin-bottom: 14px; }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: filter 0.15s;
+        }
+        .btn:hover { filter: brightness(1.15); }
+        .btn-primary { background: #e2b96d; color: #111; flex: 1; font-size: 14px; }
+        .btn-sm { padding: 5px 10px; font-size: 11px; }
+
+        /* ─── response ─── */
+        .resp-status { font-size: 12px; margin-bottom: 8px; padding: 5px 8px; border-radius: 4px; }
+        .resp-status.idle    { color: #666; background: transparent; }
+        .resp-status.loading { color: #e2b96d; background: #1a1400; }
+        .resp-status.ok      { color: #4f4;   background: #041204;  }
+        .resp-status.error   { color: #f66;   background: #140404;  }
+
+        .move-badge {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 4px 10px; border-radius: 5px; font-size: 12px; font-weight: 600;
+            margin-right: 6px; margin-bottom: 6px;
+        }
+        .badge-from { background: #0d2a0d; border: 1px solid #4a4; color: #9f9; }
+        .badge-to   { background: #0a1a30; border: 1px solid #48a; color: #8cf; }
+        .badge-take { background: #2a0a0a; border: 1px solid #a44; color: #f88; }
+
+        .code-block {
+            background: #040b14;
+            border: 1px solid #1a2a40;
+            border-radius: 6px;
+            padding: 10px 12px;
+            font-family: 'Consolas', monospace;
+            font-size: 11px;
+            color: #7ec897;
+            max-height: 260px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .code-block.headers { color: #79b8ff; }
+        .section-mini-title { font-size: 11px; color: #668; margin-bottom: 5px; margin-top: 10px; }
+        .hint { font-size: 11px; color: #556; margin-bottom: 8px; }
+        .parse-error { font-size: 11px; color: #f86; margin-top: 4px; min-height: 16px; }
+
+        /* ─── move list panel ─── */
+        .move-list-panel {
+            min-width: 200px;
+            max-width: 240px;
+            background: #111928;
+            border: 1px solid #1e3060;
+            border-radius: 10px;
+            padding: 12px 14px;
+            align-self: flex-start;
+        }
+        .move-list-panel .panel-title { margin-bottom: 8px; }
+        .move-list-empty { font-size: 11px; color: #445; font-style: italic; }
+        .move-entry {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 6px;
+            border-radius: 5px;
+            margin-bottom: 4px;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+            cursor: default;
+            border: 1px solid transparent;
+        }
+        .move-entry:hover { border-color: #2a3a5a; background: #1a2438; }
+        .move-entry .me-from  { color: #7dda7d; font-weight: 700; }
+        .move-entry .me-arrow { color: #445; }
+        .move-entry .me-to    { color: #7ab8f5; font-weight: 700; }
+        .move-entry .me-take  { color: #f08080; font-size: 11px; }
+        .move-entry .me-type  {
+            margin-left: auto;
+            font-size: 10px;
+            color: #556;
+            white-space: nowrap;
+        }
+        .move-entry .me-promo { color: #ffe08a; font-size: 10px; }
+    </style>
+</head>
+<body>
+<h1>♟ Chessembly Debug Frontend</h1>
+
+<div class="outer">
+
+    <!-- ══════════ LEFT: position editor + board preview ══════════ -->
+    <div class="position-block">
+        <div class="position-inner">
+
+            <!-- Textarea -->
+            <div class="pos-textarea-wrap">
+                <label>보드 위치 입력 — 한 줄 = 한 랭크(row 0이 맨 위, 흑 기준)</label>
+                <label>형식: <code style="color:#9df">piecename:color</code> 또는 <code style="color:#9df">.</code> (빈칸), 8칸×8줄</label>
+                <textarea id="positionText" spellcheck="false" oninput="onPositionInput()"></textarea>
+                <div class="parse-error" id="parseError"></div>
+            </div>
+
+            <!-- Board preview -->
+            <div>
+                <div style="font-size:11px;color:#888;margin-bottom:6px;">보드 미리보기 (읽기 전용)</div>
+                <div style="display:flex;align-items:flex-start;gap:16px;">
+                    <div class="board-wrap">
+                        <div class="rank-labels" id="rankLabels"></div>
+                        <div>
+                            <div class="board" id="board"></div>
+                            <div class="file-labels" id="fileLabels"></div>
+                        </div>
+                    </div>
+                    <!-- Move list panel -->
+                    <div class="move-list-panel" id="moveListPanel">
+                        <div class="panel-title">행마법 목록</div>
+                        <div id="moveListContent"><span class="move-list-empty">기물을 클릭하세요</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tool buttons -->
+        <div class="tool-row">
+            <button class="board-btn" onclick="setStandardPosition()">♟ 표준 배치</button>
+            <button class="board-btn" onclick="clearBoard()">✕ 초기화</button>
+            <button class="board-btn" onclick="flipBoard()">⇅ 뒤집기</button>
+        </div>
+    </div>
+
+    <!-- ══════════ RIGHT: controls ══════════ -->
+    <div class="controls-section">
+
+        <!-- Server -->
+        <div class="panel">
+            <div class="panel-title">서버 설정</div>
+            <div class="form-row">
+                <span class="form-label">서버 URL</span>
+                <input type="text" id="serverUrl" value="http://localhost:8080" style="flex:1;min-width:180px">
+            </div>
+        </div>
+
+        <!-- Game settings -->
+        <div class="panel">
+            <div class="panel-title">게임 설정</div>
+            <div class="form-row">
+                <span class="form-label">턴 (Turn)</span>
+                <div class="checkbox-group">
+                    <label class="radio-label"><input type="radio" name="turn" value="white" checked> 백 (White)</label>
+                    <label class="radio-label"><input type="radio" name="turn" value="black"> 흑 (Black)</label>
+                </div>
+            </div>
+            <div class="form-row">
+                <span class="form-label">탐색 깊이 (Depth)</span>
+                <input type="range" id="depth" min="2" max="4" value="3"
+                       oninput="document.getElementById('depthVal').textContent=this.value" style="width:100px">
+                <span id="depthVal" style="min-width:14px;color:#e2b96d;font-weight:bold">3</span>
+            </div>
+            <div class="form-row">
+                <span class="form-label">게임 모드</span>
+                <div class="checkbox-group">
+                    <label class="check-label"><input type="checkbox" id="macho"> Macho</label>
+                    <label class="check-label"><input type="checkbox" id="imprisoned"> Imprisoned</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Castling -->
+        <div class="panel">
+            <div class="panel-title">캐슬링 (Castling)</div>
+            <div class="form-row">
+                <span class="form-label">Castling OO (단편)</span>
+                <div class="checkbox-group">
+                    <label class="check-label"><input type="checkbox" id="castOOw" checked> 백</label>
+                    <label class="check-label"><input type="checkbox" id="castOOb" checked> 흑</label>
+                </div>
+            </div>
+            <div class="form-row">
+                <span class="form-label">Castling OOO (장편)</span>
+                <div class="checkbox-group">
+                    <label class="check-label"><input type="checkbox" id="castOOOw" checked> 백</label>
+                    <label class="check-label"><input type="checkbox" id="castOOOb" checked> 흑</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- En passant & Registers -->
+        <div class="panel">
+            <div class="panel-title">앙파상 &amp; 레지스터</div>
+            <div class="hint">앙파상: <code style="color:#9df">col,row/col,row</code> &nbsp; 레지스터: <code style="color:#9df">key,value/key,value</code></div>
+            <div class="form-row">
+                <span class="form-label">En Passant White</span>
+                <input type="text" id="enPwh" placeholder="ex) 3,3" style="flex:1">
+            </div>
+            <div class="form-row">
+                <span class="form-label">En Passant Black</span>
+                <input type="text" id="enPbl" placeholder="ex) 4,4" style="flex:1">
+            </div>
+            <div class="form-row">
+                <span class="form-label">Register White</span>
+                <input type="text" id="regWh" placeholder="ex) enpassant,1" style="flex:1">
+            </div>
+            <div class="form-row">
+                <span class="form-label">Register Black</span>
+                <input type="text" id="regBl" placeholder="ex) enpassant,1" style="flex:1">
+            </div>
+        </div>
+
+        <!-- Chessembly Script -->
+        <div class="panel">
+            <div class="panel-title">Chessembly 스크립트</div>
+            <div class="tool-row" style="margin-bottom:8px">
+                <button class="board-btn btn-sm" onclick="setEmptyScript()">비우기 (표준 체스)</button>
+                <button class="board-btn btn-sm" onclick="setChameleonScript()">카멜레온 예제</button>
+            </div>
+            <textarea id="chessemblyScript" placeholder="커스텀 기물을 정의하는 Chessembly 스크립트.&#10;표준 체스는 비어있어도 동작합니다."></textarea>
+        </div>
+
+        <!-- Action -->
+        <div class="action-row">
+            <button class="btn btn-primary" onclick="getBestMove()">▶ 최선 수 계산 (Best Move)</button>
+        </div>
+
+        <!-- Response -->
+        <div class="panel">
+            <div class="panel-title">응답 (Response)</div>
+            <div class="resp-status idle" id="statusMsg">대기 중...</div>
+            <div id="moveDisplay" style="display:none;margin-bottom:10px;"></div>
+            <div class="section-mini-title">JSON 응답</div>
+            <div class="code-block" id="responseArea">(응답 대기중)</div>
+            <div class="section-mini-title">요청 헤더</div>
+            <div class="code-block headers" id="headersArea">(요청 대기중)</div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  State
+// ═══════════════════════════════════════════════
+// Parsed board: board[row][col] = { type, color } | null
+let board = Array.from({ length: 8 }, () => Array(8).fill(null));
+let isFlipped = false;
+let highlight = { from: null, to: null, take: null }; // [row, col]
+let selectedCell = null; // [col, row] of the piece being inspected
+let moveHighlights = []; // array of ChessMove objects from /Target API
+
+const STANDARD_PIECES = new Set(['king','queen','rook','bishop','knight','pawn']);
+const SYMBOLS = {
+    king:   { white: '♔', black: '♚' },
+    queen:  { white: '♕', black: '♛' },
+    rook:   { white: '♖', black: '♜' },
+    bishop: { white: '♗', black: '♝' },
+    knight: { white: '♘', black: '♞' },
+    pawn:   { white: '♙', black: '♟' },
+};
+
+// ═══════════════════════════════════════════════
+//  Position text → board state
+// ═══════════════════════════════════════════════
+function parsePositionText(text) {
+    const result = Array.from({ length: 8 }, () => Array(8).fill(null));
+    const lines = text.split('\n');
+    for (let r = 0; r < 8; r++) {
+        const raw = (lines[r] || '').trim();
+        if (!raw) continue;
+        const tokens = raw.split(/\s+/);
+        let c = 0;
+        for (const tok of tokens) {
+            if (c >= 8) break;
+            if (tok === '.' || tok === '') { c++; continue; }
+            const sep = tok.indexOf(':');
+            if (sep > 0) {
+                const type  = tok.slice(0, sep).toLowerCase();
+                const color = tok.slice(sep + 1).toLowerCase();
+                if (color === 'white' || color === 'black') {
+                    result[r][c] = { type, color };
+                }
+            }
+            c++;
+        }
+    }
+    return result;
+}
+
+function validateText(text) {
+    const lines = text.split('\n').filter(l => l.trim() !== '');
+    if (lines.length > 8) return `줄 수가 8을 초과합니다 (현재 ${lines.length}줄)`;
+    for (let i = 0; i < lines.length; i++) {
+        const tokens = lines[i].trim().split(/\s+/);
+        if (tokens.length > 8) return `Row ${i}: 칸 수가 8을 초과합니다 (현재 ${tokens.length}칸)`;
+        for (const tok of tokens) {
+            if (tok === '.') continue;
+            const sep = tok.indexOf(':');
+            if (sep < 1) return `Row ${i}: 잘못된 토큰 "${tok}" — piecename:color 또는 . 형식 필요`;
+            const color = tok.slice(sep + 1).toLowerCase();
+            if (color !== 'white' && color !== 'black')
+                return `Row ${i}: 색상은 "white" 또는 "black"이어야 합니다 (받은 값: "${color}")`;
+        }
+    }
+    return null;
+}
+
+function onPositionInput() {
+    const text = document.getElementById('positionText').value;
+    const err  = validateText(text);
+    document.getElementById('parseError').textContent = err || '';
+    board = parsePositionText(text);
+    highlight = { from: null, to: null, take: null };
+    selectedCell = null;
+    moveHighlights = [];
+    renderBoard();
+}
+
+// ═══════════════════════════════════════════════
+//  Board rendering (read-only)
+// ═══════════════════════════════════════════════
+function renderBoard() {
+    const boardEl = document.getElementById('board');
+    boardEl.innerHTML = '';
+
+    for (let vi = 0; vi < 8; vi++) {
+        for (let vj = 0; vj < 8; vj++) {
+            const row = isFlipped ? 7 - vi : vi;
+            const col = isFlipped ? 7 - vj : vj;
+            const isLight = (vi + vj) % 2 === 0;
+
+            const cell = document.createElement('div');
+            let cls = 'cell ' + (isLight ? 'light' : 'dark');
+
+            if (selectedCell) {
+                // Piece-move highlight mode
+                const isSelected = selectedCell[0] === col && selectedCell[1] === row;
+
+                // Hover over a move entry → highlight only that move
+                let isMoveDest, isTakeDest;
+                if (hoveredMove) {
+                    isMoveDest = hoveredMove.toCol   === col && hoveredMove.toRow   === row;
+                    isTakeDest = hoveredMove.takeCol === col && hoveredMove.takeRow === row;
+                } else {
+                    isMoveDest = moveHighlights.some(m => m.move_to[0] === col && m.move_to[1] === row);
+                    isTakeDest = moveHighlights.some(m => m.take[0]    === col && m.take[1]    === row);
+                }
+
+                if (isSelected)                    cls += ' hl-from';
+                if (isMoveDest && !isTakeDest)     cls += ' hl-to';
+                if (isTakeDest && !isMoveDest)     cls += ' hl-take';
+                if (isMoveDest && isTakeDest)      cls += ' hl-to hl-take';
+            } else {
+                // Best-move highlight mode
+                const hlFrom = highlight.from && highlight.from[0] === row && highlight.from[1] === col;
+                const hlTo   = highlight.to   && highlight.to[0]   === row && highlight.to[1]   === col;
+                const hlTake = highlight.take && highlight.take[0] === row && highlight.take[1] === col;
+
+                if (hlFrom)           cls += ' hl-from';
+                if (hlTo && !hlTake)  cls += ' hl-to';
+                if (hlTake && !hlTo)  cls += ' hl-take';
+                if (hlTo && hlTake)   cls += ' hl-to hl-take';
+            }
+
+            cell.className = cls;
+
+            // Piece
+            const piece = board[row][col];
+            if (piece) {
+                const span = document.createElement('span');
+                if (STANDARD_PIECES.has(piece.type)) {
+                    span.className = 'piece-' + piece.color;
+                    span.textContent = SYMBOLS[piece.type][piece.color];
+                } else {
+                    // Custom piece: first letter, with tooltip
+                    span.className = 'custom-piece piece-' + piece.color;
+                    span.textContent = piece.type.charAt(0).toUpperCase();
+                    span.title = piece.type + ':' + piece.color;
+                }
+                cell.appendChild(span);
+                cell.classList.add('has-piece');
+            }
+
+            // Coordinate hint (corner)
+            const coord = document.createElement('span');
+            coord.className = 'cell-coord';
+            coord.textContent = String.fromCharCode(97 + col) + (8 - row);
+            cell.appendChild(coord);
+
+            // Click handler
+            cell.addEventListener('click', () => onCellClick(col, row));
+
+            boardEl.appendChild(cell);
+        }
+    }
+
+    // Rank labels
+    const rankLabels = document.getElementById('rankLabels');
+    rankLabels.innerHTML = '';
+    for (let vi = 0; vi < 8; vi++) {
+        const row = isFlipped ? 7 - vi : vi;
+        const d = document.createElement('div');
+        d.className = 'rank-label';
+        d.textContent = 8 - row;
+        rankLabels.appendChild(d);
+    }
+
+    // File labels
+    const fileLabels = document.getElementById('fileLabels');
+    fileLabels.innerHTML = '';
+    for (let vj = 0; vj < 8; vj++) {
+        const col = isFlipped ? 7 - vj : vj;
+        const d = document.createElement('div');
+        d.className = 'file-label';
+        d.textContent = String.fromCharCode(97 + col);
+        fileLabels.appendChild(d);
+    }
+}
+
+// ═══════════════════════════════════════════════
+//  Position text presets
+// ═══════════════════════════════════════════════
+const BACK = ['rook','knight','bishop','queen','king','bishop','knight','rook'];
+
+function boardToText(b) {
+    return b.map(row =>
+        row.map(p => p ? `${p.type}:${p.color}` : '.').join(' ')
+    ).join('\n');
+}
+
+function setStandardPosition() {
+    const b = Array.from({ length: 8 }, () => Array(8).fill(null));
+    for (let c = 0; c < 8; c++) {
+        b[0][c] = { type: BACK[c], color: 'black' };
+        b[1][c] = { type: 'pawn',  color: 'black' };
+        b[6][c] = { type: 'pawn',  color: 'white' };
+        b[7][c] = { type: BACK[c], color: 'white' };
+    }
+    board = b;
+    highlight = { from: null, to: null, take: null };
+    selectedCell = null;
+    moveHighlights = [];
+    document.getElementById('positionText').value = boardToText(b);
+    document.getElementById('parseError').textContent = '';
+    renderBoard();
+}
+
+function clearBoard() {
+    board = Array.from({ length: 8 }, () => Array(8).fill(null));
+    highlight = { from: null, to: null, take: null };
+    selectedCell = null;
+    moveHighlights = [];
+    document.getElementById('positionText').value = Array(8).fill('. . . . . . . .').join('\n');
+    document.getElementById('parseError').textContent = '';
+    renderBoard();
+}
+
+function flipBoard() {
+    isFlipped = !isFlipped;
+    renderBoard();
+}
+
+// ═══════════════════════════════════════════════
+//  Position encoding for API
+// ═══════════════════════════════════════════════
+function encodePosition() {
+    return board.map(row =>
+        row.map(p => p ? `${p.type}:${p.color}` : '.').join(' ')
+    ).join('/');
+}
+
+// ═══════════════════════════════════════════════
+//  Helpers
+// ═══════════════════════════════════════════════
+function colRowToNotation(col, row) {
+    return String.fromCharCode(97 + col) + (8 - row);
+}
+
+function pieceSymbol(piece) {
+    if (!piece) return '';
+    if (STANDARD_PIECES.has(piece.type)) return ' ' + SYMBOLS[piece.type][piece.color];
+    return ` [${piece.type.charAt(0).toUpperCase()}]`;
+}
+
+function setStatus(type, msg) {
+    const el = document.getElementById('statusMsg');
+    el.className = 'resp-status ' + type;
+    el.textContent = msg;
+}
+
+// ═══════════════════════════════════════════════
+//  Execute a move — delegates to POST /apply on the server
+// ═══════════════════════════════════════════════
+async function executeMove(move) {
+    const url  = document.getElementById('serverUrl').value.trim().replace(/\/$/, '');
+    const turn = document.querySelector('input[name="turn"]:checked').value;
+
+    const castOO  = (document.getElementById('castOOw').checked  ? '1':'0')
+                  + (document.getElementById('castOOb').checked  ? '1':'0');
+    const castOOO = (document.getElementById('castOOOw').checked ? '1':'0')
+                  + (document.getElementById('castOOOb').checked ? '1':'0');
+
+    const enPwh = document.getElementById('enPwh').value.trim() || '.';
+    const enPbl = document.getElementById('enPbl').value.trim() || '.';
+    const regWh = document.getElementById('regWh').value.trim() || '.';
+    const regBl = document.getElementById('regBl').value.trim() || '.';
+
+    const macho = document.getElementById('macho').checked;
+    const imp   = document.getElementById('imprisoned').checked;
+
+    const position      = encodePosition();
+    const encodedScript = encodeURIComponent(document.getElementById('chessemblyScript').value);
+
+    const hdrs = {
+        'Content-Type':     'application/json',
+        'Position':         position,
+        'Chessembly':       encodedScript,
+        'Turn':             turn,
+        'Castling-OO':      castOO,
+        'Castling-OOO':     castOOO,
+        'En-Passant-White': enPwh,
+        'En-Passant-Black': enPbl,
+        'Register-White':   regWh,
+        'Register-Black':   regBl,
+        'Depth':            document.getElementById('depth').value,
+    };
+    if (macho) hdrs['Macho']      = '1';
+    if (imp)   hdrs['Imprisoned'] = '1';
+
+    try {
+        const res  = await fetch(url + '/apply', {
+            method: 'POST',
+            headers: hdrs,
+            body: JSON.stringify({
+                from:       move.from,
+                move_to:    move.move_to,
+                transition: move.transition ?? null,
+            }),
+        });
+
+        if (!res.ok) {
+            console.error('apply failed:', await res.text());
+            return;
+        }
+
+        const s = await res.json();
+
+        // Update board from returned position string (rows separated by '/')
+        board = parsePositionText(s.position.split('/').join('\n'));
+
+        // Update turn radio
+        document.querySelector(`input[name="turn"][value="${s.turn}"]`).checked = true;
+
+        // Update castling checkboxes
+        document.getElementById('castOOw').checked  = s.castling_oo[0]  === '1';
+        document.getElementById('castOOb').checked  = s.castling_oo[1]  === '1';
+        document.getElementById('castOOOw').checked = s.castling_ooo[0] === '1';
+        document.getElementById('castOOOb').checked = s.castling_ooo[1] === '1';
+
+        // Update en-passant fields
+        document.getElementById('enPwh').value = s.en_passant_white === '.' ? '' : s.en_passant_white;
+        document.getElementById('enPbl').value = s.en_passant_black === '.' ? '' : s.en_passant_black;
+
+        // Sync position textarea
+        document.getElementById('positionText').value = boardToText(board);
+        document.getElementById('parseError').textContent = '';
+
+    } catch (err) {
+        console.error('apply error:', err);
+        return;
+    }
+
+    // Clear selection / highlights
+    selectedCell   = null;
+    moveHighlights = [];
+    highlight      = { from: null, to: null, take: null };
+    renderBoard();
+}
+
+// ═══════════════════════════════════════════════
+//  Promotion picker overlay
+// ═══════════════════════════════════════════════
+function showPromotionPicker(moves) {
+    const pieceColor = selectedCell
+        ? (board[selectedCell[1]][selectedCell[0]]?.color || 'white')
+        : 'white';
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.65);display:flex;align-items:center;justify-content:center;z-index:200';
+
+    const box = document.createElement('div');
+    box.style.cssText = 'background:#1a1a2e;border:2px solid #e2b96d;border-radius:12px;padding:20px 24px;min-width:260px;text-align:center;';
+
+    const title = document.createElement('div');
+    title.style.cssText = 'color:#e2b96d;font-size:14px;font-weight:700;margin-bottom:14px;letter-spacing:0.05em;';
+    title.textContent = '프로모션 — 기물을 선택하세요';
+    box.appendChild(title);
+
+    const btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;gap:10px;justify-content:center;flex-wrap:wrap;';
+    for (const move of moves) {
+        if (!move.transition) continue;
+        const sym = STANDARD_PIECES.has(move.transition)
+            ? SYMBOLS[move.transition][pieceColor]
+            : move.transition.charAt(0).toUpperCase();
+        const btn = document.createElement('button');
+        btn.style.cssText = 'background:#1e2840;border:1px solid #446;border-radius:8px;padding:8px 14px;color:#eee;cursor:pointer;font-size:36px;line-height:1;transition:background 0.15s;';
+        btn.textContent = sym;
+        btn.title = move.transition;
+        btn.onmouseenter = () => btn.style.background = '#2a3a5a';
+        btn.onmouseleave = () => btn.style.background = '#1e2840';
+        btn.addEventListener('click', () => { document.body.removeChild(overlay); executeMove(move); });
+        btnRow.appendChild(btn);
+    }
+    box.appendChild(btnRow);
+
+    const cancel = document.createElement('button');
+    cancel.style.cssText = 'margin-top:14px;background:transparent;border:1px solid #556;border-radius:6px;padding:5px 14px;color:#888;cursor:pointer;font-size:12px;';
+    cancel.textContent = '취소';
+    cancel.addEventListener('click', () => document.body.removeChild(overlay));
+    box.appendChild(cancel);
+
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+}
+
+// ═══════════════════════════════════════════════
+//  Move list panel
+// ═══════════════════════════════════════════════
+let hoveredMove = null;
+
+function renderMoveList() {
+    const el = document.getElementById('moveListContent');
+    if (!selectedCell) {
+        el.innerHTML = '<span class="move-list-empty">기물을 클릭하세요</span>';
+        return;
+    }
+    if (moveHighlights.length === 0) {
+        el.innerHTML = '<span class="move-list-empty">합법적인 수 없음</span>';
+        return;
+    }
+    const piece = board[selectedCell[1]][selectedCell[0]];
+    const pieceName = piece ? `${piece.type}:${piece.color}` : '?';
+    const fromNote = colRowToNotation(selectedCell[0], selectedCell[1]);
+
+    let html = `<div style="font-size:11px;color:#888;margin-bottom:8px;">${fromNote} — ${pieceName} (${moveHighlights.length}수)</div>`;
+
+    for (let i = 0; i < moveHighlights.length; i++) {
+        const m = moveHighlights[i];
+        const toNote   = colRowToNotation(m.move_to[0], m.move_to[1]);
+        const takeNote = colRowToNotation(m.take[0],    m.take[1]);
+        const isSameToTake = m.move_to[0] === m.take[0] && m.move_to[1] === m.take[1];
+        const typeLabel = (m.move_type || '').replace(/_/g, ' ').toLowerCase();
+
+        const takeHtml  = !isSameToTake ? `<span class="me-take">×${takeNote}</span>` : '';
+        const promoHtml = m.transition   ? `<span class="me-promo">→${m.transition}</span>` : '';
+
+        html += `<div class="move-entry" data-idx="${i}"
+             onmouseenter="hoverMove(${m.move_to[0]},${m.move_to[1]},${m.take[0]},${m.take[1]})"
+             onmouseleave="unhoverMove()">
+            <span class="me-from">${fromNote}</span>
+            <span class="me-arrow">→</span>
+            <span class="me-to">${toNote}</span>
+            ${takeHtml}${promoHtml}
+            <span class="me-type">${typeLabel}</span>
+        </div>`;
+    }
+    el.innerHTML = html;
+}
+
+function hoverMove(toCol, toRow, takeCol, takeRow) {
+    hoveredMove = { toCol, toRow, takeCol, takeRow };
+    renderBoard();
+}
+function unhoverMove() {
+    hoveredMove = null;
+    renderBoard();
+}
+
+// ═══════════════════════════════════════════════
+//  Cell click → piece moves / execute move
+// ═══════════════════════════════════════════════
+function onCellClick(col, row) {
+    // If a piece is selected, check if the clicked square is a legal destination
+    if (selectedCell && moveHighlights.length > 0) {
+        const matchingMoves = moveHighlights.filter(
+            m => m.move_to[0] === col && m.move_to[1] === row
+        );
+        if (matchingMoves.length === 1) {
+            executeMove(matchingMoves[0]);
+            return;
+        } else if (matchingMoves.length > 1) {
+            // Multiple promotions to the same square — let the user pick
+            showPromotionPicker(matchingMoves);
+            return;
+        }
+        // Clicked a non-destination — fall through to re-select
+    }
+
+    if (!board[row][col]) {
+        // Clicked empty cell — deselect
+        selectedCell = null;
+        moveHighlights = [];
+        renderBoard();
+        renderMoveList();
+        return;
+    }
+    // Toggle: clicking the same piece deselects it
+    if (selectedCell && selectedCell[0] === col && selectedCell[1] === row) {
+        selectedCell = null;
+        moveHighlights = [];
+        renderBoard();
+        renderMoveList();
+        return;
+    }
+    selectedCell = [col, row];
+    moveHighlights = [];
+    highlight = { from: null, to: null, take: null };
+    renderBoard();
+    renderMoveList();
+    getPieceMoves(col, row);
+}
+
+async function getPieceMoves(col, row) {
+    const url   = document.getElementById('serverUrl').value.trim().replace(/\/$/, '');
+    const turn  = document.querySelector('input[name="turn"]:checked').value;
+    const depth = document.getElementById('depth').value;
+    const macho = document.getElementById('macho').checked;
+    const imp   = document.getElementById('imprisoned').checked;
+
+    const castOO  = (document.getElementById('castOOw').checked  ? '1':'0')
+                  + (document.getElementById('castOOb').checked  ? '1':'0');
+    const castOOO = (document.getElementById('castOOOw').checked ? '1':'0')
+                  + (document.getElementById('castOOOb').checked ? '1':'0');
+
+    const enPwh = document.getElementById('enPwh').value.trim() || '.';
+    const enPbl = document.getElementById('enPbl').value.trim() || '.';
+    const regWh = document.getElementById('regWh').value.trim() || '.';
+    const regBl = document.getElementById('regBl').value.trim() || '.';
+    const script = document.getElementById('chessemblyScript').value;
+
+    const position      = encodePosition();
+    const encodedScript = encodeURIComponent(script);
+
+    const headers = {
+        'Position':         position,
+        'Chessembly':       encodedScript,
+        'Turn':             turn,
+        'Castling-OO':      castOO,
+        'Castling-OOO':     castOOO,
+        'En-Passant-White': enPwh,
+        'En-Passant-Black': enPbl,
+        'Register-White':   regWh,
+        'Register-Black':   regBl,
+        'Depth':            depth,
+        'Target':           `${col},${row}`,
+    };
+    if (macho) headers['Macho'] = '1';
+    if (imp)   headers['Imprisoned'] = '1';
+
+    try {
+        const res  = await fetch(url + '/moves', { method: 'POST', headers });
+        const text = await res.text();
+        const json = JSON.parse(text);
+        if (Array.isArray(json)) {
+            moveHighlights = json;
+            renderBoard();
+            renderMoveList();
+        }
+    } catch (_) {
+        // silently ignore move-fetch errors
+    }
+}
+
+// ═══════════════════════════════════════════════
+//  API call
+// ═══════════════════════════════════════════════
+async function getBestMove() {
+    const url   = document.getElementById('serverUrl').value.trim().replace(/\/$/, '');
+    const turn  = document.querySelector('input[name="turn"]:checked').value;
+    const depth = document.getElementById('depth').value;
+    const macho = document.getElementById('macho').checked;
+    const imp   = document.getElementById('imprisoned').checked;
+
+    const castOO  = (document.getElementById('castOOw').checked  ? '1':'0')
+                  + (document.getElementById('castOOb').checked  ? '1':'0');
+    const castOOO = (document.getElementById('castOOOw').checked ? '1':'0')
+                  + (document.getElementById('castOOOb').checked ? '1':'0');
+
+    const enPwh = document.getElementById('enPwh').value.trim() || '.';
+    const enPbl = document.getElementById('enPbl').value.trim() || '.';
+    const regWh = document.getElementById('regWh').value.trim() || '.';
+    const regBl = document.getElementById('regBl').value.trim() || '.';
+    const script = document.getElementById('chessemblyScript').value;
+
+    const position      = encodePosition();
+    const encodedScript = encodeURIComponent(script);
+
+    const headers = {
+        'Position':         position,
+        'Chessembly':       encodedScript,
+        'Turn':             turn,
+        'Castling-OO':      castOO,
+        'Castling-OOO':     castOOO,
+        'En-Passant-White': enPwh,
+        'En-Passant-Black': enPbl,
+        'Register-White':   regWh,
+        'Register-Black':   regBl,
+        'Depth':            depth,
+    };
+    if (macho) headers['Macho'] = '1';
+    if (imp)   headers['Imprisoned'] = '1';
+
+    document.getElementById('headersArea').textContent = Object.entries(headers)
+        .map(([k, v]) => `${k}: ${v.length > 100 ? v.slice(0,100)+'…' : v}`)
+        .join('\n');
+
+    setStatus('loading', '요청 중...');
+    document.getElementById('moveDisplay').style.display = 'none';
+    document.getElementById('responseArea').textContent = '';
+    selectedCell = null;
+    moveHighlights = [];
+
+    try {
+        const res  = await fetch(url + '/', { method: 'POST', headers });
+        const text = await res.text();
+
+        if (text === 'null') {
+            setStatus('ok', `HTTP ${res.status} — 게임 종료 또는 유효한 수 없음`);
+            document.getElementById('responseArea').textContent = 'null\n(게임이 끝났거나 합법적인 수가 없습니다)';
+            highlight = { from: null, to: null, take: null };
+            renderBoard();
+            return;
+        }
+        if (text === 'asdf' || text.startsWith('asdf')) {
+            setStatus('error', `HTTP ${res.status} — 서버 오류 (헤더 파싱 실패)`);
+            document.getElementById('responseArea').textContent = text;
+            return;
+        }
+
+        try {
+            const json = JSON.parse(text);
+            setStatus('ok', `HTTP ${res.status} — 최선 수 계산 완료`);
+            document.getElementById('responseArea').textContent = JSON.stringify(json, null, 2);
+
+            // json positions are [col, row]; board display is [row, col]
+            const toHL = arr => arr ? [arr[1], arr[0]] : null;
+            highlight = {
+                from: toHL(json.from),
+                to:   toHL(json.move_to),
+                take: toHL(json.take),
+            };
+
+            const fromNote = json.from    ? colRowToNotation(json.from[0],    json.from[1])    : '?';
+            const toNote   = json.move_to ? colRowToNotation(json.move_to[0], json.move_to[1]) : '?';
+            const takeNote = json.take    ? colRowToNotation(json.take[0],    json.take[1])    : '?';
+            const fromPiece = json.from   ? board[json.from[1]]?.[json.from[0]] : null;
+
+            const moveDiv = document.getElementById('moveDisplay');
+            moveDiv.style.display = 'block';
+            moveDiv.innerHTML = `
+                <span class="move-badge badge-from">FROM ${fromNote}${pieceSymbol(fromPiece)}</span>
+                <span class="move-badge badge-to">TO ${toNote}</span>
+                ${takeNote !== toNote ? `<span class="move-badge badge-take">TAKE ${takeNote}</span>` : ''}
+                <br>
+                <span style="font-size:12px;color:#aaa">
+                    타입: <b style="color:#e2b96d">${json.move_type||'?'}</b>
+                    ${json.transition   ? `&nbsp; 프로모션: <b style="color:#ffa">${json.transition}</b>` : ''}
+                    ${json.state_change ? `&nbsp; 상태변경: <b style="color:#bdf">${JSON.stringify(json.state_change)}</b>` : ''}
+                </span>`;
+
+            renderBoard();
+        } catch (_) {
+            setStatus('ok', `HTTP ${res.status}`);
+            document.getElementById('responseArea').textContent = text;
+        }
+
+    } catch (err) {
+        setStatus('error', '네트워크 오류: ' + err.message);
+        document.getElementById('responseArea').textContent = err.toString()
+            + '\n\n힌트: 서버가 실행 중인지, CORS가 허용되어 있는지 확인하세요.';
+    }
+}
+
+// ═══════════════════════════════════════════════
+//  Script presets
+// ═══════════════════════════════════════════════
+function setEmptyScript() {
+    document.getElementById('chessemblyScript').value = '';
+}
+
+function setChameleonScript() {
+    document.getElementById('chessemblyScript').value =
+`piece(test) transition(chameleon)
+{ move(1, 1) }
+{ move(-1, 1) }
+{ move(1, -1) }
+{ move(-1, -1) }
+{ move(1, 0) }
+{ move(-1, 0) }
+{ move(0, 1) }
+{ move(0, -1) };
+
+# 카멜레온;
+
+piece(chameleon) move(1, 1);
+piece(chameleon) move(1, -1);
+piece(chameleon) move(-1, 1);
+piece(chameleon) move(-1, -1);
+piece(chameleon) move(1, 0);
+piece(chameleon) move(-1, 0);
+piece(chameleon) move(0, 1);
+piece(chameleon) move(0, -1);
+
+piece(chameleon) piece-on(pawn, 2, 2) transition(mirrored-pawn) catch(2, 2);
+piece(chameleon) piece-on(pawn, 2, -2) transition(mirrored-pawn) catch(2, -2);
+piece(chameleon) piece-on(pawn, -2, 2) transition(mirrored-pawn) catch(-2, 2);
+piece(chameleon) piece-on(pawn, -2, -2) transition(mirrored-pawn) catch(-2, -2);
+
+# 미러드 폰;
+
+piece(mirrored-pawn) move(0, 1);
+piece(mirrored-pawn) piece-on(pawn, 1, 1) take(1, 1);
+piece(mirrored-pawn) piece-on(pawn, -1, 1) take(-1, 1)`;
+}
+
+// ═══════════════════════════════════════════════
+//  Init
+// ═══════════════════════════════════════════════
+setStandardPosition();
+renderMoveList();
+</script>
+</body>
+</html>
