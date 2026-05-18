@@ -20,6 +20,11 @@ impl<'a> ChessemblyCompiled<'a> {
             position.1 + 1
         };
         let promotion = if color == Color::White { 1 } else { (SIZE as u8) - 2 };
+        let wall = if color == Color::White { 0 } else { (SIZE as u8) - 1 };
+        
+        if position.1 == wall {
+            return ret;
+        }
 
         if board.color_on(&(position.0, step1)) == None {
             if (position.1 == promotion) && !MACHO {
