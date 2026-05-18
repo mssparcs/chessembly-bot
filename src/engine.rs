@@ -78,18 +78,15 @@ pub mod game_logic {
                 for j in 0..8 {
                     if let Some(piece) = self.piece_on(&(i, j)) {
                         let value = get_piece_value(piece);
+
+                        // 센터 근접 가중치: 기물 가치가 낮을수록 중앙에 있을 때 더 높은 보너스
+                        let dist = (i as i32 * 2 - 7).abs() + (j as i32 * 2 - 7).abs();
+                        let center_bonus = (14 - dist) / value.max(1);
+
                         if self.color_on(&(i, j)) == Some(Color::White) {
-                            if self.side_to_move() == Color::White {
-                                score += value;
-                            } else {
-                                score += value;
-                            }
+                            score += value + center_bonus;
                         } else {
-                            if self.side_to_move() == Color::White {
-                                score -= value;
-                            } else {
-                                score -= value;
-                            }
+                            score -= value + center_bonus;
                         }
                     }
                 }
@@ -134,7 +131,19 @@ pub mod game_logic {
                 score += get_piece_value(victim) * 50 - get_piece_value(attacker) * 5;
             }
 
-            // 3. TODO (고급): 나중에는 'Killer Moves' (이전 컷오프를 유발한 조용한 수)
+            // 3. 센터 근접 가중치: 기물 가치가 낮을수록 중앙 접근 시 더 높은 보너스
+            // 점수 = (이전 거리 - 이동 후 거리) / 기물 가치
+            {
+                let src = m.get_source();
+                let dst = m.get_dest();
+                // 중앙(3.5, 3.5)까지의 맨해튼 거리 근사: |2x - 7| + |2y - 7|
+                let src_dist = (src.0 as i32 * 2 - 7).abs() + (src.1 as i32 * 2 - 7).abs();
+                let dst_dist = (dst.0 as i32 * 2 - 7).abs() + (dst.1 as i32 * 2 - 7).abs();
+                let piece_val = get_piece_value(self.piece_on(&m.get_source()).unwrap_or("pawn")).max(1);
+                score += (src_dist - dst_dist) / piece_val;
+            }
+
+            // 4. TODO (고급): 나중에는 'Killer Moves' (이전 컷오프를 유발한 조용한 수)
             // 4. TODO (고급): 나중에는 'History Heuristic' (과거에 좋았던 수)
 
             // 캡처나 프로모션이 아닌 '조용한 수(quiet move)'는 0점을 반환합니다.
@@ -250,7 +259,7 @@ pub mod search {
 
     // ... in mod search
 
-    pub fn find_best_move<S: GameState>(state: &mut S, depth: u8) -> Result<(S::Move, i32), usize> {
+    pub fn find_best_move<S: GameState>(state: &mut S, depth: u8, beam_width: Option<usize>) -> Result<(S::Move, i32), usize> {
         if state.is_terminal() {
             return Err(260);
         }
@@ -274,13 +283,16 @@ pub mod search {
         // }
 
         moves.sort_by(|a, b| state.score_move(b).cmp(&state.score_move(a)));
+        if let Some(n) = beam_width {
+            moves.truncate(n);
+        }
         // --- (끝) ---
 
         for m in moves {
             // 정렬된 리스트를 사용합니다.
             let mut new_state = state.make_move(&m);
 
-            let score = -negamax(&mut new_state, depth - 1, 10, -beta, -alpha);
+            let score = -negamax(&mut new_state, depth - 1, 10, -beta, -alpha, beam_width);
 
             if score > best_score {
                 best_score = score;
@@ -292,7 +304,7 @@ pub mod search {
         best_move.map(|m| (m, best_score)).ok_or(n)
     }
 
-    fn negamax<S: GameState>(state: &mut S, depth: u8, hard_depth: u8, mut alpha: i32, beta: i32) -> i32 {
+    fn negamax<S: GameState>(state: &mut S, depth: u8, hard_depth: u8, mut alpha: i32, beta: i32, beam_width: Option<usize>) -> i32 {
         if depth == 0 || hard_depth == 0 || state.is_terminal() {
             return state.evaluate();
         }
@@ -307,6 +319,9 @@ pub mod search {
         let mut moves: Vec<_> = state.get_legal_moves().into_iter().map(|node| (state.score_move(&node), node)).collect();
         // moves.sort_unstable_by(|a, b| state.score_move(b).cmp(&state.score_move(a)));
         moves.sort_unstable_by(|a, b| b.0.cmp(&a.0));
+        if let Some(n) = beam_width {
+            moves.truncate(n);
+        }
         // --- (끝) ---
         
         let mut i = 0;
@@ -319,7 +334,7 @@ pub mod search {
         for (_, m) in moves {
             // 정렬된 리스트를 사용합니다.
             let mut new_state = state.make_move(&m);
-            let score = -negamax(&mut new_state, next_depth, hard_depth - 1, -beta, -alpha);
+            let score = -negamax(&mut new_state, next_depth, hard_depth - 1, -beta, -alpha, beam_width);
             value = value.max(score);
             alpha = alpha.max(value);
             

@@ -256,6 +256,9 @@ async fn run_engine(headers: HeaderMap) -> impl IntoResponse {
     
     let is_macho = headers.get("Macho").is_some();
     let is_imprisoned = headers.get("Imprisoned").is_some();
+    let beam_width: Option<usize> = headers.get("Beam-Width")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.parse::<usize>().ok());
 
     if let Some(to_evaluate) = headers.get("Target") {
         let Ok(to_evaluate_str) = to_evaluate.to_str() else {
@@ -282,7 +285,7 @@ async fn run_engine(headers: HeaderMap) -> impl IntoResponse {
                 board_state,
                 turn
             );
-            engine::search::find_best_move(&mut board, depth)
+            engine::search::find_best_move(&mut board, depth, beam_width)
         },
         (true, false) => {
             let mut board: Board<true, false, 8> = setup_board(
@@ -291,7 +294,7 @@ async fn run_engine(headers: HeaderMap) -> impl IntoResponse {
                 board_state,
                 turn
             );
-            engine::search::find_best_move(&mut board, depth)
+            engine::search::find_best_move(&mut board, depth, beam_width)
         }
         (false, true) => {
             let mut board: Board<false, true, 8> = setup_board(
@@ -300,7 +303,7 @@ async fn run_engine(headers: HeaderMap) -> impl IntoResponse {
                 board_state,
                 turn
             );
-            engine::search::find_best_move(&mut board, depth)
+            engine::search::find_best_move(&mut board, depth, beam_width)
         }
         (false, false) => {
             let mut board: Board<false, false, 8> = setup_board(
@@ -309,7 +312,7 @@ async fn run_engine(headers: HeaderMap) -> impl IntoResponse {
                 board_state,
                 turn
             );
-            engine::search::find_best_move(&mut board, depth)
+            engine::search::find_best_move(&mut board, depth, beam_width)
         }
     };
 
