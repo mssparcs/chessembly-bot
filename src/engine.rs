@@ -8,9 +8,7 @@ pub mod game_logic {
     use chessembly::ChessMove;
     use chessembly::MoveGen;
     use chessembly::Color;
-    // use rand::prelude::*; 
-    // use crate::chess::{self, Board, ChessMove, Color, GameStatus, MoveGen, Piece};
-
+    
     /// 모든 게임의 '수'가 구현해야 하는 기본 트레이트.
     /// Debug와 Clone은 검색 트리에 필수적입니다.
     pub trait GameMove: std::fmt::Debug + Clone {}
@@ -92,10 +90,6 @@ pub mod game_logic {
                 }
             }
 
-            // let dz1 = MoveGen::get_danger_zones(self, Color::White).len();
-            // let dz2 = MoveGen::get_danger_zones(self, Color::Black).len();
-            // score += dz1 as i32 - dz2 as i32;
-
             // 3. 현재 턴인 플레이어에 맞춰 점수 반환
             // 백의 턴이면 (백 - 흑) 점수 반환
             // 흑의 턴이면 (흑 - 백) 점수 반환
@@ -171,7 +165,6 @@ pub mod game_logic {
     }
 }
 
-
 // -----------------------------------------------------------------------------
 // 모듈 2: 알파-베타 검색 (네가맥스 구현)
 // -----------------------------------------------------------------------------
@@ -179,85 +172,6 @@ pub mod search {
     use rand::seq::SliceRandom;
 
     use super::game_logic::GameState;
-
-    /// 지정된 깊이(depth)까지 탐색하여 최선의 수를 찾습니다.
-    /// (S: GameState)는 'GameState' 트레이트를 구현한 어떤 게임이든 받는다는 의미입니다.
-    // pub fn find_best_move<S: GameState>(state: &S, depth: u8) -> Option<(S::Move, i32)> {
-    //     if state.is_terminal() {
-    //         return None;
-    //     }
-
-    //     let mut best_move = None;
-    //     let mut best_score = -i32::MAX; // 음의 무한대
-
-    //     // 알파-베타 가지치기를 위한 초기값
-    //     let mut alpha = -i32::MAX;
-    //     let beta = i32::MAX;
-
-    //     // TODO: 수(Move) 정렬을 구현하면 성능이 비약적으로 향상됩니다.
-    //     // (예: 잡는 수 먼저 탐색하기)
-    //     let moves = state.get_legal_moves();
-
-    //     for m in moves {
-    //         let new_state = state.make_move(&m);
-
-    //         // 네가맥스 호출:
-    //         // 점수에 -를 붙이고, alpha/beta를 뒤집어(-beta, -alpha) 전달합니다.
-    //         let score = -negamax(&new_state, depth - 1, -beta, -alpha);
-
-    //         if score > best_score {
-    //             best_score = score;
-    //             best_move = Some(m);
-    //         }
-
-    //         // 루트 노드에서의 알파값 갱신
-    //         alpha = alpha.max(best_score);
-    //     }
-
-    //     best_move.map(|m| (m, best_score))
-    // }
-
-    /// 네가맥스(Negamax) 알고리즘을 사용한 알파-베타 가지치기 함수
-    ///
-    /// `alpha`: 현재 플레이어가 보장받을 수 있는 최소 점수 (하한선)
-    /// `beta`: 상대방이 허용하는 최대 점수 (상한선)
-    ///
-    /// 현재 노드의 점수가 `beta`보다 크거나 같으면,
-    /// 이 노드의 부모(상대방 턴)는 이 수를 절대 선택하지 않을 것입니다.
-    /// (상대방은 이미 `beta`보다 *낮은* 점수를 보장받았으므로)
-    /// 따라서 더 이상 탐색할 필요가 없습니다 (Beta Cut-off).
-    // fn negamax<S: GameState>(state: &S, depth: u8, mut alpha: i32, beta: i32) -> i32 {
-    //     // 1. 깊이 한계에 도달했거나 게임이 종료되었으면, 현재 상태를 평가하고 반환
-    //     if depth == 0 || state.is_terminal() {
-    //         return state.evaluate();
-    //     }
-
-    //     let mut value = -i32::MAX; // 음의 무한대
-
-    //     for m in state.get_legal_moves() {
-    //         let new_state = state.make_move(&m);
-
-    //         // 2. 재귀 호출 (상대방의 점수는 나에게 -가 됨)
-    //         let score = -negamax(&new_state, depth - 1, -beta, -alpha);
-
-    //         // 3. 더 나은 점수를 갱신
-    //         value = value.max(score);
-
-    //         // 4. Alpha값 갱신 (내가 보장받을 수 있는 최소 점수)
-    //         alpha = alpha.max(value);
-
-    //         // 5. 알파-베타 컷오프 (Beta Cut-off)
-    //         //    내가 찾은 점수(alpha)가 상대방의 상한선(beta)보다 크거나 같으면,
-    //         //    상대방은 이쪽 분기(branch)를 절대 선택하지 않으므로 탐색 중단.
-    //         if alpha >= beta {
-    //             break;
-    //         }
-    //     }
-
-    //     value
-    // }
-
-    // ... in mod search
 
     pub fn find_best_move<S: GameState>(state: &mut S, depth: u8, beam_width: Option<usize>) -> Result<(S::Move, i32), usize> {
         if state.is_terminal() {
@@ -275,18 +189,10 @@ pub mod search {
         let mut rng = rand::rng();
         moves.shuffle(&mut rng);
 
-        // let len = moves.len();
-        // for i in (1..len).rev() {
-            
-        //     let j = unsafe { (worker::js_sys::Math::random() * len as f64).to_int_unchecked() };
-        //     moves.swap(i, j);
-        // }
-
         moves.sort_by(|a, b| state.score_move(b).cmp(&state.score_move(a)));
         if let Some(n) = beam_width {
             moves.truncate(n);
         }
-        // --- (끝) ---
 
         for m in moves {
             // 정렬된 리스트를 사용합니다.
@@ -317,7 +223,6 @@ pub mod search {
         // 루트 노드(find_best_move)뿐만 아니라 모든 자식 노드에서도
         // 수 정렬을 수행해야 합니다.
         let mut moves: Vec<_> = state.get_legal_moves().into_iter().map(|node| (state.score_move(&node), node)).collect();
-        // moves.sort_unstable_by(|a, b| state.score_move(b).cmp(&state.score_move(a)));
         moves.sort_unstable_by(|a, b| b.0.cmp(&a.0));
         if let Some(n) = beam_width {
             moves.truncate(n);
@@ -351,109 +256,6 @@ pub mod search {
             }
         }
 
-        // worker::console_log!("{}", score);
-
         (value as f32 * damper) as i32
     }
-
-    // use std::collections::VecDeque;
-
-    // struct BFSNode<S> {
-    //     state: S,
-    //     value: i32,
-    //     parent_index: usize,
-    //     is_terminal: bool
-    // }
-
-    // fn bfs<S: GameState>(root: &mut S, mut alpha: i32, beta: i32) -> i32 {
-    //     let mut n = 300;
-        
-    //     let mut state_data = vec![BFSNode {
-    //         state: root.clone(),
-    //         value: -i32::MAX,
-    //         parent_index: 0,
-    //         is_terminal: true
-    //     }];
-    //     let mut queue = VecDeque::new();
-
-    //     queue.push_back(0);
-
-    //     while n > 0 && !queue.is_empty() {
-    //         let node_idx = queue.pop_front().unwrap();
-    //         // state_data.split
-    //         let (st1, st2) = state_data.split_at_mut(node_idx);
-    //         let state_node = &mut st2[0];
-
-    //         if !st1.is_empty() {
-    //             st1[state_node.parent_index].is_terminal = false;
-    //         }
-    //         else {
-    //             state_node.is_terminal = false;
-    //         }
-
-    //         let mut moves: Vec<_> = state_node.state.get_legal_moves().into_iter().map(|node| (state_node.state.score_move(&node), node)).collect();
-    //         // pop하기 위해서 정렬을 거꾸로
-    //         moves.sort_unstable_by(|a, b| a.0.cmp(&b.0));
-
-    //         while !moves.is_empty() {
-    //             state_data.push(BFSNode {
-    //                 state: state_node.state.make_move(&moves.pop().unwrap().1),
-    //                 value: -i32::MAX,
-    //                 parent_index: node_idx,
-    //                 is_terminal: true
-    //             });
-    //             queue.push_back(state_data.len() - 1);
-    //         }
-            
-    //         // for (_, m) in moves {
-    //         //     // 정렬된 리스트를 사용합니다.
-    //         //     let mut new_state = state.make_move(&m);
-    //         //     let score = -negamax(&mut new_state, depth - 1, -beta, -alpha);
-    //         //     value = value.max(score);
-    //         //     alpha = alpha.max(value);
-    //         //     if alpha >= beta {
-    //         //         // (이것이 킬러 수(Killer Move)가 됩니다.
-    //         //         // TODO: 'm'을 킬러 수 테이블에 저장)
-    //         //         break; // Beta Cut-off
-    //         //     }
-    //         // }
-
-
-    //         n -= 1;
-    //     }
-    //     0
-    // }
 }
-
-// -----------------------------------------------------------------------------
-// 메인 실행 함수
-// -----------------------------------------------------------------------------
-// pub fn search_best(board :&Board) {
-//     // FEN 표기법을 사용해 특정 보드 상태에서 시작할 수도 있습니다.
-//     // let board = Board::from_str("r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3").unwrap();
-
-//     // 기본 시작 위치
-//     // let board = Board::from_str("r1bqkbnr/ppp1p1pp/2np1p2/4Q3/8/8/PPPPPPPP/RNB1KBNR b KQkq - 0 1").unwrap();
-//     // let compiled = ChessemblyCompiled::from_script("do take-move(1, -1) while peek(0, 0) edge-right(1, -1) jne(0) take-move(-1, -1) repeat(1) label(0) edge-bottom(1, -1) jne(1) take-move(1, 1) repeat(1) label(1);do take-move(1, -1) while peek(0, 0) edge-right(1, -1) jne(0) take-move(-1, -1) repeat(1) label(0) edge-bottom(1, -1) jne(1) take-move(1, 1) repeat(1) label(1);").unwrap();
-//     // let mut board = Board::from_str("r bqkbnr/ppp p pp/  np p  /    Q   /        /        /PPPPPPPP/RNB KBNR/", &compiled);
-//     // board.turn = Color::Black;
-
-//     let depth = 4; // 탐색 깊이 (값이 클수록 더 오래 걸리고 더 강해집니다)
-
-//     // println!("시작 보드 상태:\n{:?}", board);
-//     // println!("탐색 깊이: {}", depth);
-
-//     match search::find_best_move(board, depth) {
-//         Some((best_move, score)) => {
-//             // println!("\n--- 결과 ---");
-//             // println!("찾은 최선의 수: {:?}", best_move);
-//             println!("예상 점수: {}", score);
-
-//             let final_board = board.make_move_new(&best_move);
-//             println!("\n적용 후 보드 상태:\n{}", final_board.to_string());
-//         }
-//         None => {
-//             println!("게임이 이미 종료되었거나 수를 찾을 수 없습니다.");
-//         }
-//     };
-// }

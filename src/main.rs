@@ -3,7 +3,7 @@ use axum::{
     extract::Json as JsonBody,
 };
 use chessembly_bot::{
-    chessembly::{self, ChessMove, ChessemblyCompiled, PieceSpan, board::{Board, BoardState, BothBoardState}},
+    chessembly::{self, ChessemblyCompiled, PieceSpan, board::{Board, BoardState, BothBoardState}},
     engine,
 };
 use std::{collections::HashMap, env};
@@ -18,13 +18,6 @@ struct ApplyMoveRequest {
     from: (u8, u8),
     move_to: (u8, u8),
     transition: Option<String>,
-}
-
-#[derive(serde::Serialize)]
-struct BestMoveResponse<'a> {
-    #[serde(flatten)]
-    chess_move: ChessMove<'a>,
-    score: i32,
 }
 
 #[derive(serde::Serialize)]
@@ -324,8 +317,15 @@ async fn run_engine(headers: HeaderMap) -> impl IntoResponse {
     };
 
     
-    if let Ok((node, score)) = best_move {
-        return (StatusCode::OK, Json(BestMoveResponse { chess_move: node, score })).into_response();
+    // if let Ok((node, score)) = best_move {
+    //     println!("{:?}", node);
+    //     return (StatusCode::OK, Json(BestMoveResponse { chess_move: node, score })).into_response();
+    // } else if let Err(_) = best_move {
+    //     return (StatusCode::OK, "null").into_response();
+    // }
+    // return (StatusCode::OK, "asdf").into_response();
+    if let Ok(node) = best_move {
+        return (StatusCode::OK, Json(node)).into_response();
     } else if let Err(_) = best_move {
         return (StatusCode::OK, "null").into_response();
     }
