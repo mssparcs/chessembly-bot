@@ -1043,31 +1043,35 @@ async function getBestMove() {
             setStatus('ok', `HTTP ${res.status} — 최선 수 계산 완료`);
             document.getElementById('responseArea').textContent = JSON.stringify(json, null, 2);
 
+            // 서버는 (ChessMove, i32) 튜플을 [chessMove, score] 배열로 직렬화함
+            const chessMove = Array.isArray(json) ? json[0] : json;
+            const score     = Array.isArray(json) ? json[1] : undefined;
+
             // json positions are [col, row]; board display is [row, col]
             const toHL = arr => arr ? [arr[1], arr[0]] : null;
             highlight = {
-                from: toHL(json.from),
-                to:   toHL(json.move_to),
-                take: toHL(json.take),
+                from: toHL(chessMove.from),
+                to:   toHL(chessMove.move_to),
+                take: toHL(chessMove.take),
             };
 
-            const fromNote = json.from    ? colRowToNotation(json.from[0],    json.from[1])    : '?';
-            const toNote   = json.move_to ? colRowToNotation(json.move_to[0], json.move_to[1]) : '?';
-            const takeNote = json.take    ? colRowToNotation(json.take[0],    json.take[1])    : '?';
-            const fromPiece = json.from   ? board[json.from[1]]?.[json.from[0]] : null;
+            const fromNote  = chessMove.from    ? colRowToNotation(chessMove.from[0],    chessMove.from[1])    : '?';
+            const toNote    = chessMove.move_to ? colRowToNotation(chessMove.move_to[0], chessMove.move_to[1]) : '?';
+            const takeNote  = chessMove.take    ? colRowToNotation(chessMove.take[0],    chessMove.take[1])    : '?';
+            const fromPiece = chessMove.from    ? board[chessMove.from[1]]?.[chessMove.from[0]] : null;
 
             const moveDiv = document.getElementById('moveDisplay');
             moveDiv.style.display = 'block';
             moveDiv.innerHTML = `
                 <span class="move-badge badge-from">FROM ${fromNote}${pieceSymbol(fromPiece)}</span>
                 <span class="move-badge badge-to">TO ${toNote}</span>
-                ${takeNote !== toNote ? `<span class="move-badge badge-take">TAKE ${takeNote}</span>` : ''}
+                ${chessMove.take && takeNote !== toNote ? `<span class="move-badge badge-take">TAKE ${takeNote}</span>` : ''}
                 <br>
                 <span style="font-size:12px;color:#aaa">
-                    타입: <b style="color:#e2b96d">${json.move_type||'?'}</b>
-                    ${json.transition   ? `&nbsp; 프로모션: <b style="color:#ffa">${json.transition}</b>` : ''}
-                    ${json.state_change ? `&nbsp; 상태변경: <b style="color:#bdf">${JSON.stringify(json.state_change)}</b>` : ''}
-                    ${json.score !== undefined ? `&nbsp; 스코어: <b style="color:#7ec897">${json.score}</b>` : ''}
+                    타입: <b style="color:#e2b96d">${chessMove.move_type||'?'}</b>
+                    ${chessMove.transition   ? `&nbsp; 프로모션: <b style="color:#ffa">${chessMove.transition}</b>` : ''}
+                    ${chessMove.state_change ? `&nbsp; 상태변경: <b style="color:#bdf">${JSON.stringify(chessMove.state_change)}</b>` : ''}
+                    ${score !== undefined    ? `&nbsp; 스코어: <b style="color:#7ec897">${score}</b>` : ''}
                 </span>`;
 
             renderBoard();
