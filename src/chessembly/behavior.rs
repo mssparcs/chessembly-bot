@@ -1,3 +1,5 @@
+use crate::chessembly::Position;
+
 use super::{Color, DeltaPosition};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -43,10 +45,25 @@ pub enum Behavior<'a> {
     Transition(&'a str),
     Piece(&'a str),
     Color(&'a str),
-    // True,
-    // False,
-    // StoreResult(u8),
-    // UseResult(u8),
+    
+    Write(u8),
+    Read(u8),
+    ReadAnd(u8),
+    ReadOr(u8),
+    ReadXor(u8),
+
+    WriteAnchor(u8),
+    ReadAnchor(u8),
+
+    // Movr((&'a str, u8)),
+    // Movl((&'a str, u8)),
+
+    AbsoulteX(u8),
+    AbsoulteY(u8),
+    Absoulte(Position),
+    
+    True,
+    False
 }
 
 pub type BehaviorChain<'a> = Vec<Behavior<'a>>;
@@ -61,6 +78,10 @@ impl<'a> Behavior<'a> {
             return Behavior::Do;
         } else if fragment.starts_with("not") {
             return Behavior::Not;
+        } else if fragment.starts_with("true") {
+            return Behavior::True;
+        } else if fragment.starts_with("false") {
+            return Behavior::False;
         } else if fragment.starts_with("check") {
             return Behavior::Check;
         } else if fragment == "transition" {
@@ -96,6 +117,69 @@ impl<'a> Behavior<'a> {
                     .map(|s| s.parse::<u8>().unwrap_or(0))
                     .unwrap_or(0),
             );
+        } else if cmd == "read" {
+            return Behavior::Read(
+                params_vec
+                    .get(0)
+                    .map(|s| s.parse::<u8>().unwrap_or(0))
+                    .unwrap_or(0),
+            );
+        } else if cmd == "read-and" {
+            return Behavior::ReadAnd(
+                params_vec
+                    .get(0)
+                    .map(|s| s.parse::<u8>().unwrap_or(0))
+                    .unwrap_or(0),
+            );
+        } else if cmd == "read-or" {
+            return Behavior::ReadOr(
+                params_vec
+                    .get(0)
+                    .map(|s| s.parse::<u8>().unwrap_or(0))
+                    .unwrap_or(0),
+            );
+        } else if cmd == "read-xor" {
+            return Behavior::ReadXor(
+                params_vec
+                    .get(0)
+                    .map(|s| s.parse::<u8>().unwrap_or(0))
+                    .unwrap_or(0),
+            );
+        } else if cmd == "write" {
+            return Behavior::Write(
+                params_vec
+                    .get(0)
+                    .map(|s| s.parse::<u8>().unwrap_or(0))
+                    .unwrap_or(0),
+            );
+        } else if cmd == "read-anchor" {
+            return Behavior::ReadAnchor(
+                params_vec
+                    .get(0)
+                    .map(|s| s.parse::<u8>().unwrap_or(0))
+                    .unwrap_or(0),
+            );
+        } else if cmd == "write-anchor" {
+            return Behavior::WriteAnchor(
+                params_vec
+                    .get(0)
+                    .map(|s| s.parse::<u8>().unwrap_or(0))
+                    .unwrap_or(0),
+            );
+        } else if cmd == "absolute-x" {
+            return Behavior::AbsoulteX(
+                params_vec
+                    .get(0)
+                    .map(|s| s.parse::<u8>().unwrap_or(0))
+                    .unwrap_or(0),
+            );
+        } else if cmd == "absolute-y" {
+            return Behavior::AbsoulteY(
+                params_vec
+                    .get(0)
+                    .map(|s| s.parse::<u8>().unwrap_or(0))
+                    .unwrap_or(0),
+            );
         } else if cmd == "jne" {
             return Behavior::Jne(
                 params_vec
@@ -116,15 +200,6 @@ impl<'a> Behavior<'a> {
             return Behavior::Color(params_vec.get(0).unwrap_or(&""));
         } else if cmd == "piece" {
             return Behavior::Piece(params_vec.get(0).unwrap_or(&""));
-            
-            // ??
-
-            // return Behavior::Piece(
-            //     params_vec
-            //         .get(0)
-            //         .map(|s| String::from(*s))
-            //         .unwrap_or(String::new()),
-            // );
         } else if cmd == "set-state" {
             return Behavior::SetState((
                 params_vec.get(0).unwrap_or(&""),
@@ -141,6 +216,22 @@ impl<'a> Behavior<'a> {
                     .map(|s| s.parse::<u8>().unwrap_or(0))
                     .unwrap_or(0),
             ));
+        // } else if cmd == "movl" {
+        //     return Behavior::Movl((
+        //         params_vec.get(0).unwrap_or(&""),
+        //         params_vec
+        //             .get(1)
+        //             .map(|s| s.parse::<u8>().unwrap_or(0))
+        //             .unwrap_or(0),
+        //     ));
+        // } else if cmd == "movr" {
+        //     return Behavior::Movr((
+        //         params_vec.get(0).unwrap_or(&""),
+        //         params_vec
+        //             .get(1)
+        //             .map(|s| s.parse::<u8>().unwrap_or(0))
+        //             .unwrap_or(0),
+        //     ));
         } else if cmd == "piece-on" {
             return Behavior::PieceOn((
                 params_vec.get(0).unwrap_or(&""),
@@ -168,6 +259,17 @@ impl<'a> Behavior<'a> {
                         .map(|s| s.parse::<i8>().unwrap_or(0))
                         .unwrap_or(0),
                 ),
+            ));
+        } else if cmd == "absolute" {
+            return Behavior::Absoulte((
+                params_vec
+                    .get(0)
+                    .map(|s| s.parse::<u8>().unwrap_or(0))
+                    .unwrap_or(0),
+                params_vec
+                    .get(1)
+                    .map(|s| s.parse::<u8>().unwrap_or(0))
+                    .unwrap_or(0),
             ));
         } else if cmd == "take-move" {
             return Behavior::TakeMove((
@@ -435,6 +537,14 @@ impl<'a> Behavior<'a> {
         }
     }
 
+    fn reflect_abs_vector(position: &Position, turn: Color) -> Position {
+        if turn == Color::Black {
+            return (7 - position.0, 7 - position.1);
+        } else {
+            return position.clone();
+        }
+    }
+
     pub fn reflect_turn(&'a self, turn: Color) -> Behavior<'a> {
         match self {
             Behavior::Bound(delta) => Behavior::Bound(Behavior::reflect_turn_vector(delta, turn)),
@@ -480,6 +590,9 @@ impl<'a> Behavior<'a> {
                 Behavior::Observe(Behavior::reflect_turn_vector(delta, turn))
             }
             Behavior::Peek(delta) => Behavior::Peek(Behavior::reflect_turn_vector(delta, turn)),
+            Behavior::Absoulte(coord) => Behavior::Absoulte(Behavior::reflect_abs_vector(coord, turn)),
+            Behavior::AbsoulteX(x) => Behavior::AbsoulteX(Behavior::reflect_abs_vector(&(*x, 0), turn).0),
+            Behavior::AbsoulteY(y) => Behavior::AbsoulteY(Behavior::reflect_abs_vector(&(0, *y), turn).1),
             Behavior::PieceOn((piece, delta)) => {
                 Behavior::PieceOn((piece, Behavior::reflect_turn_vector(delta, turn)))
             }

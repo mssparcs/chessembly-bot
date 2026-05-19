@@ -387,6 +387,9 @@ impl<'a> ChessemblyCompiled<'a> {
             let mut transition: Option<*const str> = None;
             let mut state_change: Option<Vec<(*const str, u8)>> = None;
 
+            let mut value_array: u16 = 0;
+            let mut anchor_array: [Position; 16] = [(0, 0); 16];
+
             while rip < chain.len() {
                 let abs_inst = &chain[rip];
                 loops += 1;
@@ -400,6 +403,13 @@ impl<'a> ChessemblyCompiled<'a> {
                     Behavior::Jne(_) => true,
                     Behavior::Label(_) => true,
                     Behavior::Not => true,
+                    Behavior::True => true,
+                    Behavior::False => true,
+                    Behavior::Write(_) => true,
+                    Behavior::Read(_) => true,
+                    Behavior::ReadAnd(_) => true,
+                    Behavior::ReadOr(_) => true,
+                    Behavior::ReadXor(_) => true,
                     _ => false,
                 };
 
@@ -1119,6 +1129,65 @@ impl<'a> ChessemblyCompiled<'a> {
                         *states.last_mut().unwrap() = !x;
                         rip += 1;
                     }
+                    Behavior::True => {
+                        *states.last_mut().unwrap() = true;
+                        rip += 1;
+                    }
+                    Behavior::False => {
+                        *states.last_mut().unwrap() = false;
+                        rip += 1;
+                    }
+                    Behavior::ReadAnd(index) => {
+                        if index >= 16 {
+                            *states.last_mut().unwrap() = false;
+                            rip += 1;
+                            continue;
+                        }
+                        *states.last_mut().unwrap() &= (value_array & (1 << index)) != 0;
+                        rip += 1;
+                    }
+                    Behavior::ReadOr(index) => {
+                        if index >= 16 {
+                            *states.last_mut().unwrap() = false;
+                            rip += 1;
+                            continue;
+                        }
+                        *states.last_mut().unwrap() |= (value_array & (1 << index)) != 0;
+                        rip += 1;
+                    }
+                    Behavior::ReadXor(index) => {
+                        if index >= 16 {
+                            *states.last_mut().unwrap() = false;
+                            rip += 1;
+                            continue;
+                        }
+                        *states.last_mut().unwrap() ^= (value_array & (1 << index)) != 0;
+                        rip += 1;
+                    }
+                    Behavior::Read(index) => {
+                        if index >= 16 {
+                            *states.last_mut().unwrap() = false;
+                            rip += 1;
+                            continue;
+                        }
+                        *states.last_mut().unwrap() = (value_array & (1 << index)) != 0;
+                        rip += 1;
+                    }
+                    Behavior::Write(index) => {
+                        if index >= 16 {
+                            *states.last_mut().unwrap() = false;
+                            rip += 1;
+                            continue;
+                        }
+                        if *states.last().unwrap() {
+                            value_array |= 1 << index;
+                        }
+                        else {
+                            value_array &= !(1 << index);
+                        }
+                        *states.last_mut().unwrap() = true;
+                        rip += 1;
+                    }
                     Behavior::Do => {
                         if let Some(next_inst) = chain.get(rip + 1) {
                             match next_inst {
@@ -1203,6 +1272,54 @@ impl<'a> ChessemblyCompiled<'a> {
                             piece_color,
                         );
                         if wc != WallCollision::NoCollision {
+                            *states.last_mut().unwrap() = false;
+                        }
+                        rip += 1;
+                    }
+                    Behavior::AbsoulteX(x) => {
+                        if x < (SIZE as u8) {
+                            stack.last_mut().unwrap().0.0 = x;
+                        }
+                        else {
+                            *states.last_mut().unwrap() = false;
+                        }
+                        rip += 1;
+                    }
+                    Behavior::AbsoulteY(y) => {
+                        if y < (SIZE as u8) {
+                            stack.last_mut().unwrap().0.1 = y;
+                        }
+                        else {
+                            *states.last_mut().unwrap() = false;
+                        }
+                        rip += 1;
+                    }
+                    Behavior::Absoulte(position) => {
+                        let stack_top = &mut stack.last_mut().unwrap().0;
+                        if position.0 < (SIZE as u8) && position.1 < (SIZE as u8) {
+                            *stack_top = position;
+                        }
+                        else {
+                            *states.last_mut().unwrap() = false;
+                        }
+                        rip += 1;
+                    }
+                    Behavior::ReadAnchor(index) => {
+                        let stack_top = &mut stack.last_mut().unwrap().0;
+                        if index < 16 {
+                            *stack_top = anchor_array[index as usize];
+                        }
+                        else {
+                            *states.last_mut().unwrap() = false;
+                        }
+                        rip += 1;
+                    }
+                    Behavior::WriteAnchor(index) => {
+                        let stack_top = stack.last().unwrap().0;
+                        if index < 16 {
+                            anchor_array[index as usize] = stack_top;
+                        }
+                        else {
                             *states.last_mut().unwrap() = false;
                         }
                         rip += 1;
