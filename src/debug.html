@@ -268,7 +268,7 @@
 
     <!-- ══════════ LEFT: position editor + board preview ══════════ -->
     <div class="position-block">
-        <div class="position-inner">
+        <div class="position-inner" style="display:flex;align-items:flex-start;gap:20px;">
 
             <!-- Textarea -->
             <div class="pos-textarea-wrap">
@@ -278,136 +278,153 @@
                 <div class="parse-error" id="parseError"></div>
             </div>
 
-            <!-- Board preview -->
-            <div>
-                <div style="font-size:11px;color:#888;margin-bottom:6px;">보드 미리보기 (읽기 전용)</div>
-                <div style="display:flex;align-items:flex-start;gap:16px;">
-                    <div class="board-wrap">
-                        <div class="rank-labels" id="rankLabels"></div>
-                        <div>
-                            <div class="board" id="board"></div>
-                            <div class="file-labels" id="fileLabels"></div>
+            <!-- Board preview + tool + settings column -->
+            <div style="display:flex;flex-direction:column;gap:12px;flex:1;min-width:0;">
+
+                <div>
+                    <div style="font-size:11px;color:#888;margin-bottom:6px;">보드 미리보기 (읽기 전용)</div>
+                    <div style="display:flex;align-items:flex-start;gap:16px;">
+                        <div class="board-wrap">
+                            <div class="rank-labels" id="rankLabels"></div>
+                            <div>
+                                <div class="board" id="board"></div>
+                                <div class="file-labels" id="fileLabels"></div>
+                            </div>
+                        </div>
+                        <!-- Move list panel -->
+                        <div class="move-list-panel" id="moveListPanel">
+                            <div class="panel-title">행마법 목록</div>
+                            <div id="moveListContent"><span class="move-list-empty">기물을 클릭하세요</span></div>
+                        </div>
+                        <!-- Best move panel -->
+                        <div style="min-width:300px;max-width:380px;display:flex;flex-direction:column;gap:8px;align-self:flex-start;">
+                            <div class="action-row" style="margin-bottom:0;">
+                                <button class="btn btn-primary" onclick="getBestMove()">▶ 최선 수 계산 (Best Move)</button>
+                            </div>
+                            <div class="panel" style="margin-bottom:0;">
+                                <div class="panel-title">응답 (Response)</div>
+                                <div class="resp-status idle" id="statusMsg">대기 중...</div>
+                                <div id="moveDisplay" style="display:none;"></div>
+                            </div>
                         </div>
                     </div>
-                    <!-- Move list panel -->
-                    <div class="move-list-panel" id="moveListPanel">
-                        <div class="panel-title">행마법 목록</div>
-                        <div id="moveListContent"><span class="move-list-empty">기물을 클릭하세요</span></div>
+                </div>
+
+                <!-- Tool buttons -->
+                <div class="tool-row">
+                    <button class="board-btn" onclick="setStandardPosition()">♟ 표준 배치</button>
+                    <button class="board-btn" onclick="clearBoard()">✕ 초기화</button>
+                    <button class="board-btn" onclick="flipBoard()">⇅ 뒤집기</button>
+                </div>
+
+                <!-- Settings -->
+                <div class="controls-section" style="display:flex;flex-wrap:wrap;gap:10px;flex:none;max-width:none;min-width:0;">
+
+                    <!-- Chessembly Script -->
+                    <div class="panel" style="width:100%;">
+                        <div class="panel-title">Chessembly 스크립트</div>
+                        <div class="tool-row" style="margin-bottom:8px">
+                            <button class="board-btn btn-sm" onclick="setEmptyScript()">비우기 (표준 체스)</button>
+                            <button class="board-btn btn-sm" onclick="setChameleonScript()">카멜레온 예제</button>
+                        </div>
+                        <textarea id="chessemblyScript" placeholder="커스텀 기물을 정의하는 Chessembly 스크립트.&#10;표준 체스는 비어있어도 동작합니다."></textarea>
                     </div>
+
+                    <!-- Server -->
+                    <div class="panel" style="flex:1;min-width:260px;">
+                        <div class="panel-title">서버 설정</div>
+                        <div class="form-row">
+                            <span class="form-label">서버 URL</span>
+                            <input type="text" id="serverUrl" value="http://localhost:8080" style="flex:1;min-width:180px">
+                        </div>
+                    </div>
+
+                    <!-- Game settings -->
+                    <div class="panel" style="flex:1;min-width:260px;">
+                        <div class="panel-title">게임 설정</div>
+                        <div class="form-row">
+                            <span class="form-label">턴 (Turn)</span>
+                            <div class="checkbox-group">
+                                <label class="radio-label"><input type="radio" name="turn" value="white" checked> 백 (White)</label>
+                                <label class="radio-label"><input type="radio" name="turn" value="black"> 흑 (Black)</label>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <span class="form-label">탐색 깊이 (Depth)</span>
+                            <input type="range" id="depth" min="2" max="4" value="3"
+                                   oninput="document.getElementById('depthVal').textContent=this.value" style="width:100px">
+                            <span id="depthVal" style="min-width:14px;color:#e2b96d;font-weight:bold">3</span>
+                        </div>
+                        <div class="form-row">
+                            <span class="form-label">게임 모드</span>
+                            <div class="checkbox-group">
+                                <label class="check-label"><input type="checkbox" id="macho"> Macho</label>
+                                <label class="check-label"><input type="checkbox" id="imprisoned"> Imprisoned</label>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <span class="form-label">빔 너비 (Beam Width)</span>
+                            <label class="check-label" style="min-width:0">
+                                <input type="checkbox" id="beamEnable" onchange="document.getElementById('beamWidth').disabled=!this.checked">
+                                사용
+                            </label>
+                            <input type="number" id="beamWidth" min="1" max="100" value="10" disabled style="width:60px">
+                            <span style="font-size:11px;color:#668">상위 N개 수만 탐색</span>
+                        </div>
+                    </div>
+
+                    <!-- Castling -->
+                    <div class="panel" style="flex:1;min-width:260px;">
+                        <div class="panel-title">캐슬링 (Castling)</div>
+                        <div class="form-row">
+                            <span class="form-label">Castling OO (단편)</span>
+                            <div class="checkbox-group">
+                                <label class="check-label"><input type="checkbox" id="castOOw" checked> 백</label>
+                                <label class="check-label"><input type="checkbox" id="castOOb" checked> 흑</label>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <span class="form-label">Castling OOO (장편)</span>
+                            <div class="checkbox-group">
+                                <label class="check-label"><input type="checkbox" id="castOOOw" checked> 백</label>
+                                <label class="check-label"><input type="checkbox" id="castOOOb" checked> 흑</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- En passant & Registers -->
+                    <div class="panel" style="flex:1;min-width:260px;">
+                        <div class="panel-title">앙파상 &amp; 레지스터</div>
+                        <div class="hint">앙파상: <code style="color:#9df">col,row/col,row</code> &nbsp; 레지스터: <code style="color:#9df">key,value/key,value</code></div>
+                        <div class="form-row">
+                            <span class="form-label">En Passant White</span>
+                            <input type="text" id="enPwh" placeholder="ex) 3,3" style="flex:1">
+                        </div>
+                        <div class="form-row">
+                            <span class="form-label">En Passant Black</span>
+                            <input type="text" id="enPbl" placeholder="ex) 4,4" style="flex:1">
+                        </div>
+                        <div class="form-row">
+                            <span class="form-label">Register White</span>
+                            <input type="text" id="regWh" placeholder="ex) enpassant,1" style="flex:1">
+                        </div>
+                        <div class="form-row">
+                            <span class="form-label">Register Black</span>
+                            <input type="text" id="regBl" placeholder="ex) enpassant,1" style="flex:1">
+                        </div>
+                    </div>
+
+                    <!-- Response detail -->
+                    <div class="panel" style="width:100%;">
+                        <div class="panel-title">응답 상세</div>
+                        <div class="section-mini-title">JSON 응답</div>
+                        <div class="code-block" id="responseArea">(응답 대기중)</div>
+                        <div class="section-mini-title">요청 헤더</div>
+                        <div class="code-block headers" id="headersArea">(요청 대기중)</div>
+                    </div>
+
                 </div>
             </div>
-        </div>
-
-        <!-- Tool buttons -->
-        <div class="tool-row">
-            <button class="board-btn" onclick="setStandardPosition()">♟ 표준 배치</button>
-            <button class="board-btn" onclick="clearBoard()">✕ 초기화</button>
-            <button class="board-btn" onclick="flipBoard()">⇅ 뒤집기</button>
-        </div>
-    </div>
-
-    <!-- ══════════ RIGHT: controls ══════════ -->
-    <div class="controls-section">
-
-        <!-- Server -->
-        <div class="panel">
-            <div class="panel-title">서버 설정</div>
-            <div class="form-row">
-                <span class="form-label">서버 URL</span>
-                <input type="text" id="serverUrl" value="http://localhost:8080" style="flex:1;min-width:180px">
-            </div>
-        </div>
-
-        <!-- Game settings -->
-        <div class="panel">
-            <div class="panel-title">게임 설정</div>
-            <div class="form-row">
-                <span class="form-label">턴 (Turn)</span>
-                <div class="checkbox-group">
-                    <label class="radio-label"><input type="radio" name="turn" value="white" checked> 백 (White)</label>
-                    <label class="radio-label"><input type="radio" name="turn" value="black"> 흑 (Black)</label>
-                </div>
-            </div>
-            <div class="form-row">
-                <span class="form-label">탐색 깊이 (Depth)</span>
-                <input type="range" id="depth" min="2" max="4" value="3"
-                       oninput="document.getElementById('depthVal').textContent=this.value" style="width:100px">
-                <span id="depthVal" style="min-width:14px;color:#e2b96d;font-weight:bold">3</span>
-            </div>
-            <div class="form-row">
-                <span class="form-label">게임 모드</span>
-                <div class="checkbox-group">
-                    <label class="check-label"><input type="checkbox" id="macho"> Macho</label>
-                    <label class="check-label"><input type="checkbox" id="imprisoned"> Imprisoned</label>
-                </div>
-            </div>
-        </div>
-
-        <!-- Castling -->
-        <div class="panel">
-            <div class="panel-title">캐슬링 (Castling)</div>
-            <div class="form-row">
-                <span class="form-label">Castling OO (단편)</span>
-                <div class="checkbox-group">
-                    <label class="check-label"><input type="checkbox" id="castOOw" checked> 백</label>
-                    <label class="check-label"><input type="checkbox" id="castOOb" checked> 흑</label>
-                </div>
-            </div>
-            <div class="form-row">
-                <span class="form-label">Castling OOO (장편)</span>
-                <div class="checkbox-group">
-                    <label class="check-label"><input type="checkbox" id="castOOOw" checked> 백</label>
-                    <label class="check-label"><input type="checkbox" id="castOOOb" checked> 흑</label>
-                </div>
-            </div>
-        </div>
-
-        <!-- En passant & Registers -->
-        <div class="panel">
-            <div class="panel-title">앙파상 &amp; 레지스터</div>
-            <div class="hint">앙파상: <code style="color:#9df">col,row/col,row</code> &nbsp; 레지스터: <code style="color:#9df">key,value/key,value</code></div>
-            <div class="form-row">
-                <span class="form-label">En Passant White</span>
-                <input type="text" id="enPwh" placeholder="ex) 3,3" style="flex:1">
-            </div>
-            <div class="form-row">
-                <span class="form-label">En Passant Black</span>
-                <input type="text" id="enPbl" placeholder="ex) 4,4" style="flex:1">
-            </div>
-            <div class="form-row">
-                <span class="form-label">Register White</span>
-                <input type="text" id="regWh" placeholder="ex) enpassant,1" style="flex:1">
-            </div>
-            <div class="form-row">
-                <span class="form-label">Register Black</span>
-                <input type="text" id="regBl" placeholder="ex) enpassant,1" style="flex:1">
-            </div>
-        </div>
-
-        <!-- Chessembly Script -->
-        <div class="panel">
-            <div class="panel-title">Chessembly 스크립트</div>
-            <div class="tool-row" style="margin-bottom:8px">
-                <button class="board-btn btn-sm" onclick="setEmptyScript()">비우기 (표준 체스)</button>
-                <button class="board-btn btn-sm" onclick="setChameleonScript()">카멜레온 예제</button>
-            </div>
-            <textarea id="chessemblyScript" placeholder="커스텀 기물을 정의하는 Chessembly 스크립트.&#10;표준 체스는 비어있어도 동작합니다."></textarea>
-        </div>
-
-        <!-- Action -->
-        <div class="action-row">
-            <button class="btn btn-primary" onclick="getBestMove()">▶ 최선 수 계산 (Best Move)</button>
-        </div>
-
-        <!-- Response -->
-        <div class="panel">
-            <div class="panel-title">응답 (Response)</div>
-            <div class="resp-status idle" id="statusMsg">대기 중...</div>
-            <div id="moveDisplay" style="display:none;margin-bottom:10px;"></div>
-            <div class="section-mini-title">JSON 응답</div>
-            <div class="code-block" id="responseArea">(응답 대기중)</div>
-            <div class="section-mini-title">요청 헤더</div>
-            <div class="code-block headers" id="headersArea">(요청 대기중)</div>
         </div>
     </div>
 </div>
@@ -700,6 +717,9 @@ async function executeMove(move) {
     };
     if (macho) hdrs['Macho']      = '1';
     if (imp)   hdrs['Imprisoned'] = '1';
+    if (document.getElementById('beamEnable').checked) {
+        hdrs['Beam-Width'] = document.getElementById('beamWidth').value;
+    }
 
     try {
         const res  = await fetch(url + '/apply', {
@@ -931,6 +951,9 @@ async function getPieceMoves(col, row) {
     };
     if (macho) headers['Macho'] = '1';
     if (imp)   headers['Imprisoned'] = '1';
+    if (document.getElementById('beamEnable').checked) {
+        headers['Beam-Width'] = document.getElementById('beamWidth').value;
+    }
 
     try {
         const res  = await fetch(url + '/moves', { method: 'POST', headers });
@@ -984,6 +1007,9 @@ async function getBestMove() {
     };
     if (macho) headers['Macho'] = '1';
     if (imp)   headers['Imprisoned'] = '1';
+    if (document.getElementById('beamEnable').checked) {
+        headers['Beam-Width'] = document.getElementById('beamWidth').value;
+    }
 
     document.getElementById('headersArea').textContent = Object.entries(headers)
         .map(([k, v]) => `${k}: ${v.length > 100 ? v.slice(0,100)+'…' : v}`)
@@ -1041,6 +1067,7 @@ async function getBestMove() {
                     타입: <b style="color:#e2b96d">${json.move_type||'?'}</b>
                     ${json.transition   ? `&nbsp; 프로모션: <b style="color:#ffa">${json.transition}</b>` : ''}
                     ${json.state_change ? `&nbsp; 상태변경: <b style="color:#bdf">${JSON.stringify(json.state_change)}</b>` : ''}
+                    ${json.score !== undefined ? `&nbsp; 스코어: <b style="color:#7ec897">${json.score}</b>` : ''}
                 </span>`;
 
             renderBoard();
