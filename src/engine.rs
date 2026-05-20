@@ -78,13 +78,13 @@ pub mod game_logic {
                         let value = get_piece_value(piece);
 
                         // 센터 근접 가중치: 기물 가치가 낮을수록 중앙에 있을 때 더 높은 보너스
-                        let dist = (i as i32 * 2 - 7).abs() + (j as i32 * 2 - 7).abs();
-                        let center_bonus = (14 - dist) / value.max(1);
+                        // let dist = (i as i32 * 2 - 7).abs() + (j as i32 * 2 - 7).abs();
+                        // let center_bonus = (14 - dist) / value.max(1);
 
                         if self.color_on(&(i, j)) == Some(Color::White) {
-                            score += value + center_bonus;
+                            score += value; // + center_bonus;
                         } else {
-                            score -= value + center_bonus;
+                            score -= value; // + center_bonus;
                         }
                     }
                 }
@@ -127,7 +127,7 @@ pub mod game_logic {
 
             // 3. 센터 근접 가중치: 기물 가치가 낮을수록 중앙 접근 시 더 높은 보너스
             // 점수 = (이전 거리 - 이동 후 거리) / 기물 가치
-            {
+            if false {
                 let src = m.get_source();
                 let dst = m.get_dest();
                 // 중앙(3.5, 3.5)까지의 맨해튼 거리 근사: |2x - 7| + |2y - 7|

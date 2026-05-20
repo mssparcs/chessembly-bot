@@ -294,7 +294,7 @@ impl<'a> ChessemblyCompiled<'a> {
         }
         false
     }
-
+    
     pub fn is_zero_vector(delta: &DeltaPosition) -> bool {
         delta.0 == 0 && delta.1 == 0
     }
@@ -435,11 +435,6 @@ impl<'a> ChessemblyCompiled<'a> {
                     Behavior::TakeMove(delta) => {
                         let states_top = states.last_mut().unwrap();
                         let stack_top = stack.last_mut().unwrap();
-                        if ChessemblyCompiled::is_zero_vector(&delta) {
-                            *states_top = false;
-                            rip += 1;
-                            continue;
-                        }
 
                         let wc = ChessemblyCompiled::move_anchor(
                             &mut stack_top.0,
@@ -894,11 +889,6 @@ impl<'a> ChessemblyCompiled<'a> {
                     Behavior::Take(delta) => {
                         let states_top = states.last_mut().unwrap();
                         let stack_top = stack.last_mut().unwrap();
-                        if ChessemblyCompiled::is_zero_vector(&delta) {
-                            *states_top = false;
-                            rip += 1;
-                            continue;
-                        }
                         let wc = ChessemblyCompiled::move_anchor(
                             &mut stack_top.0,
                             &delta,
@@ -1004,11 +994,6 @@ impl<'a> ChessemblyCompiled<'a> {
                     Behavior::Catch(delta) => {
                         let states_top = states.last_mut().unwrap();
                         let stack_top = stack.last_mut().unwrap();
-                        if ChessemblyCompiled::is_zero_vector(&delta) {
-                            *states_top = false;
-                            rip += 1;
-                            continue;
-                        }
 
                         let wc = ChessemblyCompiled::move_anchor(
                             &mut stack_top.0,
@@ -1058,12 +1043,6 @@ impl<'a> ChessemblyCompiled<'a> {
                         rip += 1;
                     }
                     Behavior::Move(delta) => {
-                        if ChessemblyCompiled::is_zero_vector(&delta) {
-                            *states.last_mut().unwrap() = false;
-                            rip += 1;
-                            continue;
-                        }
-
                         let wc = ChessemblyCompiled::move_anchor(
                             &mut stack.last_mut().unwrap().0,
                             &delta,
