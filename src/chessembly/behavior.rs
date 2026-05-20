@@ -539,9 +539,9 @@ impl<'a> Behavior<'a> {
 
     fn reflect_abs_vector(position: &Position, turn: Color) -> Position {
         if turn == Color::Black {
-            return (7 - position.0, 7 - position.1);
+            return (7 - position.0, position.1);
         } else {
-            return position.clone();
+            return (position.0, 7 - position.1);
         }
     }
 
