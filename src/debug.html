@@ -259,6 +259,64 @@
             white-space: nowrap;
         }
         .move-entry .me-promo { color: #ffe08a; font-size: 10px; }
+
+        /* ─── debug mode toggle ─── */
+        .debug-toggle-wrap {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 42px;
+            height: 22px;
+            flex-shrink: 0;
+        }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #1e2840;
+            border: 1px solid #2a3a5a;
+            border-radius: 22px;
+            transition: 0.2s;
+        }
+        .toggle-slider::before {
+            position: absolute;
+            content: "";
+            height: 14px; width: 14px;
+            left: 3px; bottom: 3px;
+            background: #445;
+            border-radius: 50%;
+            transition: 0.2s;
+        }
+        .toggle-switch input:checked + .toggle-slider { background: #1a2808; border-color: #6a9a30; }
+        .toggle-switch input:checked + .toggle-slider::before { transform: translateX(20px); background: #8fcf40; }
+        .toggle-label { font-size: 12px; color: #668; }
+        .toggle-label.active { color: #8fcf40; font-weight: 600; }
+
+        /* ─── debug stats panel ─── */
+        .debug-stats-panel {
+            display: none;
+            background: #060e06;
+            border: 1px solid #1a3a1a;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+        .debug-stats-panel.visible { display: block; }
+        .debug-stats-title { color: #6a9a30; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px; }
+        .debug-stat-row { display: flex; justify-content: space-between; padding: 2px 0; border-bottom: 1px solid #0c180c; }
+        .debug-stat-row:last-child { border-bottom: none; }
+        .debug-stat-key { color: #4a6a4a; }
+        .debug-stat-val { color: #7ec897; font-weight: 700; }
+        .debug-stat-val.warn { color: #e2b96d; }
+        .debug-stat-val.bad  { color: #f08080; }
     </style>
 </head>
 <body>
@@ -298,6 +356,13 @@
                         </div>
                         <!-- Best move panel -->
                         <div style="min-width:300px;max-width:380px;display:flex;flex-direction:column;gap:8px;align-self:flex-start;">
+                            <div class="debug-toggle-wrap">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="debugModeToggle" onchange="onDebugModeChange()">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                                <span class="toggle-label" id="debugModeLabel">일반 모드</span>
+                            </div>
                             <div class="action-row" style="margin-bottom:0;">
                                 <button class="btn btn-primary" onclick="getBestMove()">▶ 최선 수 계산 (Best Move)</button>
                             </div>
@@ -305,6 +370,7 @@
                                 <div class="panel-title">응답 (Response)</div>
                                 <div class="resp-status idle" id="statusMsg">대기 중...</div>
                                 <div id="moveDisplay" style="display:none;"></div>
+                                <div class="debug-stats-panel" id="debugStatsPanel"></div>
                             </div>
                         </div>
                     </div>
@@ -351,7 +417,9 @@
                         </div>
                         <div class="form-row">
                             <span class="form-label">탐색 깊이 (Depth)</span>
-                            <input type="range" id="depth" min="2" max="4" value="3"
+                            <!--최대 Depth 설정 바꾸는데-->
+                            <!--대체 왜 이딴 데에 다가 이런 중요한 걸 처박아둔 거니 aiai야...-->
+                            <input type="range" id="depth" min="1" max="15" value="3"
                                    oninput="document.getElementById('depthVal').textContent=this.value" style="width:100px">
                             <span id="depthVal" style="min-width:14px;color:#e2b96d;font-weight:bold">3</span>
                         </div>
@@ -984,6 +1052,53 @@ async function getPieceMoves(col, row) {
 }
 
 // ═══════════════════════════════════════════════
+//  Debug mode toggle
+// ═══════════════════════════════════════════════
+function onDebugModeChange() {
+    const on = document.getElementById('debugModeToggle').checked;
+    const label = document.getElementById('debugModeLabel');
+    label.textContent = on ? '디버그 모드' : '일반 모드';
+    label.className = 'toggle-label' + (on ? ' active' : '');
+    // 디버그 모드 전환 시 이전 결과 초기화
+    document.getElementById('debugStatsPanel').className = 'debug-stats-panel';
+    document.getElementById('debugStatsPanel').innerHTML = '';
+}
+
+// ═══════════════════════════════════════════════
+//  Debug stats renderer
+// ═══════════════════════════════════════════════
+function fmtPct(v) { return (v * 100).toFixed(1) + '%'; }
+function fmtNum(v) { return v.toLocaleString(); }
+
+function renderDebugStats(info) {
+    const panel = document.getElementById('debugStatsPanel');
+    panel.className = 'debug-stats-panel visible';
+
+    const ttClass   = info.tt_hit_rate   < 0.1 ? 'bad' : info.tt_hit_rate   < 0.3 ? 'warn' : '';
+    const cfClass   = info.cutoff_first_rate < 0.5 ? 'bad' : info.cutoff_first_rate < 0.75 ? 'warn' : '';
+    const qrClass   = info.qnodes_ratio  > 0.9 ? 'warn' : '';
+
+    const rows = [
+        ['깊이 (depth)',              info.depth,                              ''],
+        ['소요 시간 (ms)',             info.elapsed_ms + ' ms',                ''],
+        ['메인 노드 (nodes)',          fmtNum(info.nodes),                     ''],
+        ['퀴에슨스 노드 (qnodes)',     fmtNum(info.qnodes),                    qrClass],
+        ['초당 노드 (NPS)',            fmtNum(info.nps),                       ''],
+        ['TT 히트율',                  fmtPct(info.tt_hit_rate),               ttClass],
+        ['qnodes 비율',               fmtPct(info.qnodes_ratio),              qrClass],
+        ['베타 컷오프',                fmtNum(info.beta_cutoffs),              ''],
+        ['첫 수 컷오프율',             fmtPct(info.cutoff_first_rate),         cfClass],
+        ['Asp. 재탐색 횟수',           fmtNum(info.asp_retries),               info.asp_retries > 0 ? '' : ''],
+        ['점수 (score)',               info.score,                             ''],
+    ];
+
+    panel.innerHTML = '<div class="debug-stats-title">▸ 탐색 통계</div>'
+        + rows.map(([k, v, cls]) =>
+            `<div class="debug-stat-row"><span class="debug-stat-key">${k}</span><span class="debug-stat-val ${cls}">${v}</span></div>`
+        ).join('');
+}
+
+// ═══════════════════════════════════════════════
 //  API call
 // ═══════════════════════════════════════════════
 async function getBestMove() {
@@ -992,6 +1107,7 @@ async function getBestMove() {
     const depth = document.getElementById('depth').value;
     const macho = document.getElementById('macho').checked;
     const imp   = document.getElementById('imprisoned').checked;
+    const isDebug = document.getElementById('debugModeToggle').checked;
 
     const castOO  = (document.getElementById('castOOw').checked  ? '1':'0')
                   + (document.getElementById('castOOb').checked  ? '1':'0');
@@ -1029,70 +1145,103 @@ async function getBestMove() {
         .map(([k, v]) => `${k}: ${v.length > 100 ? v.slice(0,100)+'…' : v}`)
         .join('\n');
 
-    setStatus('loading', '요청 중...');
+    setStatus('loading', isDebug ? '디버그 탐색 중...' : '요청 중...');
     document.getElementById('moveDisplay').style.display = 'none';
+    document.getElementById('debugStatsPanel').className = 'debug-stats-panel';
     document.getElementById('responseArea').textContent = '';
     selectedCell = null;
     moveHighlights = [];
 
+    // 디버그 모드: /debug 엔드포인트 사용
+    const endpoint = isDebug ? (url + '/debug') : (url + '/');
+
     try {
-        const res  = await fetch(url + '/', { method: 'POST', headers });
+        const res  = await fetch(endpoint, { method: 'POST', headers });
         const text = await res.text();
 
-        if (text === 'null') {
-            setStatus('ok', `HTTP ${res.status} — 게임 종료 또는 유효한 수 없음`);
-            document.getElementById('responseArea').textContent = 'null\n(게임이 끝났거나 합법적인 수가 없습니다)';
-            highlight = { from: null, to: null, take: null };
-            renderBoard();
-            return;
-        }
-        if (text === 'asdf' || text.startsWith('asdf')) {
-            setStatus('error', `HTTP ${res.status} — 서버 오류 (헤더 파싱 실패)`);
-            document.getElementById('responseArea').textContent = text;
+        // 일반 모드: 기존 응답 처리 로직
+        if (!isDebug) {
+            if (text === 'null') {
+                setStatus('ok', `HTTP ${res.status} — 게임 종료 또는 유효한 수 없음`);
+                document.getElementById('responseArea').textContent = 'null\n(게임이 끝났거나 합법적인 수가 없습니다)';
+                highlight = { from: null, to: null, take: null };
+                renderBoard();
+                return;
+            }
+            if (text === 'asdf' || text.startsWith('asdf')) {
+                setStatus('error', `HTTP ${res.status} — 서버 오류 (헤더 파싱 실패)`);
+                document.getElementById('responseArea').textContent = text;
+                return;
+            }
+            try {
+                const json = JSON.parse(text);
+                setStatus('ok', `HTTP ${res.status} — 최선 수 계산 완료`);
+                document.getElementById('responseArea').textContent = JSON.stringify(json, null, 2);
+                const rawMove = Array.isArray(json) ? json[0] : json;
+                const score   = Array.isArray(json) ? json[1] : undefined;
+                const chessMove = rawMove.Single ?? rawMove.Multiple?.[0] ?? rawMove;
+                const toHL = arr => arr ? [arr[1], arr[0]] : null;
+                highlight = { from: toHL(chessMove.from), to: toHL(chessMove.move_to), take: toHL(chessMove.take) };
+                const fromNote  = chessMove.from    ? colRowToNotation(chessMove.from[0],    chessMove.from[1])    : '?';
+                const toNote    = chessMove.move_to ? colRowToNotation(chessMove.move_to[0], chessMove.move_to[1]) : '?';
+                const takeNote  = chessMove.take    ? colRowToNotation(chessMove.take[0],    chessMove.take[1])    : '?';
+                const fromPiece = chessMove.from    ? board[chessMove.from[1]]?.[chessMove.from[0]] : null;
+                const moveDiv = document.getElementById('moveDisplay');
+                moveDiv.style.display = 'block';
+                moveDiv.innerHTML = `
+                    <span class="move-badge badge-from">FROM ${fromNote}${pieceSymbol(fromPiece)}</span>
+                    <span class="move-badge badge-to">TO ${toNote}</span>
+                    ${chessMove.take && takeNote !== toNote ? `<span class="move-badge badge-take">TAKE ${takeNote}</span>` : ''}
+                    <br>
+                    <span style="font-size:12px;color:#aaa">
+                        타입: <b style="color:#e2b96d">${chessMove.move_type||'?'}</b>
+                        ${chessMove.transition   ? `&nbsp; 프로모션: <b style="color:#ffa">${chessMove.transition}</b>` : ''}
+                        ${chessMove.state_change ? `&nbsp; 상태변경: <b style="color:#bdf">${JSON.stringify(chessMove.state_change)}</b>` : ''}
+                        ${score !== undefined    ? `&nbsp; 스코어: <b style="color:#7ec897">${score}</b>` : ''}
+                    </span>`;
+                renderBoard();
+            } catch (_) {
+                setStatus('ok', `HTTP ${res.status}`);
+                document.getElementById('responseArea').textContent = text;
+            }
             return;
         }
 
+        // 디버그 모드: EngineDebugInfo JSON 처리
         try {
-            const json = JSON.parse(text);
-            setStatus('ok', `HTTP ${res.status} — 최선 수 계산 완료`);
-            document.getElementById('responseArea').textContent = JSON.stringify(json, null, 2);
+            const info = JSON.parse(text);
+            setStatus('ok', `HTTP ${res.status} — 디버그 탐색 완료 (${info.elapsed_ms}ms)`);
+            document.getElementById('responseArea').textContent = JSON.stringify(info, null, 2);
 
-            // 서버는 (ChessMove, i32) 튜플을 [chessMove, score] 배열로 직렬화함
-            const rawMove = Array.isArray(json) ? json[0] : json;
-            const score   = Array.isArray(json) ? json[1] : undefined;
-            // ChessMove enum 래퍼 벗기기: {"Single": {...}} → {...}
-            const chessMove = rawMove.Single ?? rawMove.Multiple?.[0] ?? rawMove;
+            if (info.best_move) {
+                const rawMove   = info.best_move;
+                const chessMove = rawMove.Single ?? rawMove.Multiple?.[0] ?? rawMove;
+                const toHL = arr => arr ? [arr[1], arr[0]] : null;
+                highlight = { from: toHL(chessMove.from), to: toHL(chessMove.move_to), take: toHL(chessMove.take) };
+                const fromNote  = chessMove.from    ? colRowToNotation(chessMove.from[0],    chessMove.from[1])    : '?';
+                const toNote    = chessMove.move_to ? colRowToNotation(chessMove.move_to[0], chessMove.move_to[1]) : '?';
+                const takeNote  = chessMove.take    ? colRowToNotation(chessMove.take[0],    chessMove.take[1])    : '?';
+                const fromPiece = chessMove.from    ? board[chessMove.from[1]]?.[chessMove.from[0]] : null;
+                const moveDiv = document.getElementById('moveDisplay');
+                moveDiv.style.display = 'block';
+                moveDiv.innerHTML = `
+                    <span class="move-badge badge-from">FROM ${fromNote}${pieceSymbol(fromPiece)}</span>
+                    <span class="move-badge badge-to">TO ${toNote}</span>
+                    ${chessMove.take && takeNote !== toNote ? `<span class="move-badge badge-take">TAKE ${takeNote}</span>` : ''}
+                    <br>
+                    <span style="font-size:12px;color:#aaa">
+                        타입: <b style="color:#e2b96d">${chessMove.move_type||'?'}</b>
+                        ${chessMove.transition   ? `&nbsp; 프로모션: <b style="color:#ffa">${chessMove.transition}</b>` : ''}
+                        ${chessMove.state_change ? `&nbsp; 상태변경: <b style="color:#bdf">${JSON.stringify(chessMove.state_change)}</b>` : ''}
+                    </span>`;
+                renderBoard();
+            } else {
+                setStatus('ok', `HTTP ${res.status} — 게임 종료 또는 유효한 수 없음`);
+            }
 
-            // json positions are [col, row]; board display is [row, col]
-            const toHL = arr => arr ? [arr[1], arr[0]] : null;
-            highlight = {
-                from: toHL(chessMove.from),
-                to:   toHL(chessMove.move_to),
-                take: toHL(chessMove.take),
-            };
-
-            const fromNote  = chessMove.from    ? colRowToNotation(chessMove.from[0],    chessMove.from[1])    : '?';
-            const toNote    = chessMove.move_to ? colRowToNotation(chessMove.move_to[0], chessMove.move_to[1]) : '?';
-            const takeNote  = chessMove.take    ? colRowToNotation(chessMove.take[0],    chessMove.take[1])    : '?';
-            const fromPiece = chessMove.from    ? board[chessMove.from[1]]?.[chessMove.from[0]] : null;
-
-            const moveDiv = document.getElementById('moveDisplay');
-            moveDiv.style.display = 'block';
-            moveDiv.innerHTML = `
-                <span class="move-badge badge-from">FROM ${fromNote}${pieceSymbol(fromPiece)}</span>
-                <span class="move-badge badge-to">TO ${toNote}</span>
-                ${chessMove.take && takeNote !== toNote ? `<span class="move-badge badge-take">TAKE ${takeNote}</span>` : ''}
-                <br>
-                <span style="font-size:12px;color:#aaa">
-                    타입: <b style="color:#e2b96d">${chessMove.move_type||'?'}</b>
-                    ${chessMove.transition   ? `&nbsp; 프로모션: <b style="color:#ffa">${chessMove.transition}</b>` : ''}
-                    ${chessMove.state_change ? `&nbsp; 상태변경: <b style="color:#bdf">${JSON.stringify(chessMove.state_change)}</b>` : ''}
-                    ${score !== undefined    ? `&nbsp; 스코어: <b style="color:#7ec897">${score}</b>` : ''}
-                </span>`;
-
-            renderBoard();
+            renderDebugStats(info);
         } catch (_) {
-            setStatus('ok', `HTTP ${res.status}`);
+            setStatus('error', `HTTP ${res.status} — 응답 파싱 실패`);
             document.getElementById('responseArea').textContent = text;
         }
 
