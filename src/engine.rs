@@ -8,6 +8,7 @@ pub mod game_logic {
     use chessembly::ChessMove;
     use chessembly::MoveGen;
     use chessembly::Color;
+    use crate::engine_huristic::heuristics;
     
     /// 모든 게임의 '수'가 구현해야 하는 기본 트레이트.
     /// Debug와 Clone은 검색 트리에 필수적입니다.
@@ -75,10 +76,10 @@ pub mod game_logic {
             for i in 0..8 {
                 for j in 0..8 {
                     if let Some(piece) = self.piece_on(&(i, j)) {
-                        let value = get_piece_value(piece);
+                        let value = heuristics::get_piece_value(piece);
 
                         // 센터 근접 가중치: 기물 가치가 낮을수록 중앙에 있을 때 더 높은 보너스
-                        // let dist = (i as i32 * 2 - 7).abs() + (j as i32 * 2 - 7).abs();
+                        // let dist = heuristics::center_dist((i, j));
                         // let center_bonus = (14 - dist) / value.max(1);
 
                         if self.color_on(&(i, j)) == Some(Color::White) {
@@ -105,8 +106,7 @@ pub mod game_logic {
 
             // 1. 프로모션: 퀸 프로모션이 가장 높은 점수를 가집니다.
             if let Some(promoted_piece) = m.get_promotion() {
-                // 기본 1000점에 + 프로모션 기물 가치
-                score += 50 + 5 * get_piece_value(promoted_piece);
+                score += heuristics::score_promotion(promoted_piece);
             }
 
             // 2. 캡처 (기물 잡기)
@@ -117,12 +117,7 @@ pub mod game_logic {
                 let attacker = self.piece_on(&m.get_source()).unwrap_or("pawn");
 
                 // MVV-LVA (Most Valuable Victim, Least Valuable Attacker) 휴리스틱
-                // (잡힌 기물 가치 * 10) - (공격 기물 가치)
-                // 예: 폰으로 퀸 잡기: (900 * 10) - 100 = 8900 점
-                // 예: 퀸으로 폰 잡기: (100 * 10) - 900 = 100 점
-                // 이렇게 하면 가치 높은 기물을 잡는 수가 압도적으로 높은 우선순위를 갖게 됩니다.
-                // score += (get_piece_value(victim) * 10) - get_piece_value(attacker);
-                score += get_piece_value(victim) * 50 - get_piece_value(attacker) * 5;
+                score += heuristics::score_capture(attacker, victim);
             }
 
             // 3. 센터 근접 가중치: 기물 가치가 낮을수록 중앙 접근 시 더 높은 보너스
@@ -130,11 +125,8 @@ pub mod game_logic {
             if false {
                 let src = m.get_source();
                 let dst = m.get_dest();
-                // 중앙(3.5, 3.5)까지의 맨해튼 거리 근사: |2x - 7| + |2y - 7|
-                let src_dist = (src.0 as i32 * 2 - 7).abs() + (src.1 as i32 * 2 - 7).abs();
-                let dst_dist = (dst.0 as i32 * 2 - 7).abs() + (dst.1 as i32 * 2 - 7).abs();
-                let piece_val = get_piece_value(self.piece_on(&m.get_source()).unwrap_or("pawn")).max(1);
-                score += (src_dist - dst_dist) / piece_val;
+                let piece = self.piece_on(&m.get_source()).unwrap_or("pawn");
+                score += heuristics::score_center_approach(src, dst, piece);
             }
 
             // 4. TODO (고급): 나중에는 'Killer Moves' (이전 컷오프를 유발한 조용한 수)
@@ -145,24 +137,6 @@ pub mod game_logic {
         }
     }
 
-    /// 기물의 가치를 반환하는 헬퍼 함수
-    fn get_piece_value(piece: &str) -> i32 {
-        if piece == "pawn" {
-            return 1;
-        } else if piece == "knight" {
-            return 3;
-        } else if piece == "bishop" {
-            return 3;
-        } else if piece == "rook" {
-            return 5;
-        } else if piece == "queen" {
-            return 9;
-        } else if piece == "king" {
-            return 10000;
-        } else {
-            return 8;
-        }
-    }
 }
 
 // -----------------------------------------------------------------------------
