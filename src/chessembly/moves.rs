@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 
 use super::ChessemblyCompiled;
 use crate::chessembly::{
-    Behavior, ChessMove, Color, DeltaPosition, MoveType, Position, WallCollision, board::Board
+    Behavior, ChessMove, Color, DeltaPosition, MoveType, Position, WallCollision, board::Board, ChessMoveUnit
 };
 
 impl<'a> ChessemblyCompiled<'a> {
@@ -28,59 +28,59 @@ impl<'a> ChessemblyCompiled<'a> {
 
         if board.color_on(&(position.0, step1)) == None {
             if (position.1 == promotion) && !MACHO {
-                ret.push(ChessMove {
+                ret.push(ChessMove::Single(ChessMoveUnit {
                     from: *position,
                     take: (position.0, step1),
                     move_to: (position.0, step1),
                     move_type: MoveType::Move,
                     state_change: None,
                     transition: Some("knight"),
-                });
-                ret.push(ChessMove {
+                }));
+                ret.push(ChessMove::Single(ChessMoveUnit {
                     from: *position,
                     take: (position.0, step1),
                     move_to: (position.0, step1),
                     move_type: MoveType::Move,
                     state_change: None,
                     transition: Some("bishop"),
-                });
-                ret.push(ChessMove {
+                }));
+                ret.push(ChessMove::Single(ChessMoveUnit {
                     from: *position,
                     take: (position.0, step1),
                     move_to: (position.0, step1),
                     move_type: MoveType::Move,
                     state_change: None,
                     transition: Some("rook"),
-                });
-                ret.push(ChessMove {
+                }));
+                ret.push(ChessMove::Single(ChessMoveUnit {
                     from: *position,
                     take: (position.0, step1),
                     move_to: (position.0, step1),
                     move_type: MoveType::Move,
                     state_change: None,
                     transition: Some("queen"),
-                });
+                }));
             } else {
-                ret.push(ChessMove {
+                ret.push(ChessMove::Single(ChessMoveUnit {
                     from: *position,
                     take: (position.0, step1),
                     move_to: (position.0, step1),
                     move_type: MoveType::Move,
                     state_change: None,
                     transition: None,
-                });
+                }));
             }
             if position.1 == rank {
                 let step2 = if color == Color::White { 4 } else { 3 };
                 if board.color_on(&(position.0, step2)) == None {
-                    ret.push(ChessMove {
+                    ret.push(ChessMove::Single(ChessMoveUnit {
                         from: *position,
                         take: (position.0, step2),
                         move_to: (position.0, step2),
                         move_type: MoveType::Move,
                         state_change: Some(vec![("enpassant", 1 as u8)]),
                         transition: None,
-                    });
+                    }));
                 }
             }
         }
@@ -98,14 +98,14 @@ impl<'a> ChessemblyCompiled<'a> {
                     if MACHO {
                         ret.clear();
                     }
-                    ret.push(ChessMove {
+                    ret.push(ChessMove::Single(ChessMoveUnit {
                         from: *position,
                         move_to: (position.0 - 1, step1),
                         take: (position.0 - 1, position.1),
                         move_type: MoveType::TakeJump,
                         state_change: None,
                         transition: None
-                    });
+                    }));
                 }
             }
             if position.0 < 7 {
@@ -113,14 +113,14 @@ impl<'a> ChessemblyCompiled<'a> {
                     if MACHO {
                         ret.clear();
                     }
-                    ret.push(ChessMove {
+                    ret.push(ChessMove::Single(ChessMoveUnit {
                         from: *position,
                         move_to: (position.0 + 1, step1),
                         take: (position.0 + 1, position.1),
                         move_type: MoveType::TakeJump,
                         state_change: None,
                         transition: None
-                    });
+                    }));
                 }
             }
         }
@@ -128,94 +128,94 @@ impl<'a> ChessemblyCompiled<'a> {
         if position.0 > 0 {
             if board.color_on(&(position.0 - 1, step1)) == Some(color.invert()) {
                 if position.1 == promotion && !MACHO {
-                    ret.push(ChessMove {
+                    ret.push(ChessMove::Single(ChessMoveUnit {
                         from: *position,
                         take: (position.0 - 1, step1),
                         move_to: (position.0 - 1, step1),
                         move_type: MoveType::Take,
                         state_change: None,
                         transition: Some("knight"),
-                    });
-                    ret.push(ChessMove {
+                    }));
+                    ret.push(ChessMove::Single(ChessMoveUnit {
                         from: *position,
                         take: (position.0 - 1, step1),
                         move_to: (position.0 - 1, step1),
                         move_type: MoveType::Take,
                         state_change: None,
                         transition: Some("bishop"),
-                    });
-                    ret.push(ChessMove {
+                    }));
+                    ret.push(ChessMove::Single(ChessMoveUnit {
                         from: *position,
                         take: (position.0 - 1, step1),
                         move_to: (position.0 - 1, step1),
                         move_type: MoveType::Take,
                         state_change: None,
                         transition: Some("rook"),
-                    });
-                    ret.push(ChessMove {
+                    }));
+                    ret.push(ChessMove::Single(ChessMoveUnit {
                         from: *position,
                         take: (position.0 - 1, step1),
                         move_to: (position.0 - 1, step1),
                         move_type: MoveType::Take,
                         state_change: None,
                         transition: Some("queen"),
-                    });
+                    }));
                 } else {
-                    ret.push(ChessMove {
+                    ret.push(ChessMove::Single(ChessMoveUnit {
                         from: *position,
                         take: (position.0 - 1, step1),
                         move_to: (position.0 - 1, step1),
                         move_type: MoveType::Take,
                         state_change: None,
                         transition: None,
-                    });
+                    }));
                 }
             }
         }
         if position.0 < board.get_width() as u8 - 1 {
             if board.color_on(&(position.0 + 1, step1)) == Some(color.invert()) {
                 if position.1 == promotion && !MACHO {            
-                    ret.push(ChessMove {
+                    ret.push(ChessMove::Single(ChessMoveUnit {
                         from: *position,
                         take: (position.0 + 1, step1),
                         move_to: (position.0 + 1, step1),
                         move_type: MoveType::Take,
                         state_change: None,
                         transition: Some("knight"),
-                    });
-                    ret.push(ChessMove {
+                    }));
+                    ret.push(ChessMove::Single(ChessMoveUnit {
                         from: *position,
                         take: (position.0 + 1, step1),
                         move_to: (position.0 + 1, step1),
                         move_type: MoveType::Take,
                         state_change: None,
                         transition: Some("bishop"),
-                    });
-                    ret.push(ChessMove {
+                    }));
+                    ret.push(ChessMove::Single(ChessMoveUnit {
                         from: *position,
                         take: (position.0 + 1, step1),
                         move_to: (position.0 + 1, step1),
                         move_type: MoveType::Take,
                         state_change: None,
                         transition: Some("rook"),
-                    });
-                    ret.push(ChessMove {
+                    }));
+                    ret.push(ChessMove::Single(ChessMoveUnit {
                         from: *position,
                         take: (position.0 + 1, step1),
                         move_to: (position.0 + 1, step1),
                         move_type: MoveType::Take,
                         state_change: None,
                         transition: Some("queen"),
-                    });
+                    }));
                 } else {
-                    ret.push(ChessMove {
+                    ret.push(ChessMove::Single(ChessMoveUnit {
                         from: *position,
                         take: (position.0 + 1, step1),
                         move_to: (position.0 + 1, step1),
                         move_type: MoveType::Take,
                         state_change: None,
                         transition: None,
-                    });
+                    }));
                 }
             }
         }
@@ -252,7 +252,7 @@ impl<'a> ChessemblyCompiled<'a> {
                         != board.color_on(position)
                     {
                         if MACHO || !ChessemblyCompiled::is_danger_bit(danger_zones, (position.0 as i8 + i) as u8, (position.1 as i8 - j) as u8) {
-                            ret.push(ChessMove {
+                            ret.push(ChessMove::Single(ChessMoveUnit {
                                 from: *position,
                                 take: ((position.0 as i8 + i) as u8, (position.1 as i8 - j) as u8),
                                 move_to: (
@@ -262,7 +262,7 @@ impl<'a> ChessemblyCompiled<'a> {
                                 move_type: MoveType::TakeMove,
                                 state_change: Some(state_transition.clone()),
                                 transition: None,
-                            });
+                            }));
                         }
                     }
                 }
@@ -281,14 +281,14 @@ impl<'a> ChessemblyCompiled<'a> {
             if board.piece_on(&(7, position.1)) == Some("rook") && board.color_on(&(7, position.1)) == Some(color) {
                 if board.color_on(&(6, position.1)) == None && board.color_on(&(5, position.1)) == None {
                     if !ChessemblyCompiled::is_danger_bit(danger_zones, position.0, position.1) {
-                        ret.push(ChessMove {
+                        ret.push(ChessMove::Single(ChessMoveUnit {
                             from: *position,
                             take: (6, position.1),
                             move_to: (6, position.1),
                             move_type: MoveType::Castling,
                             state_change: Some(state_transition.clone()),
                             transition: None,
-                        });
+                        }));
                     }
                 }
             }
@@ -297,14 +297,14 @@ impl<'a> ChessemblyCompiled<'a> {
             if board.piece_on(&(0, position.1)) == Some("rook") && board.color_on(&(0, position.1)) == Some(color) {
                 if board.color_on(&(1, position.1)) == None && board.color_on(&(2, position.1)) == None && board.color_on(&(3, position.1)) == None {
                     if !ChessemblyCompiled::is_danger_bit(danger_zones, position.0, position.1) {
-                        ret.push(ChessMove {
+                        ret.push(ChessMove::Single(ChessMoveUnit {
                             from: *position,
                             take: (2, position.1),
                             move_to: (2, position.1),
                             move_type: MoveType::Castling,
                             state_change: Some(state_transition),
                             transition: None,
-                        });
+                        }));
                     }
                 }
             }
@@ -329,25 +329,25 @@ impl<'a> ChessemblyCompiled<'a> {
                 false
             }
             else if color_on == None {
-                moves.push(ChessMove {
+                moves.push(ChessMove::Single(ChessMoveUnit {
                     from: *position,
                     take: anchor,
                     move_to: anchor,
                     move_type: MoveType::TakeMove,
                     state_change: None,
                     transition: None
-                });
+                }));
                 true
             }
             else {
-                moves.push(ChessMove {
+                moves.push(ChessMove::Single(ChessMoveUnit {
                     from: *position,
                     take: anchor,
                     move_to: anchor,
                     move_type: MoveType::TakeMove,
                     state_change: None,
                     transition: None
-                });
+                }));
                 false
             }
         }
@@ -762,54 +762,54 @@ impl<'a> ChessemblyCompiled<'a> {
                 if board.color_on(&anchor) == Some(board.color_on(position).unwrap().invert()) {
                     match board.piece_on(&anchor).unwrap() {
                         "pawn" => {
-                            moves.push(ChessMove {
+                            moves.push(ChessMove::Single(ChessMoveUnit {
                                 from: *position,
                                 take: anchor.clone(),
                                 move_to: *position,
                                 move_type: MoveType::Catch,
                                 state_change: None,
                                 transition: Some("mirrored-pawn")
-                            });
+                            }));
                         },
                         "queen" => {
-                            moves.push(ChessMove {
+                            moves.push(ChessMove::Single(ChessMoveUnit {
                                 from: *position,
                                 take: anchor.clone(),
                                 move_to: *position,
                                 move_type: MoveType::Catch,
                                 state_change: None,
                                 transition: Some("mirrored-queen")
-                            });
+                            }));
                         },
                         "bishop" => {
-                            moves.push(ChessMove {
+                            moves.push(ChessMove::Single(ChessMoveUnit {
                                 from: *position,
                                 take: anchor.clone(),
                                 move_to: *position,
                                 move_type: MoveType::Catch,
                                 state_change: None,
                                 transition: Some("mirrored-bishop")
-                            });
+                            }));
                         },
                         "knight" => {
-                            moves.push(ChessMove {
+                            moves.push(ChessMove::Single(ChessMoveUnit {
                                 from: *position,
                                 take: anchor.clone(),
                                 move_to: *position,
                                 move_type: MoveType::Catch,
                                 state_change: None,
                                 transition: Some("mirrored-knight")
-                            });
+                            }));
                         },
                         "rook" => {
-                            moves.push(ChessMove {
+                            moves.push(ChessMove::Single(ChessMoveUnit {
                                 from: *position,
                                 take: anchor.clone(),
                                 move_to: *position,
                                 move_type: MoveType::Catch,
                                 state_change: None,
                                 transition: Some("mirrored-rook")
-                            });
+                            }));
                         },
                         _ => {}
                     }
@@ -853,14 +853,14 @@ impl<'a> ChessemblyCompiled<'a> {
                     else if target_piece == "beacon" {
                         continue;
                     }
-                    moves.push(ChessMove {
+                    moves.push(ChessMove::Single(ChessMoveUnit {
                         from: *position,
                         take: *position,
                         move_to: (j, i),
                         move_type: MoveType::Shift,
                         state_change: None,
                         transition: None
-                    });
+                    }));
                 }
             }
         }
@@ -916,11 +916,15 @@ impl<'a> ChessemblyCompiled<'a> {
         };
         let enemy_color = board.color_on(position).unwrap().invert();
 
-        moves.into_iter().map(|node| {
+        moves.into_iter().map(|node_raw| {
+            let ChessMove::Single(node) = node_raw else {
+                return node_raw;
+            };
+
             let take_color = board.color_on(&node.take);
             if take_color == Some(enemy_color) {
-                match board.piece_on(&node.take).unwrap() {
-                    "pawn" => ChessMove {
+                ChessMove::Single(match board.piece_on(&node.take).unwrap() {
+                    "pawn" => ChessMoveUnit {
                         from: node.from,
                         take: node.take,
                         move_to: node.move_to,
@@ -928,7 +932,7 @@ impl<'a> ChessemblyCompiled<'a> {
                         state_change: None,
                         transition: Some("mirrored-pawn")
                     },
-                    "bishop" => ChessMove {
+                    "bishop" => ChessMoveUnit {
                         from: node.from,
                         take: node.take,
                         move_to: node.move_to,
@@ -936,7 +940,7 @@ impl<'a> ChessemblyCompiled<'a> {
                         state_change: None,
                         transition: Some("mirrored-bishop")
                     },
-                    "rook" => ChessMove {
+                    "rook" => ChessMoveUnit {
                         from: node.from,
                         take: node.take,
                         move_to: node.move_to,
@@ -944,7 +948,7 @@ impl<'a> ChessemblyCompiled<'a> {
                         state_change: None,
                         transition: Some("mirrored-rook")
                     },
-                    "knight" => ChessMove {
+                    "knight" => ChessMoveUnit {
                         from: node.from,
                         take: node.take,
                         move_to: node.move_to,
@@ -952,7 +956,7 @@ impl<'a> ChessemblyCompiled<'a> {
                         state_change: None,
                         transition: Some("mirrored-knight")
                     },
-                    "queen" => ChessMove {
+                    "queen" => ChessMoveUnit {
                         from: node.from,
                         take: node.take,
                         move_to: node.move_to,
@@ -961,10 +965,10 @@ impl<'a> ChessemblyCompiled<'a> {
                         transition: Some("mirrored-queen")
                     },
                     _ => node
-                }
+                })
             }
             else {
-                node
+                ChessMove::Single(node)
             }
         }).collect()
     }

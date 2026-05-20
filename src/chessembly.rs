@@ -62,7 +62,7 @@ pub type Position = (u8, u8);
 pub type DeltaPosition = (i8, i8);
 
 #[derive(Clone, Eq, PartialOrd, PartialEq, Debug, Hash, Serialize)]
-pub struct ChessMove<'a> {
+pub struct ChessMoveUnit<'a> {
     pub from: Position,
     pub take: Position,
     pub move_to: Position,
@@ -71,22 +71,37 @@ pub struct ChessMove<'a> {
     pub transition: Option<&'a str>,
 }
 
+#[derive(Clone, Eq, PartialOrd, PartialEq, Debug, Hash, Serialize)]
+pub enum ChessMove<'a> {
+    Single(ChessMoveUnit<'a>),
+    Multiple(Vec<ChessMoveUnit<'a>>)
+}
+
 impl<'a> ChessMove<'a> {
     #[inline]
     pub fn get_source(&self) -> Position {
-        self.from
+        match self {
+            ChessMove::Single(n) => n.from,
+            ChessMove::Multiple(v) => v[0].from
+        }
     }
 
     // Get the destination square (square the piece is going to).
     #[inline]
     pub fn get_dest(&self) -> Position {
-        self.move_to
+        match self {
+            ChessMove::Single(n) => n.move_to,
+            ChessMove::Multiple(v) => v[0].move_to
+        }
     }
 
     // Get the promotion piece (maybe).
     #[inline]
     pub fn get_promotion(&self) -> &Option<&'a str> {
-        &self.transition
+        match self {
+            ChessMove::Single(n) => &n.transition,
+            ChessMove::Multiple(v) => &v[0].transition
+        }
     }
 }
 
@@ -169,23 +184,60 @@ impl MoveGen {
 
     #[inline]
     pub fn get_danger_zones<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(board: &mut Board<MACHO, IMPRISONED, SIZE>, enemy: Color) -> Vec<Position> {
-        MoveGen::get_all_moves::<MACHO, IMPRISONED, SIZE>(board, enemy, false)
-            .iter()
-            .filter(|x| match x.move_type {
-                MoveType::Take => true,
-                MoveType::TakeMove => true,
-                MoveType::TakeJump => true,
-                MoveType::Catch => true,
-                _ => false,
-            })
-            .map(|x| x.take)
-            .collect()
+        let mut ret = Vec::new();
+        let all_moves = MoveGen::get_all_moves::<MACHO, IMPRISONED, SIZE>(board, enemy, false);
+        for node in all_moves {
+            match node {
+                ChessMove::Multiple(v) => {
+                    ret.extend(v.iter()
+                        .filter(|x| match x.move_type {
+                            MoveType::Take => true,
+                            MoveType::TakeMove => true,
+                            MoveType::TakeJump => true,
+                            MoveType::Catch => true,
+                            _ => false,
+                        })
+                        .map(|x| x.take));
+                },
+                ChessMove::Single(n) => {
+                    match n.move_type {
+                        MoveType::Take => ret.push(n.take),
+                        MoveType::TakeMove => ret.push(n.take),
+                        MoveType::TakeJump => ret.push(n.take),
+                        MoveType::Catch => ret.push(n.take),
+                        _ => ()
+                    }
+                }
+            }
+        }
+
+        ret
     }
 
     pub fn get_danger_zones_bit<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(board: &mut Board<MACHO, IMPRISONED, SIZE>, enemy: Color) -> u64 {
         let mut ret: u64 = 0;
-        for node in MoveGen::get_all_moves::<MACHO, IMPRISONED, SIZE>(board, enemy, false) {
-            ret |= 1 << (node.take.1 * 8 + node.take.0);
+        let all_moves = MoveGen::get_all_moves::<MACHO, IMPRISONED, SIZE>(board, enemy, false);
+        for node in all_moves {
+            ret |= match node {
+                ChessMove::Multiple(v) => {
+                    v.iter().map(|x| (match x.move_type {
+                        MoveType::Take => 1,
+                        MoveType::TakeMove => 1,
+                        MoveType::TakeJump => 1,
+                        MoveType::Catch => 1,
+                        _ => 0,
+                    }) << (x.take.1 * 8 + x.take.0)).fold(0, |a, b| a | b)
+                },
+                ChessMove::Single(n) => {
+                    match n.move_type {
+                        MoveType::Take => 1 << (n.take.1 * 8 + n.take.0),
+                        MoveType::TakeMove => 1 << (n.take.1 * 8 + n.take.0),
+                        MoveType::TakeJump => 1 << (n.take.1 * 8 + n.take.0),
+                        MoveType::Catch => 1 << (n.take.1 * 8 + n.take.0),
+                        _ => 0
+                    }
+                }
+            };
         }
         ret
     }
@@ -358,14 +410,17 @@ impl<'a> ChessemblyCompiled<'a> {
         ret
     }
 
-    pub fn push_node(nodes: &mut Vec<ChessMove<'a>>, node: ChessMove<'a>) {
+    pub fn push_node(nodes: &mut Vec<ChessMove<'a>>, node: ChessMoveUnit<'a>) {
         if let Some(i) = nodes
             .iter()
-            .position(|x| x.move_to == node.move_to && x.take == node.take)
+            .position(|x| x.get_dest() == node.move_to && match x {
+                ChessMove::Single(n) => n.take,
+                ChessMove::Multiple(v) => v[0].take,
+            } == node.take)
         {
             nodes.swap_remove(i);
         }
-        nodes.push(node);
+        nodes.push(ChessMove::Single(node));
     }
 
     pub fn generate_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
@@ -467,7 +522,7 @@ impl<'a> ChessemblyCompiled<'a> {
                         ) {
                             ChessemblyCompiled::push_node(
                                 &mut nodes,
-                                ChessMove {
+                                ChessMoveUnit {
                                     from: *position,
                                     take: stack_top.0,
                                     move_to: stack_top.0,
@@ -486,7 +541,7 @@ impl<'a> ChessemblyCompiled<'a> {
                         } else {
                             ChessemblyCompiled::push_node(
                                 &mut nodes,
-                                ChessMove {
+                                ChessMoveUnit {
                                     from: *position,
                                     take: stack_top.0,
                                     move_to: stack_top.0,
@@ -919,7 +974,7 @@ impl<'a> ChessemblyCompiled<'a> {
                         ) {
                             ChessemblyCompiled::push_node(
                                 &mut nodes,
-                                ChessMove {
+                                ChessMoveUnit {
                                     from: *position,
                                     take: stack_top.0,
                                     move_to: stack_top.0,
@@ -947,7 +1002,10 @@ impl<'a> ChessemblyCompiled<'a> {
                             if let Some(tpc) = tp {
                                 if let Some(trace) = nodes
                                     .iter()
-                                    .position(|x| x.move_type == MoveType::Take && x.take == *tpc)
+                                    .position(|x| match x {
+                                        ChessMove::Single(n) => n.move_type == MoveType::Take && n.take == *tpc,
+                                        ChessMove::Multiple(_) => false
+                                    })
                                 {
                                     nodes.swap_remove(trace);
                                 }
@@ -963,7 +1021,7 @@ impl<'a> ChessemblyCompiled<'a> {
                                         if board.color_on(&stack_top.0).is_none() {
                                             ChessemblyCompiled::push_node(
                                                 &mut nodes,
-                                                ChessMove {
+                                                ChessMoveUnit {
                                                     from: *position,
                                                     take: *tpc,
                                                     move_to: stack_top.0,
@@ -1026,7 +1084,7 @@ impl<'a> ChessemblyCompiled<'a> {
                         ) {
                             ChessemblyCompiled::push_node(
                                 &mut nodes,
-                                ChessMove {
+                                ChessMoveUnit {
                                     from: *position,
                                     take: stack_top.0,
                                     move_to: *position,
@@ -1078,7 +1136,7 @@ impl<'a> ChessemblyCompiled<'a> {
                         } else {
                             ChessemblyCompiled::push_node(
                                 &mut nodes,
-                                ChessMove {
+                                ChessMoveUnit {
                                     from: *position,
                                     take: stack.last().unwrap().0,
                                     move_to: stack.last().unwrap().0,
@@ -1314,7 +1372,7 @@ impl<'a> ChessemblyCompiled<'a> {
                             *states.last_mut().unwrap() = false;
                         }
                         else if let Some(_) = board.color_on(&stack.last().unwrap().0) {
-                            ChessemblyCompiled::push_node(&mut nodes, ChessMove {
+                            ChessemblyCompiled::push_node(&mut nodes, ChessMoveUnit {
                                 from: *position,
                                 move_to: stack.last().unwrap().0,
                                 take: *position,
@@ -1340,21 +1398,24 @@ impl<'a> ChessemblyCompiled<'a> {
         let mut ret: Vec<ChessMove> = Vec::new();
         if MACHO {
             for testnode in nodes {
-                let piece_color = board.color_on(&testnode.from).unwrap();
-                match (testnode.from.1.cmp(&testnode.move_to.1), piece_color) {
+                let piece_color = board.color_on(&testnode.get_source()).unwrap();
+                match (testnode.get_source().1.cmp(&testnode.get_dest().1), piece_color) {
                     (Ordering::Less, Color::Black) => ret.push(testnode),
                     (Ordering::Greater, Color::White) => ret.push(testnode),
                     (Ordering::Equal, _) => {
-                        if board.color_on(&testnode.take) == Some(piece_color.invert()) {
-                            ret.push(ChessMove {
-                                from: testnode.from,
-                                take: testnode.take,
-                                move_to: testnode.move_to,
-                                move_type: MoveType::Take,
-                                state_change: testnode.state_change,
-                                transition: testnode.transition
-                            });
+                        if let ChessMove::Single(n) = testnode {
+                            if board.color_on(&n.take) == Some(piece_color.invert()) {
+                                ret.push(ChessMove::Single(ChessMoveUnit {
+                                    from: n.from,
+                                    take: n.take,
+                                    move_to: n.move_to,
+                                    move_type: MoveType::Take,
+                                    state_change: n.state_change,
+                                    transition: n.transition
+                                }));
+                            }
                         }
+                        //
                     },
                     (_, _) => {}
                 }

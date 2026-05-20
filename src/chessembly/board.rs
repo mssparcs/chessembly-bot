@@ -1,4 +1,4 @@
-use crate::chessembly::MoveType;
+use crate::chessembly::{ChessMoveUnit, MoveType};
 
 use super::{ChessMove, ChessemblyCompiled, Color, HashMap, MoveGen, Piece, PieceSpan, Position};
 
@@ -232,9 +232,7 @@ impl<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize> Board<'a,
         }
     }
 
-    pub fn make_move_new_nc(&self, node: &ChessMove<'a>, decide: bool) -> Board<'a, MACHO, IMPRISONED, SIZE> {
-        let mut ret = self.clone_without_dp();
-
+    pub fn run_node_unit(ret: &mut Board<'a, MACHO, IMPRISONED, SIZE>, node: &ChessMoveUnit<'a>) {
         if node.move_type == MoveType::Castling {
             ret.board[node.move_to.1 as usize].swap(node.move_to.0 as usize, node.from.0 as usize);
             if node.from.0 < node.move_to.0 { // O-O
@@ -299,6 +297,19 @@ impl<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize> Board<'a,
                     } else if ret.turn == Color::Black {
                         ret.board_state.white.enpassant.push(node.move_to);
                     }
+                }
+            }
+        }
+    }
+
+    pub fn make_move_new_nc(&self, node: &ChessMove<'a>, decide: bool) -> Board<'a, MACHO, IMPRISONED, SIZE> {
+        let mut ret = self.clone_without_dp();
+
+        match node {
+            ChessMove::Single(node_unit) => Self::run_node_unit(&mut ret, node_unit),
+            ChessMove::Multiple(node_units) => {
+                for node_unit in node_units {
+                    Self::run_node_unit(&mut ret, node_unit);
                 }
             }
         }

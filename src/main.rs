@@ -596,7 +596,7 @@ async fn apply_move_endpoint(
             let raw = script.get_moves::<true, true, 8>(&mut b, &body.from, true);
             let filtered = script.filter_nodes::<true, true, 8>(raw, &b);
             filtered.into_iter()
-                .find(|m| m.move_to == body.move_to && m.transition.as_deref() == body.transition.as_deref())
+                .find(|m| m.get_dest() == body.move_to && m.get_promotion().as_deref() == body.transition.as_deref())
                 .map(|m| encode_board_response(&b.make_move_new(&m)))
         }
         (true, false) => {
@@ -605,7 +605,7 @@ async fn apply_move_endpoint(
             let raw = script.get_moves::<true, false, 8>(&mut b, &body.from, true);
             let filtered = script.filter_nodes::<true, false, 8>(raw, &b);
             filtered.into_iter()
-                .find(|m| m.move_to == body.move_to && m.transition.as_deref() == body.transition.as_deref())
+                .find(|m| m.get_dest() == body.move_to && m.get_promotion().as_deref() == body.transition.as_deref())
                 .map(|m| encode_board_response(&b.make_move_new(&m)))
         }
         (false, true) => {
@@ -614,7 +614,7 @@ async fn apply_move_endpoint(
             let raw = script.get_moves::<false, true, 8>(&mut b, &body.from, true);
             let filtered = script.filter_nodes::<false, true, 8>(raw, &b);
             filtered.into_iter()
-                .find(|m| m.move_to == body.move_to && m.transition.as_deref() == body.transition.as_deref())
+                .find(|m| m.get_dest() == body.move_to && m.get_promotion().as_deref() == body.transition.as_deref())
                 .map(|m| encode_board_response(&b.make_move_new(&m)))
         }
         (false, false) => {
@@ -623,7 +623,7 @@ async fn apply_move_endpoint(
             let raw = script.get_moves::<false, false, 8>(&mut b, &body.from, true);
             let filtered = script.filter_nodes::<false, false, 8>(raw, &b);
             filtered.into_iter()
-                .find(|m| m.move_to == body.move_to && m.transition.as_deref() == body.transition.as_deref())
+                .find(|m| m.get_dest() == body.move_to && m.get_promotion().as_deref() == body.transition.as_deref())
                 .map(|m| encode_board_response(&b.make_move_new(&m)))
         }
     };
