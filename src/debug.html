@@ -960,7 +960,8 @@ async function getPieceMoves(col, row) {
         const text = await res.text();
         const json = JSON.parse(text);
         if (Array.isArray(json)) {
-            moveHighlights = json;
+            // ChessMove enum 래퍼 벗기기: {"Single": {...}} → {...}
+            moveHighlights = json.map(m => m.Single ?? m.Multiple?.[0] ?? m);
             renderBoard();
             renderMoveList();
         }
@@ -1044,8 +1045,10 @@ async function getBestMove() {
             document.getElementById('responseArea').textContent = JSON.stringify(json, null, 2);
 
             // 서버는 (ChessMove, i32) 튜플을 [chessMove, score] 배열로 직렬화함
-            const chessMove = Array.isArray(json) ? json[0] : json;
-            const score     = Array.isArray(json) ? json[1] : undefined;
+            const rawMove = Array.isArray(json) ? json[0] : json;
+            const score   = Array.isArray(json) ? json[1] : undefined;
+            // ChessMove enum 래퍼 벗기기: {"Single": {...}} → {...}
+            const chessMove = rawMove.Single ?? rawMove.Multiple?.[0] ?? rawMove;
 
             // json positions are [col, row]; board display is [row, col]
             const toHL = arr => arr ? [arr[1], arr[0]] : null;
