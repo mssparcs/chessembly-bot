@@ -90,6 +90,7 @@ async fn main() {
 
     let app = Router::new()
         .route("/", get(serve_debug_ui).post(run_engine))
+        .route("/debug", post(run_engine_debug))
         .route("/moves", post(get_piece_moves))
         .route("/apply", post(apply_move_endpoint))
         .layer(cors);
@@ -173,7 +174,7 @@ async fn run_engine(headers: HeaderMap) -> impl IntoResponse {
         return (StatusCode::OK, "asdf").into_response();
     };
     
-    if depth <= 1 || depth > 4 {
+    if depth <= 1 || depth > engine::search::HARD_DEPTH {
         return (StatusCode::OK, "asdf").into_response();
     }
     
@@ -330,6 +331,145 @@ async fn run_engine(headers: HeaderMap) -> impl IntoResponse {
         return (StatusCode::OK, "null").into_response();
     }
     return (StatusCode::OK, "asdf").into_response();
+}
+
+// ─── POST /debug — 디버그 모드 최선 수 계산 ──────────────────────────────────
+// 기존 run_engine 과 동일한 헤더를 받지만, engine::search::find_best_move_debug 를
+// 호출해 탐색 통계(nodes, qnodes, TT hit rate 등)를 포함한 JSON 을 반환합니다.
+async fn run_engine_debug(headers: HeaderMap) -> impl IntoResponse {
+    let (
+        Some(position),
+        Some(script),
+        Some(turn),
+        Some(castling_oo),
+        Some(castling_ooo),
+        Some(en_passant_white),
+        Some(en_passant_black),
+        Some(register_white),
+        Some(register_black),
+        Some(depth_header_str),
+    ) = (
+        headers.get("Position"),
+        headers.get("Chessembly"),
+        headers.get("Turn"),
+        headers.get("Castling-OO"),
+        headers.get("Castling-OOO"),
+        headers.get("En-Passant-White"),
+        headers.get("En-Passant-Black"),
+        headers.get("Register-White"),
+        headers.get("Register-Black"),
+        headers.get("Depth"),
+    ) else {
+        return (StatusCode::BAD_REQUEST, "missing headers").into_response();
+    };
+
+    let Ok(depth) = depth_header_str.to_str().map(|x| x.parse::<u8>().unwrap_or(3)) else {
+        return (StatusCode::BAD_REQUEST, "bad depth").into_response();
+    };
+
+    if depth <= 1 || depth > engine::search::HARD_DEPTH {
+        return (StatusCode::BAD_REQUEST, "depth out of range").into_response();
+    }
+
+    let Ok(str_script) = script.to_str().map(|x| urlencoding::decode(x).expect("UTF-8")) else {
+        return (StatusCode::BAD_REQUEST, "bad script").into_response();
+    };
+    let str_script_fixed = str_script.replace('{', " { ").replace('}', " } ");
+    let Ok(compiled) = chessembly::ChessemblyCompiled::from_script(&str_script_fixed[..]) else {
+        return (StatusCode::BAD_REQUEST, "script compile failed").into_response();
+    };
+
+    let (
+        Ok(castling_oo_tuple),
+        Ok(castling_ooo_tuple),
+        Ok(en_passant_white_str),
+        Ok(en_passant_black_str),
+        Ok(register_white_str),
+        Ok(register_black_str),
+    ) = (
+        castling_oo.to_str().map(|x| (x.chars().nth(0) == Some('1'), x.chars().nth(1) == Some('1'))),
+        castling_ooo.to_str().map(|x| (x.chars().nth(0) == Some('1'), x.chars().nth(1) == Some('1'))),
+        en_passant_white.to_str(),
+        en_passant_black.to_str(),
+        register_white.to_str(),
+        register_black.to_str(),
+    ) else {
+        return (StatusCode::BAD_REQUEST, "bad headers").into_response();
+    };
+
+    let mut en_passant_white_positions: Vec<chessembly::Position> = Vec::new();
+    let mut en_passant_black_positions: Vec<chessembly::Position> = Vec::new();
+    let mut register_white_map: HashMap<&str, u8> = HashMap::new();
+    let mut register_black_map: HashMap<&str, u8> = HashMap::new();
+    for coord in en_passant_white_str.split('/') {
+        if let Some((x, y)) = coord.split_once(',') {
+            en_passant_white_positions.push((x.parse().unwrap_or(0), y.parse().unwrap_or(0)));
+        }
+    }
+    for coord in en_passant_black_str.split('/') {
+        if let Some((x, y)) = coord.split_once(',') {
+            en_passant_black_positions.push((x.parse().unwrap_or(0), y.parse().unwrap_or(0)));
+        }
+    }
+    for register in register_white_str.split('/') {
+        if let Some((key, value)) = register.split_once(',') {
+            register_white_map.insert(key, value.parse().unwrap_or(0));
+        }
+    }
+    for register in register_black_str.split('/') {
+        if let Some((key, value)) = register.split_once(',') {
+            register_black_map.insert(key, value.parse().unwrap_or(0));
+        }
+    }
+
+    let board_state = chessembly::board::BothBoardState {
+        white: chessembly::board::BoardState {
+            castling_oo: castling_oo_tuple.0,
+            castling_ooo: castling_ooo_tuple.0,
+            enpassant: en_passant_white_positions,
+            register: register_white_map,
+        },
+        black: chessembly::board::BoardState {
+            castling_oo: castling_oo_tuple.1,
+            castling_ooo: castling_ooo_tuple.1,
+            enpassant: en_passant_black_positions,
+            register: register_black_map,
+        },
+    };
+
+    let turn = if turn.to_str().unwrap_or("white") == "white" {
+        chessembly::Color::White
+    } else {
+        chessembly::Color::Black
+    };
+
+    let is_macho = headers.get("Macho").is_some();
+    let is_imprisoned = headers.get("Imprisoned").is_some();
+    let beam_width: Option<usize> = headers.get("Beam-Width")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.parse::<usize>().ok());
+    let pos_str = position.to_str().unwrap_or("");
+
+    let debug_info = match (is_macho, is_imprisoned) {
+        (true, true) => {
+            let mut board: chessembly::board::Board<true, true, 8> = setup_board(&compiled, pos_str, board_state, turn);
+            engine::search::find_best_move_debug(&mut board, depth, beam_width)
+        }
+        (true, false) => {
+            let mut board: chessembly::board::Board<true, false, 8> = setup_board(&compiled, pos_str, board_state, turn);
+            engine::search::find_best_move_debug(&mut board, depth, beam_width)
+        }
+        (false, true) => {
+            let mut board: chessembly::board::Board<false, true, 8> = setup_board(&compiled, pos_str, board_state, turn);
+            engine::search::find_best_move_debug(&mut board, depth, beam_width)
+        }
+        (false, false) => {
+            let mut board: chessembly::board::Board<false, false, 8> = setup_board(&compiled, pos_str, board_state, turn);
+            engine::search::find_best_move_debug(&mut board, depth, beam_width)
+        }
+    };
+
+    (StatusCode::OK, Json(debug_info)).into_response()
 }
 
 // ─── 새 엔드포인트: POST /moves ───────────────────────────────────────────────
