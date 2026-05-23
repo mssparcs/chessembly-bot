@@ -474,7 +474,7 @@ pub mod search {
     const DELTA_MARGIN: i32 = 200;
     /// Aspiration Window 초기 창 크기 (센티폰).
     /// 반복 심화의 depth > 2 부터 이전 점수 ±ASPIRATION_DELTA 창으로 탐색을 시작합니다.
-    const ASPIRATION_DELTA: i32 = 50 + 10;
+    const ASPIRATION_DELTA: i32 = 50;
 
     // -------------------------------------------------------------------------
     // 킬러 테이블: 깊이별로 베타 컷오프를 유발한 조용한 수 2개 저장.

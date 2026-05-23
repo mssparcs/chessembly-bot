@@ -298,6 +298,62 @@
         .toggle-label { font-size: 12px; color: #668; }
         .toggle-label.active { color: #8fcf40; font-weight: 600; }
 
+        /* ─── saved positions ─── */
+        .save-entry {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 8px;
+            border-radius: 6px;
+            margin-bottom: 4px;
+            background: #0c1624;
+            border: 1px solid #1e2840;
+            font-size: 12px;
+        }
+        .save-entry:hover { border-color: #2a3a5a; }
+        .save-offset {
+            font-family: 'Consolas', monospace;
+            color: #e2b96d;
+            font-weight: 700;
+            min-width: 32px;
+            font-size: 11px;
+        }
+        .save-label {
+            flex: 1;
+            color: #ccc;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            min-width: 0;
+        }
+        .save-date {
+            font-size: 10px;
+            color: #446;
+            white-space: nowrap;
+        }
+        .save-btn-load {
+            padding: 3px 8px;
+            background: #1a2840;
+            border: 1px solid #3a5a8a;
+            border-radius: 4px;
+            color: #7ab8f5;
+            cursor: pointer;
+            font-size: 11px;
+            flex-shrink: 0;
+        }
+        .save-btn-load:hover { background: #1e3a5a; }
+        .save-btn-del {
+            padding: 3px 7px;
+            background: transparent;
+            border: 1px solid #4a2a2a;
+            border-radius: 4px;
+            color: #a44;
+            cursor: pointer;
+            font-size: 11px;
+            flex-shrink: 0;
+        }
+        .save-btn-del:hover { background: #1a0808; color: #f66; }
+
         /* ─── debug stats panel ─── */
         .debug-stats-panel {
             display: none;
@@ -480,6 +536,17 @@
                             <span class="form-label">Register Black</span>
                             <input type="text" id="regBl" placeholder="ex) enpassant,1" style="flex:1">
                         </div>
+                    </div>
+
+                    <!-- Saved Positions -->
+                    <div class="panel" style="width:100%;">
+                        <div class="panel-title">저장된 포지션</div>
+                        <div class="form-row" style="margin-bottom:10px;">
+                            <input type="text" id="saveLabel" placeholder="슬롯 이름 (선택사항)" style="flex:1;min-width:160px;">
+                            <button class="board-btn btn-sm" onclick="savePosition()">💾 현재 포지션 저장</button>
+                            <button class="board-btn btn-sm" onclick="clearAllSaves()" style="color:#f88;">전체 삭제</button>
+                        </div>
+                        <div id="savedPositionsList"><span class="move-list-empty">저장된 포지션 없음</span></div>
                     </div>
 
                     <!-- Response detail -->
@@ -1253,6 +1320,109 @@ async function getBestMove() {
 }
 
 // ═══════════════════════════════════════════════
+//  Saved Positions
+// ═══════════════════════════════════════════════
+const SAVES_KEY = 'chessembly_saves';
+
+function loadSaves() {
+    try { return JSON.parse(localStorage.getItem(SAVES_KEY) || '[]'); }
+    catch { return []; }
+}
+
+function storeSaves(saves) {
+    localStorage.setItem(SAVES_KEY, JSON.stringify(saves));
+}
+
+function captureCurrentState() {
+    return {
+        positionText: document.getElementById('positionText').value,
+        turn:         document.querySelector('input[name="turn"]:checked').value,
+        castOOw:      document.getElementById('castOOw').checked,
+        castOOb:      document.getElementById('castOOb').checked,
+        castOOOw:     document.getElementById('castOOOw').checked,
+        castOOOb:     document.getElementById('castOOOb').checked,
+        enPwh:        document.getElementById('enPwh').value,
+        enPbl:        document.getElementById('enPbl').value,
+        regWh:        document.getElementById('regWh').value,
+        regBl:        document.getElementById('regBl').value,
+        script:       document.getElementById('chessemblyScript').value,
+    };
+}
+
+function applyState(s) {
+    document.getElementById('positionText').value = s.positionText;
+    document.querySelector(`input[name="turn"][value="${s.turn}"]`).checked = true;
+    document.getElementById('castOOw').checked  = s.castOOw;
+    document.getElementById('castOOb').checked  = s.castOOb;
+    document.getElementById('castOOOw').checked = s.castOOOw;
+    document.getElementById('castOOOb').checked = s.castOOOb;
+    document.getElementById('enPwh').value = s.enPwh || '';
+    document.getElementById('enPbl').value = s.enPbl || '';
+    document.getElementById('regWh').value = s.regWh || '';
+    document.getElementById('regBl').value = s.regBl || '';
+    document.getElementById('chessemblyScript').value = s.script || '';
+    board = parsePositionText(s.positionText);
+    highlight = { from: null, to: null, take: null };
+    selectedCell = null;
+    moveHighlights = [];
+    document.getElementById('parseError').textContent = '';
+    renderBoard();
+    renderMoveList();
+}
+
+function savePosition() {
+    const saves = loadSaves();
+    const maxOffset = saves.reduce((m, s) => Math.max(m, s.offset), -1);
+    const offset = maxOffset + 1;
+    const labelEl = document.getElementById('saveLabel');
+    const label = labelEl.value.trim() || `포지션 ${offset}`;
+    saves.push({
+        offset,
+        label,
+        savedAt: new Date().toLocaleString('ko-KR'),
+        state: captureCurrentState(),
+    });
+    storeSaves(saves);
+    labelEl.value = '';
+    renderSavedPositions();
+}
+
+function loadPosition(offset) {
+    const saves = loadSaves();
+    const entry = saves.find(s => s.offset === offset);
+    if (entry) applyState(entry.state);
+}
+
+function deletePosition(offset) {
+    storeSaves(loadSaves().filter(s => s.offset !== offset));
+    renderSavedPositions();
+}
+
+function clearAllSaves() {
+    if (!confirm('저장된 포지션을 전부 삭제하시겠습니까?')) return;
+    storeSaves([]);
+    renderSavedPositions();
+}
+
+function renderSavedPositions() {
+    const el = document.getElementById('savedPositionsList');
+    const saves = loadSaves();
+    if (saves.length === 0) {
+        el.innerHTML = '<span class="move-list-empty">저장된 포지션 없음</span>';
+        return;
+    }
+    el.innerHTML = saves.map(s => `
+        <div class="save-entry">
+            <span class="save-offset">#${s.offset}</span>
+            <span class="save-label" title="${s.label}">${s.label}</span>
+            <span class="save-date">${s.savedAt}</span>
+            <button class="save-btn-load" onclick="loadPosition(${s.offset})">불러오기</button>
+            <button class="save-btn-del" onclick="deletePosition(${s.offset})">삭제</button>
+        </div>
+    `).join('');
+}
+
+// ═══════════════════════════════════════════════
 //  Script presets
 // ═══════════════════════════════════════════════
 function setEmptyScript() {
@@ -1299,6 +1469,7 @@ piece(mirrored-pawn) piece-on(pawn, -1, 1) take(-1, 1)`;
 // ═══════════════════════════════════════════════
 setStandardPosition();
 renderMoveList();
+renderSavedPositions();
 </script>
 </body>
 </html>

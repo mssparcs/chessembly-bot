@@ -146,7 +146,7 @@ pub mod heuristics {
     // =========================================================================
 
     /// MVV-LVA (Most Valuable Victim, Least Valuable Attacker) 캡처 점수.
-    /// 피해자 가치×10 - 공격자 가치 → 큰 기물을 싼 기물로 잡는 수를 우선.
+    /// 피해자 가치 - 공격자 가치 → 큰 기물을 싼 기물로 잡는 수를 우선.
     pub fn score_capture_mvv_lva(attacker: &str, victim: &str) -> i32 {
         get_piece_value(victim) - get_piece_value(attacker)
     }
