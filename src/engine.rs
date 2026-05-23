@@ -401,6 +401,9 @@ pub mod game_logic {
                 score += heuristics::score_promotion(promoted_piece);
             }
 
+            // 2. SEE 반영
+            score += self.static_exchange_evaluation_move(m);
+
             // 3. 캡처 (MVV-LVA)
             if let Some(victim) = self.piece_on(&m.get_dest()) {
                 let attacker = self.piece_on(&m.get_source()).unwrap_or("pawn");
@@ -462,7 +465,7 @@ pub mod search {
 
     /// 기본 탐색 깊이. `find_best_move` 호출 시 이 값을 전달하면 됩니다.
     pub const SEARCH_DEPTH: u8 = 3;
-    /// 재귀 폭발 방지용 하드 깊이 상한. (debug.html max="10", main.rs depth 검증도 이 값 기준)
+    /// 재귀 폭발 방지용 하드 깊이 상한. (debug.html max="6", main.rs depth 검증도 이 값 기준)
     pub const HARD_DEPTH: u8 = 6;
     /// Quiescence search 최대 추가 깊이. 캡처 폭발 방지용 상한.
     pub const QUIESCENCE_DEPTH: u8 = 6;
@@ -471,7 +474,7 @@ pub mod search {
     const DELTA_MARGIN: i32 = 200;
     /// Aspiration Window 초기 창 크기 (센티폰).
     /// 반복 심화의 depth > 2 부터 이전 점수 ±ASPIRATION_DELTA 창으로 탐색을 시작합니다.
-    const ASPIRATION_DELTA: i32 = 50;
+    const ASPIRATION_DELTA: i32 = 50 + 10;
 
     // -------------------------------------------------------------------------
     // 킬러 테이블: 깊이별로 베타 컷오프를 유발한 조용한 수 2개 저장.
@@ -722,7 +725,7 @@ pub mod search {
             }
         }
 
-        let damper = 0.9;
+        let damper = 1.0;
         let mut value = -i32::MAX;
 
         // TT 최선 수 해시 조회 (수 정렬 1순위용)
@@ -1085,7 +1088,7 @@ pub mod search {
             }
         }
 
-        let damper = 0.9;
+        let damper = 1.0;
         let mut value = -i32::MAX;
 
         // TT 최선 수 해시 조회 (수 정렬 1순위용)
