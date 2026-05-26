@@ -19,7 +19,35 @@ pub mod heuristics {
             "rook"   => 500,
             "queen"  => 900,
             "king"   => 20_000,
-            _        => 200,
+
+            "mirrored-pawn"   => 100,
+            "mirrored-knight" => 320,
+            "mirrored-bishop" => 330,
+            "mirrored-rook"   => 500,
+            "mirrored-queen"  => 900,
+
+            "tempest-rook" => 800,
+            "dozer" => 200,
+            "bouncing-bishop" => 600,
+            "beacon" => 300,
+
+            "alfil" => 125,
+            "archbishop" => 700,
+            "bard" => 250,
+
+            "cannon" => 400,
+            "centaur" => 600,
+            "chameleon" => 500,
+            "zebra" => 250,
+            "giraffe" => 200,
+            "wasp" => 300,
+            "windmill-rook" => 400,
+            "windmill-bishop" => 400,
+            
+            "amazon" => 1_300,
+            "chancellor" => 900,
+
+            _        => 500,
         }
     }
 
