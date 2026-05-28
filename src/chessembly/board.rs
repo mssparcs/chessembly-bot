@@ -29,14 +29,12 @@ pub struct Board<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usiz
     pub board_state: BothBoardState<'a>,
     pub turn: Color,
     pub script: &'a ChessemblyCompiled<'a>,
-    pub status: BoardStatus,
-    pub dp: HashMap<Position, Vec<ChessMove<'a>>>,
+    pub status: BoardStatus
 }
 
 impl<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize> Board<'a, MACHO, IMPRISONED, SIZE> {
     pub fn from_str(placement: &str, script: &'a ChessemblyCompiled) -> Board<'a, MACHO, IMPRISONED, 8> {
         let mut ret = Board {
-            dp: HashMap::new(),
             board: [[PieceSpan::Empty; 8]; 8],
             board_state: BothBoardState {
                 black: BoardState {
@@ -91,7 +89,6 @@ impl<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize> Board<'a,
 
     pub fn empty(script: &'a ChessemblyCompiled) -> Board<'a, MACHO, IMPRISONED, SIZE> {
         Board {
-            dp: HashMap::new(),
             board: [[PieceSpan::Empty; SIZE]; SIZE],
             board_state: BothBoardState {
                 black: BoardState {
@@ -115,7 +112,6 @@ impl<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize> Board<'a,
 
     pub fn new(script: &'a ChessemblyCompiled) -> Board<'a, MACHO, IMPRISONED, 8> {
         Board {
-            dp: HashMap::new(),
             board: [
                 [
                     PieceSpan::Piece(Piece { color: Color::Black, piece_type: "rook" }),
@@ -227,8 +223,7 @@ impl<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize> Board<'a,
             board_state: self.board_state.clone(),
             turn: self.turn,
             script: self.script,
-            status: self.status,
-            dp: HashMap::new()
+            status: self.status
         }
     }
 
@@ -406,11 +401,11 @@ impl<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize> Board<'a,
 
     #[inline]
     pub const fn get_width(&self) -> usize {
-        8
+        SIZE
     }
 
     #[inline]
     pub const fn get_height(&self) -> usize {
-        8
+        SIZE
     }
 }

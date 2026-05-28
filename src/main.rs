@@ -78,6 +78,14 @@ fn encode_board_response<'a, const MACHO: bool, const IMPRISONED: bool, const SI
 
 #[tokio::main]
 async fn main() {
+
+    chessembly::jit_compiler::test("
+        move(1, 1)
+        { do take-move(1, 0) while }
+        do take-move(0, 1) while
+    ");
+
+
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::INFO)
         .with_target(false)

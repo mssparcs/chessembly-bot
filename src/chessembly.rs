@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
 use std::{collections::HashMap, hash::Hash};
 mod behavior;
+pub mod jit_compiler;
 pub mod board;
 pub mod moves;
 use behavior::{Behavior, BehaviorChain};
@@ -1437,160 +1438,46 @@ impl<'a> ChessemblyCompiled<'a> {
     }
 
     pub fn get_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(&self, board: &mut Board<'a, MACHO, IMPRISONED, SIZE>, position: &Position, check_danger: bool) -> Vec<ChessMove<'a>> {
-        if let Some(cached) = board.dp.get(position) {
-            return cached.clone();
-        }
-
         let piece_on = board.piece_on(position);
         let Some(piece) = piece_on else {
             return Vec::new()
         };
         // worker::console_log!("{}", piece);
         match piece {
-            "pawn" => {
-                let ret = self.generate_pawn_moves::<MACHO, IMPRISONED, SIZE>(board, position);
-                board.dp.insert((position.0, position.1), ret.clone());
-                ret
-            }
+            "pawn" => self.generate_pawn_moves::<MACHO, IMPRISONED, SIZE>(board, position),
             "king" => {
                 let danger_zones = if check_danger { MoveGen::get_danger_zones_bit::<MACHO, IMPRISONED, SIZE>(board, board.color_on(position).unwrap().invert()) } else { 0 };
                 let ret = self.generate_king_moves::<MACHO, IMPRISONED, SIZE>(board, position, danger_zones);
-                board.dp.insert((position.0, position.1), ret.clone());
                 ret
-            }
-            "rook" => {
-                let ret = self.generate_rook_moves::<MACHO, IMPRISONED, SIZE>(board, position);
-                board.dp.insert((position.0, position.1), ret.clone());
-                ret
-            }
-            "knight" => {
-                let ret = self.generate_knight_moves::<MACHO, IMPRISONED, SIZE>(board, position);
-                board.dp.insert((position.0, position.1), ret.clone());
-                ret
-            }
-            "bishop" => {
-                let ret = self.generate_bishop_moves::<MACHO, IMPRISONED, SIZE>(board, position);
-                board.dp.insert((position.0, position.1), ret.clone());
-                ret
-            }
-            "queen" => {
-                let ret = self.generate_queen_moves::<MACHO, IMPRISONED, SIZE>(board, position);
-                board.dp.insert((position.0, position.1), ret.clone());
-                ret
-            }
-            "tempest-rook" => {
-                let ret = self.generate_tempest_rook_moves::<MACHO, IMPRISONED, SIZE>(board, position);
-                board.dp.insert((position.0, position.1), ret.clone());
-                ret
-            }
-            "bouncing-bishop" => {
-                let ret = self.generate_bouncing_bishop_moves::<MACHO, IMPRISONED, SIZE>(board, position);
-                board.dp.insert((position.0, position.1), ret.clone());
-                ret
-            }
-            "dozer" => {
-                let ret = self.generate_dozer_moves::<MACHO, IMPRISONED, SIZE>(board, position);
-                board.dp.insert((position.0, position.1), ret.clone());
-                ret
-            }
-            "alfil" => {
-                let ret = self.generate_alfil_moves::<MACHO, IMPRISONED, SIZE>(board, position);
-                board.dp.insert((position.0, position.1), ret.clone());
-                ret
-            }
-            "bard" => {
-                let ret = self.generate_bard_moves::<MACHO, IMPRISONED, SIZE>(board, position);
-                board.dp.insert((position.0, position.1), ret.clone());
-                ret
-            }
-            "wasp" => {
-                let ret = self.generate_wasp_moves::<MACHO, IMPRISONED, SIZE>(board, position);
-                board.dp.insert((position.0, position.1), ret.clone());
-                ret
-            }
-            "amazon" => {
-                let ret = self.generate_amazon_moves::<MACHO, IMPRISONED, SIZE>(board, position);
-                board.dp.insert((position.0, position.1), ret.clone());
-                ret
-            }
-            "chancellor" => {
-                let ret = self.generate_chancellor_moves::<MACHO, IMPRISONED, SIZE>(board, position);
-                board.dp.insert((position.0, position.1), ret.clone());
-                ret
-            }
-            "archbishop" => {
-                let ret = self.generate_archbishop_moves::<MACHO, IMPRISONED, SIZE>(board, position);
-                board.dp.insert((position.0, position.1), ret.clone());
-                ret
-            }
-            "centaur" => {
-                let ret = self.generate_centaur_moves::<MACHO, IMPRISONED, SIZE>(board, position);
-                board.dp.insert((position.0, position.1), ret.clone());
-                ret
-            }
-            "zebra" => {
-                let ret = self.generate_ij_moves::<MACHO, IMPRISONED, SIZE>(board, position, 3, 2);
-                board.dp.insert((position.0, position.1), ret.clone());
-                ret
-            }
-            "giraffe" => {
-                let ret = self.generate_ij_moves::<MACHO, IMPRISONED, SIZE>(board, position, 4, 1);
-                board.dp.insert((position.0, position.1), ret.clone());
-                ret
-            }
-            "camel" => {
-                let ret = self.generate_ij_moves::<MACHO, IMPRISONED, SIZE>(board, position, 3, 1);
-                board.dp.insert((position.0, position.1), ret.clone());
-                ret
-            }
-            "beacon" => {
-                let ret = self.generate_beacon_moves::<MACHO, IMPRISONED, SIZE>(board, position);
-                board.dp.insert((position.0, position.1), ret.clone());
-                ret
-            }
-            "chameleon" => {
-                let ret = self.generate_chameleon_moves::<MACHO, IMPRISONED, SIZE>(board, position);
-                board.dp.insert((position.0, position.1), ret.clone());
-                ret
-            }
-            "mirrored-pawn" => {
-                let ret = self.generate_mirrored_moves::<MACHO, IMPRISONED, SIZE>(board, position, "mirrored-pawn");
-                board.dp.insert((position.0, position.1), ret.clone());
-                ret
-            }
-            "mirrored-bishop" => {
-                let ret = self.generate_mirrored_moves::<MACHO, IMPRISONED, SIZE>(board, position, "mirrored-bishop");
-                board.dp.insert((position.0, position.1), ret.clone());
-                ret
-            }
-            "mirrored-rook" => {
-                let ret = self.generate_mirrored_moves::<MACHO, IMPRISONED, SIZE>(board, position, "mirrored-rook");
-                board.dp.insert((position.0, position.1), ret.clone());
-                ret
-            }
-            "mirrored-knight" => {
-                let ret = self.generate_mirrored_moves::<MACHO, IMPRISONED, SIZE>(board, position, "mirrored-knight");
-                board.dp.insert((position.0, position.1), ret.clone());
-                ret
-            }
-            "mirrored-queen" => {
-                let ret = self.generate_mirrored_moves::<MACHO, IMPRISONED, SIZE>(board, position, "mirrored-queen");
-                board.dp.insert((position.0, position.1), ret.clone());
-                ret
-            }
-            "windmill-rook" => {
-                let ret = self.generate_windmill_rook_moves::<MACHO, IMPRISONED, SIZE>(board, position);
-                board.dp.insert((position.0, position.1), ret.clone());
-                ret
-            }
-            "windmill-bishop" => {
-                let ret = self.generate_windmill_bishop_moves::<MACHO, IMPRISONED, SIZE>(board, position);
-                board.dp.insert((position.0, position.1), ret.clone());
-                ret
-            }
+            },
+            "rook" => self.generate_rook_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            "knight" => self.generate_knight_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            "bishop" => self.generate_bishop_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            "queen" => self.generate_queen_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            "tempest-rook" => self.generate_tempest_rook_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            "bouncing-bishop" => self.generate_bouncing_bishop_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            "dozer" => self.generate_dozer_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            "alfil" => self.generate_alfil_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            "bard" => self.generate_bard_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            "wasp" => self.generate_wasp_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            "amazon" => self.generate_amazon_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            "chancellor" => self.generate_chancellor_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            "archbishop" => self.generate_archbishop_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            "centaur" => self.generate_centaur_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            "zebra" => self.generate_ij_moves::<MACHO, IMPRISONED, SIZE>(board, position, 3, 2),
+            "giraffe" => self.generate_ij_moves::<MACHO, IMPRISONED, SIZE>(board, position, 4, 1),
+            "camel" => self.generate_ij_moves::<MACHO, IMPRISONED, SIZE>(board, position, 3, 1),
+            "beacon" => self.generate_beacon_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            "chameleon" => self.generate_chameleon_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            "mirrored-pawn" => self.generate_mirrored_moves::<MACHO, IMPRISONED, SIZE>(board, position, "mirrored-pawn"),
+            "mirrored-bishop" => self.generate_mirrored_moves::<MACHO, IMPRISONED, SIZE>(board, position, "mirrored-bishop"),
+            "mirrored-rook" => self.generate_mirrored_moves::<MACHO, IMPRISONED, SIZE>(board, position, "mirrored-rook"),
+            "mirrored-knight" => self.generate_mirrored_moves::<MACHO, IMPRISONED, SIZE>(board, position, "mirrored-knight"),
+            "mirrored-queen" => self.generate_mirrored_moves::<MACHO, IMPRISONED, SIZE>(board, position, "mirrored-queen"),
+            "windmill-rook" => self.generate_windmill_rook_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            "windmill-bishop" => self.generate_windmill_bishop_moves::<MACHO, IMPRISONED, SIZE>(board, position),
             _ => {
                 let ret = self.generate_moves::<MACHO, IMPRISONED, SIZE>(board, position, check_danger);
-                board.dp.insert((position.0, position.1), ret.clone().unwrap_or(Vec::new()));
                 ret.unwrap_or(Vec::new())
             }
         }
