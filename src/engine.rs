@@ -657,8 +657,10 @@ pub mod search {
                     };
                     sb.cmp(&sa)
                 });
-                if let Some(bw) = beam_width {
-                    moves.truncate(bw);
+                if current_depth > 2 {
+                    if let Some(bw) = beam_width {
+                        moves.truncate(bw);
+                    }
                 }
 
                 for m in moves {
@@ -750,8 +752,10 @@ pub mod search {
             })
             .collect();
         moves.sort_unstable_by(|a, b| b.0.cmp(&a.0));
-        if let Some(n) = beam_width {
-            moves.truncate(n);
+        if depth > 2 {
+            if let Some(n) = beam_width {
+                moves.truncate(n);
+            }
         }
         let moves_len = moves.len();
         let mut best_move_hash: u64 = 0;
@@ -993,8 +997,10 @@ pub mod search {
                     };
                     sb.cmp(&sa)
                 });
-                if let Some(bw) = beam_width {
-                    moves.truncate(bw);
+                if current_depth > 2 {
+                    if let Some(bw) = beam_width {
+                        moves.truncate(bw);
+                    }
                 }
 
                 for m in moves {
@@ -1113,8 +1119,10 @@ pub mod search {
             })
             .collect();
         moves.sort_unstable_by(|a, b| b.0.cmp(&a.0));
-        if let Some(n) = beam_width {
-            moves.truncate(n);
+        if depth > 2 {
+            if let Some(n) = beam_width {
+                moves.truncate(n);
+            }
         }
         let moves_len = moves.len();
         let mut best_move_hash: u64 = 0;
