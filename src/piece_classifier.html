@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chessembly 기물 분류기</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            padding: 30px;
+            min-height: 100vh;
+        }
+        h1 { color: #e2b96d; margin-bottom: 8px; font-size: 1.5rem; letter-spacing: 0.02em; }
+        .subtitle { color: #777; font-size: 0.85rem; margin-bottom: 28px; }
+
+        .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+        label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.05em; }
+
+        input[type="text"] {
+            background: #080f1c;
+            border: 1px solid #2a3a5a;
+            color: #c8e6c9;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            width: 300px;
+            outline: none;
+        }
+        input[type="text"]:focus { border-color: #e2b96d; }
+
+        textarea {
+            background: #080f1c;
+            border: 1px solid #2a3a5a;
+            color: #c8e6c9;
+            padding: 8px 10px;
+            border-radius: 6px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            width: 560px;
+            height: 200px;
+            resize: vertical;
+            outline: none;
+            tab-size: 4;
+        }
+        textarea:focus { border-color: #e2b96d; }
+
+        button {
+            background: #2a3a5a;
+            color: #e2b96d;
+            border: 1px solid #3a5080;
+            padding: 9px 24px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.15s;
+            width: fit-content;
+        }
+        button:hover:not(:disabled) { background: #3a5080; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        #status {
+            margin-top: 20px;
+            font-size: 13px;
+            color: #888;
+            min-height: 20px;
+        }
+
+        #result {
+            margin-top: 20px;
+            padding: 20px 24px;
+            border-radius: 8px;
+            display: none;
+        }
+        #result .label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 6px;
+            opacity: 0.7;
+        }
+        #result .classification {
+            font-size: 2rem;
+            font-weight: bold;
+            letter-spacing: 0.02em;
+        }
+        #result .example {
+            margin-top: 10px;
+            font-size: 12px;
+            font-family: 'Consolas', monospace;
+            opacity: 0.65;
+        }
+
+        #result.legend { background: #1a0a2e; border: 1px solid #7c3aed; }
+        #result.legend .classification { color: #a78bfa; }
+        #result.major  { background: #0a1a2e; border: 1px solid #1d4ed8; }
+        #result.major  .classification { color: #60a5fa; }
+        #result.minor  { background: #0a1a0e; border: 1px solid #166534; }
+        #result.minor  .classification { color: #4ade80; }
+        #result.error  { background: #1a0a0a; border: 1px solid #7f1d1d; }
+        #result.error  .classification { color: #f87171; font-size: 1.1rem; }
+    </style>
+</head>
+<body>
+    <h1>기물 분류기</h1>
+    <p class="subtitle">
+        기물 이름과 Chessembly 스크립트를 입력하면 마이너 / 메이져 / 레전드로 분류합니다.
+    </p>
+
+    <div class="form-group" style="flex-direction:row;align-items:center;gap:8px;margin-bottom:20px;">
+        <label style="white-space:nowrap;margin-bottom:0;">서버 URL</label>
+        <input type="text" id="serverUrl" value="http://localhost:8080" style="width:220px;">
+    </div>
+
+    <div class="form-group">
+        <label>기물 이름</label>
+        <input type="text" id="pieceName" placeholder="예: my-piece, rook, knight …" value="">
+    </div>
+
+    <div class="form-group">
+        <label>Chessembly 스크립트 (없으면 빈칸)</label>
+        <textarea id="script" placeholder="# 표준 기물(king/queen/rook/bishop/knight/pawn)은 스크립트 없이도 동작합니다.&#10;piece(my-piece) take-move(1,0) repeat(1)"></textarea>
+    </div>
+
+    <button id="btn" onclick="classify()">분류 시작</button>
+
+    <div id="status"></div>
+
+    <div id="result">
+        <div class="label">분류 결과</div>
+        <div class="classification" id="resultText"></div>
+        <div class="example" id="resultExample"></div>
+    </div>
+
+    <script>
+        async function classify() {
+            const pieceName = document.getElementById('pieceName').value.trim();
+            const script    = document.getElementById('script').value;
+            const btn       = document.getElementById('btn');
+            const status    = document.getElementById('status');
+            const resultDiv = document.getElementById('result');
+
+            if (!pieceName) {
+                status.textContent = '기물 이름을 입력해 주세요.';
+                return;
+            }
+
+            btn.disabled = true;
+            resultDiv.style.display = 'none';
+            status.textContent = '분류 중… (수초~수십 초 소요될 수 있습니다)';
+
+            try {
+                const url = document.getElementById('serverUrl').value.trim().replace(/\/$/, '');
+                const resp = await fetch(url + '/classify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ piece_name: pieceName, script }),
+                });
+
+                if (!resp.ok) {
+                    const text = await resp.text();
+                    throw new Error(text || `HTTP ${resp.status}`);
+                }
+
+                const data = await resp.json();
+
+                const labelMap = {
+                    legend: '레전드 피스 (Legend)',
+                    major:  '메이져 피스 (Major)',
+                    minor:  '마이너 피스 (Minor)',
+                };
+                const descMap = {
+                    legend: '자신 킹 없이 단독으로 상대 킹을 체크메이트할 수 있는 포지션이 존재합니다.',
+                    major:  '자신 킹과 함께 상대 킹을 체크메이트할 수 있는 포지션이 존재합니다.',
+                    minor:  '단독으로 체크메이트할 수 있는 포지션이 존재하지 않습니다.',
+                };
+
+                resultDiv.className = data.classification;
+                document.getElementById('resultText').textContent = labelMap[data.classification] ?? data.classification;
+                document.getElementById('resultExample').textContent =
+                    data.example ? '예시 포지션: ' + data.example : descMap[data.classification] ?? '';
+                resultDiv.style.display = 'block';
+                status.textContent = '완료';
+
+            } catch (e) {
+                resultDiv.className = 'error';
+                document.getElementById('resultText').textContent = '오류: ' + e.message;
+                document.getElementById('resultExample').textContent = '서버가 실행 중인지 확인하세요 (cargo run).';
+                resultDiv.style.display = 'block';
+                status.textContent = '';
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        // Enter 키로 실행
+        document.addEventListener('keydown', e => {
+            if (e.ctrlKey && e.key === 'Enter') classify();
+        });
+    </script>
+</body>
+</html>
