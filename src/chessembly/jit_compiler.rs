@@ -398,27 +398,26 @@ impl ChessemblyJitCompiler {
 
             // 개별 Opcode 컴파일 기계어 빌딩
             match inst {
-                Behavior::Move((dx, dy)) => {
-                    self.emit_call_3_args(jit_helper_move::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy);
-                }
-                Behavior::Take((dx, dy)) => {
-                    self.emit_call_3_args(jit_helper_take::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy);
-                }
-                Behavior::TakeMove((dx, dy)) => {
-                    self.emit_call_3_args(jit_helper_take_move::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy);
-                }
-                Behavior::Jump((dx, dy)) => {
-                    self.emit_call_3_args(jit_helper_jump::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy);
-                }
-                Behavior::Catch((dx, dy)) => {
-                    self.emit_call_3_args(jit_helper_catch::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy);
-                }
-                Behavior::Peek((dx, dy)) => {
-                    self.emit_call_3_args(jit_helper_peek::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy);
-                }
-                Behavior::Observe((dx, dy)) => {
-                    self.emit_call_3_args(jit_helper_observe::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy);
-                }
+                Behavior::Move((dx, dy)) => self.emit_call_3_args(jit_helper_move::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
+                Behavior::Take((dx, dy)) => self.emit_call_3_args(jit_helper_take::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
+                Behavior::TakeMove((dx, dy)) => self.emit_call_3_args(jit_helper_take_move::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
+                Behavior::Jump((dx, dy)) => self.emit_call_3_args(jit_helper_jump::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
+                Behavior::Catch((dx, dy)) => self.emit_call_3_args(jit_helper_catch::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
+                Behavior::Peek((dx, dy)) => self.emit_call_3_args(jit_helper_peek::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
+                Behavior::Observe((dx, dy)) => self.emit_call_3_args(jit_helper_observe::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
+                
+                Behavior::Bound((dx, dy)) => self.emit_call_3_args(jit_helper_bound::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
+                Behavior::Edge((dx, dy)) => self.emit_call_3_args(jit_helper_edge::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
+                Behavior::Corner((dx, dy)) => self.emit_call_3_args(jit_helper_corner::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
+                Behavior::EdgeTop((dx, dy)) => self.emit_call_3_args(jit_helper_edge_top::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
+                Behavior::EdgeBottom((dx, dy)) => self.emit_call_3_args(jit_helper_edge_bottom::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
+                Behavior::EdgeLeft((dx, dy)) => self.emit_call_3_args(jit_helper_edge_left::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
+                Behavior::EdgeRight((dx, dy)) => self.emit_call_3_args(jit_helper_edge_right::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
+                Behavior::CornerTopLeft((dx, dy)) => self.emit_call_3_args(jit_helper_corner_top_left::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
+                Behavior::CornerTopRight((dx, dy)) => self.emit_call_3_args(jit_helper_corner_top_right::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
+                Behavior::CornerBottomLeft((dx, dy)) => self.emit_call_3_args(jit_helper_corner_bottom_left::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
+                Behavior::CornerBottomRight((dx, dy)) => self.emit_call_3_args(jit_helper_corner_bottom_right::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
+                
                 Behavior::ColorOn((color_name, (dx, dy))) => {
                     if color_name == &"white" {
                         self.emit_call_3_args(jit_helper_color_on_white::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy);

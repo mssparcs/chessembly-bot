@@ -414,6 +414,70 @@ pub extern "C" fn jit_helper_piece_on<'a, const MACHO: bool, const IMPRISONED: b
     ctx.set_last_state(board.piece_on(&target_pos) == Some(name));
 }
 
+pub extern "C" fn jit_helper_get_wc<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) -> WallCollision {
+    let ctx = unsafe { &mut *ctx_ptr };
+    let board = unsafe { &*ctx.board };
+    let current_pos = ctx.current_position();
+    let color_on_start = board.color_on(&(ctx.start_pos_col as u8, ctx.start_pos_row as u8)).unwrap();
+    let wc = wall_collision(&current_pos, &(dx, dy), board, color_on_start);
+    return wc;
+}
+
+pub extern "C" fn jit_helper_bound<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
+    let ctx = unsafe { &mut *ctx_ptr };
+    ctx.set_last_state(jit_helper_get_wc(ctx_ptr, dx, dy) != WallCollision::NoCollision);
+}
+
+pub extern "C" fn jit_helper_edge<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
+    let ctx = unsafe { &mut *ctx_ptr };
+    ctx.set_last_state(matches!(jit_helper_get_wc(ctx_ptr, dx, dy), WallCollision::EdgeTop | WallCollision::EdgeBottom | WallCollision::EdgeLeft | WallCollision::EdgeRight));
+}
+
+pub extern "C" fn jit_helper_corner<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
+    let ctx = unsafe { &mut *ctx_ptr };
+    ctx.set_last_state(matches!(jit_helper_get_wc(ctx_ptr, dx, dy), WallCollision::CornerBottomLeft | WallCollision::CornerBottomRight | WallCollision::CornerTopLeft | WallCollision::CornerTopRight));
+}
+
+pub extern "C" fn jit_helper_edge_top<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
+    let ctx = unsafe { &mut *ctx_ptr };
+    ctx.set_last_state(matches!(jit_helper_get_wc(ctx_ptr, dx, dy), WallCollision::EdgeTop));
+}
+
+pub extern "C" fn jit_helper_edge_left<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
+let ctx = unsafe { &mut *ctx_ptr };
+    ctx.set_last_state(matches!(jit_helper_get_wc(ctx_ptr, dx, dy), WallCollision::EdgeLeft));
+}
+
+pub extern "C" fn jit_helper_edge_right<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
+let ctx = unsafe { &mut *ctx_ptr };
+    ctx.set_last_state(matches!(jit_helper_get_wc(ctx_ptr, dx, dy), WallCollision::EdgeRight));
+}
+
+pub extern "C" fn jit_helper_edge_bottom<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
+let ctx = unsafe { &mut *ctx_ptr };
+    ctx.set_last_state(matches!(jit_helper_get_wc(ctx_ptr, dx, dy), WallCollision::EdgeBottom));
+}
+
+pub extern "C" fn jit_helper_corner_top_left<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
+let ctx = unsafe { &mut *ctx_ptr };
+    ctx.set_last_state(matches!(jit_helper_get_wc(ctx_ptr, dx, dy), WallCollision::CornerTopLeft));
+}
+
+pub extern "C" fn jit_helper_corner_top_right<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
+let ctx = unsafe { &mut *ctx_ptr };
+    ctx.set_last_state(matches!(jit_helper_get_wc(ctx_ptr, dx, dy), WallCollision::CornerTopRight));
+}
+
+pub extern "C" fn jit_helper_corner_bottom_left<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
+let ctx = unsafe { &mut *ctx_ptr };
+    ctx.set_last_state(matches!(jit_helper_get_wc(ctx_ptr, dx, dy), WallCollision::CornerBottomLeft));
+}
+
+pub extern "C" fn jit_helper_corner_bottom_right<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
+let ctx = unsafe { &mut *ctx_ptr };
+    ctx.set_last_state(matches!(jit_helper_get_wc(ctx_ptr, dx, dy), WallCollision::CornerBottomRight));
+}
+
 pub extern "C" fn rust_helper_do<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>) {
     let ctx = unsafe { &mut *ctx_ptr };
     let len = ctx.states_len as usize;

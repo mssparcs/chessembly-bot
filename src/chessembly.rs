@@ -111,6 +111,7 @@ pub struct ChessemblyCompiled<'a> {
     pub chains: Vec<BehaviorChain<'a>>,
 }
 
+#[repr(C)]
 #[derive(Clone, Debug, Copy, PartialEq)]
 enum WallCollision {
     EdgeTop,
