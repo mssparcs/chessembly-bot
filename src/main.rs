@@ -816,7 +816,8 @@ async fn classify_piece(JsonBody(body): JsonBody<ClassifyRequest>) -> impl IntoR
     let piece_name: &str = &combined[1..1 + body.piece_name.len()];
 
     // ── Legend 단계: 어떤 위치에서든 이 기물의 이동 가능 칸이 2×2 블록을 커버하면 legend ──
-    // 보드 전체를 흑 기물로 채워 최대한 많은 포획 이동을 유도함
+    // 빈 보드에서 검사해야 슬라이딩 기물(비숍·퀸 계열)의 이동 범위가 완전히 펼쳐짐
+    // 꽉 찬 보드를 쓰면 슬라이딩이 1칸으로 막혀 아마존·아치비숍 등이 2×2를 커버하지 못함
     for pc in 0u8..8 {
         for pr in 0u8..8 {
             // 백 킹은 (7,7) 고정 (기물과 겹치면 (7,6) 사용)
@@ -829,13 +830,6 @@ async fn classify_piece(JsonBody(body): JsonBody<ClassifyRequest>) -> impl IntoR
             board.board_state.black.castling_ooo = false;
             board.board[pr as usize][pc as usize] = PieceSpan::Piece(Piece { piece_type: piece_name, color: chessembly::Color::White });
             board.board[wkr as usize][wkc as usize] = PieceSpan::Piece(Piece { piece_type: "king", color: chessembly::Color::White });
-            for r in 0u8..8 {
-                for c in 0u8..8 {
-                    if (c, r) != (pc, pr) && (c, r) != (wkc, wkr) {
-                        board.board[r as usize][c as usize] = PieceSpan::Piece(Piece { piece_type: "king", color: chessembly::Color::Black });
-                    }
-                }
-            }
 
             let script = board.script;
             let moves = script.get_moves::<false, false, 8>(&mut board, &(pc, pr), true);
