@@ -11,7 +11,7 @@ use crate::chessembly::behavior::BehaviorChain;
 
 use super::{
     Color,
-    Piece,
+    // Piece,
     PieceSpan,
     MoveType,
     Position,
@@ -20,9 +20,9 @@ use super::{
     WallCollision,
     Board,
     Behavior,
-    board::BothBoardState,
-    board::BoardStatus,
-    board::BoardState
+    // board::BothBoardState,
+    // board::BoardStatus,
+    // board::BoardState
     // BehaviorChain
 };
 
@@ -37,7 +37,7 @@ pub struct ChessemblyCompiled<'a> {
 // str 기반 뚱뚱한 포인터를 피하기 위해 u8 바이트 슬라이스 원시 주소 포인터(*const u8)로 타입을 교체했습니다.
 #[repr(C)]
 pub struct JitContext<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize> {
-    pub board: *mut Board<'a, MACHO, IMPRISONED, SIZE>,                 // offset 0
+    pub board: *const Board<'a, MACHO, IMPRISONED, SIZE>,                 // offset 0
     pub nodes: *mut Vec<ChessMove<'a>>,        // offset 8
     pub start_pos_col: u64,                    // offset 16
     pub start_pos_row: u64,                    // offset 24
@@ -66,7 +66,7 @@ pub struct JitContext<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE:
 }
 
 impl<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize> JitContext<'a, MACHO, IMPRISONED, SIZE> {
-    pub fn new(board: &mut Board<'a, MACHO, IMPRISONED, SIZE>, start_pos: Position, nodes: &mut Vec<ChessMove<'a>>) -> Self {
+    pub fn new(board: &Board<'a, MACHO, IMPRISONED, SIZE>, start_pos: Position, nodes: &mut Vec<ChessMove<'a>>) -> Self {
         let mut pos_cols = [0; 32];
         let mut pos_rows = [0; 32];
         pos_cols[0] = start_pos.0 as u64;
@@ -204,20 +204,17 @@ fn push_node<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(c
     }
 }
 
-// #[unsafe(no_mangle)]
 pub extern "C" fn rust_helper_should_skip<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>) -> bool {
     let ctx = unsafe { &*ctx_ptr };
     !ctx.last_state()
 }
 
-// #[unsafe(no_mangle)]
 pub extern "C" fn jit_helper_not<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>) {
     let ctx = unsafe { &mut *ctx_ptr };
     let state = ctx.last_state();
     ctx.set_last_state(!state);
 }
 
-// #[unsafe(no_mangle)]
 pub extern "C" fn jit_helper_block_open<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, close_index: u64) {
     let ctx = unsafe { &mut *ctx_ptr };
     let cur = ctx.current_position();
@@ -243,7 +240,6 @@ pub extern "C" fn jit_helper_block_open<'a, const MACHO: bool, const IMPRISONED:
     ctx.states_len += 1;
 }
 
-// #[unsafe(no_mangle)]
 pub extern "C" fn jit_helper_block_close<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>) {
     let ctx = unsafe { &mut *ctx_ptr };
     if ctx.position_stack_len > 1 {
@@ -257,7 +253,6 @@ pub extern "C" fn jit_helper_block_close<'a, const MACHO: bool, const IMPRISONED
     }
 }
 
-// #[unsafe(no_mangle)]
 pub extern "C" fn jit_helper_move<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
     let ctx = unsafe { &mut *ctx_ptr };
     let board = unsafe { &*ctx.board };
@@ -265,17 +260,13 @@ pub extern "C" fn jit_helper_move<'a, const MACHO: bool, const IMPRISONED: bool,
     let nx = current_pos.0 as i8 + dx;
     let ny = current_pos.1 as i8 - dy;
 
-    if nx < 0 || nx >= SIZE as i8 || ny < 0 || ny >= SIZE as i8 {
-        ctx.set_last_state(false);
-        return;
-    }
-    let target_pos = (nx as u8, ny as u8);
     let color_on_start = board.color_on(&(ctx.start_pos_col as u8, ctx.start_pos_row as u8)).unwrap();
     let wc = wall_collision(&current_pos, &(dx, dy), board, color_on_start);
     if wc != WallCollision::NoCollision {
         ctx.set_last_state(false);
         return;
     }
+    let target_pos = (nx as u8, ny as u8);
 
     if is_friendly(target_pos, board, color_on_start) {
         ctx.set_last_state(false);
@@ -287,7 +278,6 @@ pub extern "C" fn jit_helper_move<'a, const MACHO: bool, const IMPRISONED: bool,
     }
 }
 
-// #[unsafe(no_mangle)]
 pub extern "C" fn jit_helper_take<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
     let ctx = unsafe { &mut *ctx_ptr };
     let board = unsafe { &*ctx.board };
@@ -295,18 +285,14 @@ pub extern "C" fn jit_helper_take<'a, const MACHO: bool, const IMPRISONED: bool,
     let nx = current_pos.0 as i8 + dx;
     let ny = current_pos.1 as i8 - dy;
 
-    if nx < 0 || nx >= SIZE as i8 || ny < 0 || ny >= SIZE as i8 {
-        ctx.set_last_state(false);
-        return;
-    }
-    let target_pos = (nx as u8, ny as u8);
     let color_on_start = board.color_on(&(ctx.start_pos_col as u8, ctx.start_pos_row as u8)).unwrap();
     let wc = wall_collision(&current_pos, &(dx, dy), board, color_on_start);
     if wc != WallCollision::NoCollision {
         ctx.set_last_state(false);
         return;
     }
-
+    let target_pos = (nx as u8, ny as u8);
+    
     if is_friendly(target_pos, board, color_on_start) {
         ctx.set_last_state(false);
     } else if is_enemy(target_pos, board, color_on_start) {
@@ -321,26 +307,21 @@ pub extern "C" fn jit_helper_take<'a, const MACHO: bool, const IMPRISONED: bool,
     }
 }
 
-// #[unsafe(no_mangle)]
 pub extern "C" fn jit_helper_take_move<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
     let ctx = unsafe { &mut *ctx_ptr };
     let board = unsafe { &*ctx.board };
     let current_pos = ctx.current_position();
     let nx = current_pos.0 as i8 + dx;
     let ny = current_pos.1 as i8 - dy;
-
-    if nx < 0 || nx >= SIZE as i8 || ny < 0 || ny >= SIZE as i8 {
-        ctx.set_last_state(false);
-        return;
-    }
-    let target_pos = (nx as u8, ny as u8);
+    
     let color_on_start = board.color_on(&(ctx.start_pos_col as u8, ctx.start_pos_row as u8)).unwrap();
     let wc = wall_collision(&current_pos, &(dx, dy), board, color_on_start);
     if wc != WallCollision::NoCollision {
         ctx.set_last_state(false);
         return;
     }
-
+    let target_pos = (nx as u8, ny as u8);
+    
     if is_friendly(target_pos, board, color_on_start) {
         ctx.set_last_state(false);
     } else if is_enemy(target_pos, board, color_on_start) {
@@ -353,7 +334,6 @@ pub extern "C" fn jit_helper_take_move<'a, const MACHO: bool, const IMPRISONED: 
     }
 }
 
-// #[unsafe(no_mangle)]
 pub extern "C" fn jit_helper_jump<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
     let ctx = unsafe { &mut *ctx_ptr };
     let board = unsafe { &*ctx.board };
@@ -390,7 +370,6 @@ pub extern "C" fn jit_helper_jump<'a, const MACHO: bool, const IMPRISONED: bool,
     ctx.set_last_state(false);
 }
 
-// #[unsafe(no_mangle)]
 pub extern "C" fn jit_helper_catch<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
     let ctx = unsafe { &mut *ctx_ptr };
     let board = unsafe { &*ctx.board };
@@ -398,17 +377,13 @@ pub extern "C" fn jit_helper_catch<'a, const MACHO: bool, const IMPRISONED: bool
     let nx = current_pos.0 as i8 + dx;
     let ny = current_pos.1 as i8 - dy;
 
-    if nx < 0 || nx >= SIZE as i8 || ny < 0 || ny >= SIZE as i8 {
-        ctx.set_last_state(false);
-        return;
-    }
-    let target_pos = (nx as u8, ny as u8);
     let color_on_start = board.color_on(&(ctx.start_pos_col as u8, ctx.start_pos_row as u8)).unwrap();
     let wc = wall_collision(&current_pos, &(dx, dy), board, color_on_start);
     if wc != WallCollision::NoCollision {
         ctx.set_last_state(false);
         return;
     }
+    let target_pos = (nx as u8, ny as u8);
 
     if is_friendly(target_pos, board, color_on_start) {
         ctx.set_last_state(false);
@@ -419,14 +394,14 @@ pub extern "C" fn jit_helper_catch<'a, const MACHO: bool, const IMPRISONED: bool
     }
 }
 
-// #[unsafe(no_mangle)]
+
 pub extern "C" fn jit_helper_peek<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
     let ctx = unsafe { &mut *ctx_ptr };
     let board = unsafe { &*ctx.board };
     let current_pos = ctx.current_position();
     let nx = current_pos.0 as i8 + dx;
     let ny = current_pos.1 as i8 - dy;
-
+    
     if nx < 0 || nx >= SIZE as i8 || ny < 0 || ny >= SIZE as i8 {
         ctx.set_last_state(false);
         return;
@@ -441,7 +416,6 @@ pub extern "C" fn jit_helper_peek<'a, const MACHO: bool, const IMPRISONED: bool,
     }
 }
 
-// #[unsafe(no_mangle)]
 pub extern "C" fn jit_helper_observe<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
     let ctx = unsafe { &mut *ctx_ptr };
     let board = unsafe { &*ctx.board };
@@ -461,7 +435,6 @@ pub extern "C" fn jit_helper_observe<'a, const MACHO: bool, const IMPRISONED: bo
     }
 }
 
-// #[unsafe(no_mangle)]
 pub extern "C" fn jit_helper_piece<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, name_ptr: *const u8, name_len: usize) {
     let ctx = unsafe { &mut *ctx_ptr };
     let board = unsafe { &*ctx.board };
@@ -470,7 +443,6 @@ pub extern "C" fn jit_helper_piece<'a, const MACHO: bool, const IMPRISONED: bool
     ctx.set_last_state(board.piece_on(&start_pos) == Some(name));
 }
 
-// #[unsafe(no_mangle)]
 pub extern "C" fn rust_helper_do<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>) {
     let ctx = unsafe { &mut *ctx_ptr };
     let len = ctx.states_len as usize;
@@ -478,13 +450,11 @@ pub extern "C" fn rust_helper_do<'a, const MACHO: bool, const IMPRISONED: bool, 
     ctx.states_len += 1;
 }
 
-// #[unsafe(no_mangle)]
 pub extern "C" fn rust_helper_while_check<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>) -> bool {
     let ctx = unsafe { &*ctx_ptr };
     ctx.last_state()
 }
 
-// #[unsafe(no_mangle)]
 pub extern "C" fn rust_helper_while_exit<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>) {
     let ctx = unsafe { &mut *ctx_ptr };
     if ctx.states_len > 1 {
@@ -492,19 +462,16 @@ pub extern "C" fn rust_helper_while_exit<'a, const MACHO: bool, const IMPRISONED
     }
 }
 
-// #[unsafe(no_mangle)]
 pub extern "C" fn rust_helper_jmp_check<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>) -> bool {
     let ctx = unsafe { &*ctx_ptr };
     ctx.last_state()
 }
 
-// #[unsafe(no_mangle)]
 pub extern "C" fn rust_helper_jmp_reset<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>) {
     let ctx = unsafe { &mut *ctx_ptr };
     ctx.set_last_state(true);
 }
 
-// #[unsafe(no_mangle)]
 pub extern "C" fn rust_helper_jne_check<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>) -> bool {
     let ctx = unsafe { &*ctx_ptr };
     !ctx.last_state()
@@ -566,9 +533,9 @@ impl ChessemblyJitCompiler {
         {
             self.emit(&[0x48, 0x89, 0xd9]);          // mov rcx, rbx (ctx)
             self.emit(&[0x48, 0xc7, 0xc2]);          // mov rdx, dx (C-ABI에 맞춰 sign-extend 적용)
-            self.emit(&(dx as i64).to_le_bytes());
+            self.emit(&(dx as i32).to_le_bytes());
             self.emit(&[0x49, 0xc7, 0xc0]);          // mov r8, dy
-            self.emit(&(dy as i64).to_le_bytes());
+            self.emit(&(dy as i32).to_le_bytes());
             
             self.emit(&[0x48, 0x83, 0xec, 0x28]);    // sub rsp, 40
         }
@@ -672,7 +639,9 @@ impl ChessemblyJitCompiler {
                 Behavior::BlockClose => {
                     if let Some(start) = active_blocks.pop() {
                         for j in (start + 1)..i {
-                            block_close_targets[j] = Some(i);
+                            if block_close_targets[j].is_none() {
+                                block_close_targets[j] = Some(i);
+                            }
                         }
                     }
                 }
@@ -700,7 +669,12 @@ impl ChessemblyJitCompiler {
 
             // 제어 분기 오프코드가 아닌 경우, states_mask 판정 후 false 상태면 block의 끝 또는 함수 끝으로 즉시 분기합니다.
             let is_control_expr = matches!(inst, 
-                Behavior::While | Behavior::Jmp(_) | Behavior::Jne(_) | Behavior::Label(_) | Behavior::Not
+                Behavior::While
+                | Behavior::Jmp(_)
+                | Behavior::Jne(_)
+                | Behavior::Label(_)
+                | Behavior::Not
+                | Behavior::BlockClose
             );
 
             if !is_control_expr {
@@ -878,6 +852,14 @@ impl CompiledChain {
         let func: extern "C" fn(*mut JitContext<'a, MACHO, IMPRISONED, SIZE>) = mem::transmute(self.ptr);
         func(ctx);
     }
+
+    pub fn execute_from<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(&self, board: &Board<'a, MACHO, IMPRISONED, SIZE>, start_pos: Position, nodes: &mut Vec<ChessMove<'a>>) {
+        let mut ctx = JitContext::new(board, start_pos, nodes);
+
+        unsafe {
+            self.execute(&mut ctx);
+        }
+    }
 }
 
 unsafe impl Send for CompiledChain {}
@@ -950,75 +932,46 @@ mod mem_utils {
     }
 }
 
-pub fn test(script_str: &str) {
+pub fn test(script_str: &str, board_str: &str) {
     println!("==============================================");
     println!("JIT 컴파일러 구동 및 검증");
     println!("==============================================");
-    
-    // 복잡한 Jne 분기 루프 구조가 포함된 체스 이동 규칙 체인 생성
-    // Behavior::
-    // let rook_chain = vec![
-    //     Behavior::Move((1, 1)),
-    //     // Behavior::Not,
-    //     Behavior::BlockOpen,
-    //     Behavior::Do,
-    //     Behavior::Move((1, 0)),
-    //     Behavior::While,
-    //     Behavior::BlockClose,
-    //     Behavior::Do,
-    //     Behavior::Move((0, 1)),
-    //     Behavior::While,
-    // ];
 
-    
     let script_str_compiled = crate::chessembly::ChessemblyCompiled::from_script(script_str).unwrap();
     let chains = &script_str_compiled.chains;
 
+    const TEST_BOARD_SIZE: usize = 8;
+
     let start = Instant::now();
-    let mut compiler = ChessemblyJitCompiler::new();
-    let compiled = compiler.compile::<false, false, 10>(&chains[0]);
+    let mut compiled_chains = Vec::new();
+
+    for chain in chains {
+        let mut compiler = ChessemblyJitCompiler::new();
+        let compiled = compiler.compile::<false, false, TEST_BOARD_SIZE>(chain);
+        compiled_chains.push(compiled);
+    }
     let duration = start.elapsed();
 
-    println!("컴파일 바이트 크기: {} bytes", compiled.size);
+    println!("컴파일 바이트 크기: {} bytes", compiled_chains.iter().map(|x| x.size).fold(0, |a, b| a + b));
     println!("컴파일 소요 시간: {:?}", duration);
 
-    let mut grid = [[PieceSpan::Empty; 10]; 10];
-    grid[7][4] = PieceSpan::Piece(Piece {
-        piece_type: "Rook",
-        color: Color::White,
-    });
-    grid[2][7] = PieceSpan::Piece(Piece {
-        piece_type: "Pawn",
-        color: Color::Black, // Rook의 두 번째 이동 위치에 아군 Pawn 배치 (진격 차단)
-    });
-
-    // let script = ChessemblyCompiled { _marker: std::marker::PhantomData };
     let script: crate::chessembly::ChessemblyCompiled = crate::chessembly::ChessemblyCompiled::new();
-    let board_state = BothBoardState {
-        black: BoardState { castling_oo: false, castling_ooo: false, enpassant: Vec::new(), register: HashMap::new() },
-        white: BoardState { castling_oo: false, castling_ooo: false, enpassant: Vec::new(), register: HashMap::new() },
-    };
-
-    let mut board: Board<false, false, 10> = Board {
-        board: grid,
-        board_state,
-        turn: Color::White,
-        script: &script,
-        status: BoardStatus::Ongoing
-    };
-
-    let start_pos: Position = (4, 7); // Rook의 출발 위치 (C3)
+    let mut board: Board<false, false, TEST_BOARD_SIZE> = Board::<false, false, 8>::from_str(board_str, &script);
     let mut nodes = Vec::new();
-
-    // 런타임 JIT 컨텍스트 초기화
-    let mut ctx = JitContext::new(&mut board, start_pos, &mut nodes);
-        
+    // let mut ctx = JitContext::new(&board, start_pos, &mut nodes);
     let start2 = Instant::now();
-    unsafe {
-        compiled.execute(&mut ctx);
-    }
-    let duration2 = start2.elapsed();
     
+    for y in 0..TEST_BOARD_SIZE as u8 {
+        for x in 0..TEST_BOARD_SIZE as u8 {
+            for compiled in &compiled_chains {
+                if let Some(_) = board.color_on(&(x as u8, y as u8)) {
+                    compiled.execute_from(&board, (x, y), &mut nodes);
+                }
+            }
+        }
+    }
+
+    let duration2 = start2.elapsed();
 
     println!("----------------------------------------------");
     println!("🚀 JIT 고속 실행 완료 결과");
@@ -1026,19 +979,26 @@ pub fn test(script_str: &str) {
     println!("생성된 체스 기물 이동 경로 개수: {} 개", nodes.len());
 
     let start3 = Instant::now();
-    let nodes2 = script_str_compiled.generate_moves(&mut board, &start_pos, true).unwrap();
+    let mut nodes2 = Vec::new();
+    for y in 0..TEST_BOARD_SIZE as u8 {
+        for x in 0..TEST_BOARD_SIZE as u8 {
+            if let Some(_) = board.color_on(&(x as u8, y as u8)) {
+                nodes2.extend(script_str_compiled.generate_moves(&mut board, &(x, y), true).unwrap());
+            }
+        }
+    }
     let duration3 = start3.elapsed();
     println!("{}, {}", nodes.len(), nodes2.len());
     println!("실행 소요 시간 (JIT): {:?}", duration2);
     println!("실행 소요 시간 (VMI): {:?}", duration3);
 
-    for y in 0..10 {
-        for x in 0..10 {
-            if nodes2.iter().any(|node| node.get_dest() == (x as u8, y as u8)) {
-                print!("o ");
+    for y in 0..TEST_BOARD_SIZE {
+        for x in 0..TEST_BOARD_SIZE {
+            if nodes.iter().any(|node| node.get_dest() == (x as u8, y as u8)) {
+                print!("* ");
             }
-            else if let PieceSpan::Piece(p) = grid[y][x] {
-                print!("{} ", &p.piece_type[..1]);
+            else if let Some(p) = board.piece_on(&(x as u8, y as u8)) {
+                print!("{} ", &p[..1]);
             }
             else {
                 print!(". ");

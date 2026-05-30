@@ -33,9 +33,9 @@ pub struct Board<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usiz
 }
 
 impl<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize> Board<'a, MACHO, IMPRISONED, SIZE> {
-    pub fn from_str(placement: &str, script: &'a ChessemblyCompiled) -> Board<'a, MACHO, IMPRISONED, 8> {
+    pub fn from_str(placement: &str, script: &'a ChessemblyCompiled) -> Board<'a, MACHO, IMPRISONED, SIZE> {
         let mut ret = Board {
-            board: [[PieceSpan::Empty; 8]; 8],
+            board: [[PieceSpan::Empty; SIZE]; SIZE],
             board_state: BothBoardState {
                 black: BoardState {
                     castling_oo: true,
@@ -54,9 +54,9 @@ impl<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize> Board<'a,
             turn: Color::White,
             status: BoardStatus::Ongoing,
         };
-        for i in 0..8 {
-            for j in 0..8 {
-                let Some(char) = placement.chars().nth(i * 9 + j) else {
+        for i in 0..SIZE {
+            for j in 0..SIZE {
+                let Some(char) = placement.chars().nth(i * (SIZE + 1) + j) else {
                     continue;
                 };
 
