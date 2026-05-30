@@ -1,29 +1,23 @@
-use std::cmp::Ordering;
+mod helper;
+
+use crate::chessembly::behavior::BehaviorChain;
 use std::collections::HashMap;
+use std::time::Instant;
 use std::ffi::c_void;
+use helper::*;
 use std::mem;
 use std::ptr;
 
-use std::time::Instant;
-
-use crate::chessembly::ChessMoveUnit;
-use crate::chessembly::behavior::BehaviorChain;
-
 use super::{
-    Color,
-    // Piece,
+    DeltaPosition,
+    WallCollision,
+    ChessMove,
     PieceSpan,
+    Behavior,
     MoveType,
     Position,
-    DeltaPosition,
-    ChessMove,
-    WallCollision,
     Board,
-    Behavior,
-    // board::BothBoardState,
-    // board::BoardStatus,
-    // board::BoardState
-    // BehaviorChain
+    Color
 };
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -123,358 +117,6 @@ impl<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize> JitContex
             self.states[(self.states_len - 1) as usize] = if val { 1 } else { 0 };
         }
     }
-}
-
-// ------------------------------------------
-// 3. JIT 전용 고속 런타임 헬퍼 (C-ABI)
-// ------------------------------------------
-
-fn wall_collision<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(anchor: &Position, delta: &DeltaPosition, board: &Board<MACHO, IMPRISONED, SIZE>, color: Color) -> WallCollision {
-    let a0 = (anchor.0 as i8) + delta.0;
-    let a1 = (anchor.1 as i8) - delta.1;
-    match (a0.cmp(&0), a0.cmp(&(board.get_width() as i8)), a1.cmp(&0), a1.cmp(&(board.get_height() as i8))) {
-        (Ordering::Less, _, Ordering::Less, _) => if color == Color::White { WallCollision::CornerTopLeft } else { WallCollision::CornerBottomRight }
-        (_, Ordering::Equal, Ordering::Less, _) => if color == Color::White { WallCollision::CornerTopRight } else { WallCollision::CornerBottomLeft }
-        (_, Ordering::Greater, Ordering::Less, _) => if color == Color::White { WallCollision::CornerTopRight } else { WallCollision::CornerBottomLeft }
-        (Ordering::Less, _, _, Ordering::Equal) => if color == Color::White { WallCollision::CornerBottomLeft } else { WallCollision::CornerTopRight }
-        (Ordering::Less, _, _, Ordering::Greater) => if color == Color::White { WallCollision::CornerBottomLeft } else { WallCollision::CornerTopRight }
-        (_, Ordering::Equal, _, Ordering::Equal) => if color == Color::White { WallCollision::CornerBottomRight } else { WallCollision::CornerTopLeft }
-        (_, Ordering::Greater, _, Ordering::Greater) => if color == Color::White { WallCollision::CornerBottomRight } else { WallCollision::CornerTopLeft }
-        (Ordering::Less, _, _, _) => if color == Color::White { WallCollision::EdgeLeft } else { WallCollision::EdgeRight }
-        (_, Ordering::Equal, _, _) => if color == Color::White { WallCollision::EdgeRight } else { WallCollision::EdgeLeft }
-        (_, Ordering::Greater, _, _) => if color == Color::White { WallCollision::EdgeRight } else { WallCollision::EdgeLeft }
-        (_, _, Ordering::Less, _) => if color == Color::White { WallCollision::EdgeTop } else { WallCollision::EdgeBottom }
-        (_, _, _, Ordering::Equal) => if color == Color::White { WallCollision::EdgeBottom } else { WallCollision::EdgeTop }
-        (_, _, _, Ordering::Greater) => if color == Color::White { WallCollision::EdgeBottom } else { WallCollision::EdgeTop }
-        _ => WallCollision::NoCollision
-    }
-}
-
-fn is_friendly<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(pos: Position, board: &Board<'a, MACHO, IMPRISONED, SIZE>, color: Color) -> bool {
-    if let PieceSpan::Piece(p) = &board.board[pos.1 as usize][pos.0 as usize] {
-        p.color == color
-    } else {
-        false
-    }
-}
-
-fn is_enemy<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(pos: Position, board: &Board<'a, MACHO, IMPRISONED, SIZE>, color: Color) -> bool {
-    if let PieceSpan::Piece(p) = &board.board[pos.1 as usize][pos.0 as usize] {
-        p.color == color.invert()
-    } else {
-        false
-    }
-}
-
-fn push_node<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx: &mut JitContext<'a, MACHO, IMPRISONED, SIZE>, move_type: MoveType, move_to: Position, take: Position) {
-    let from = (ctx.start_pos_col as u8, ctx.start_pos_row as u8);
-    
-    let state_change = if ctx.state_change_len > 0 {
-        let mut sc_vec = Vec::new();
-        for i in 0..ctx.state_change_len as usize {
-            let key_slice = unsafe {
-                std::slice::from_raw_parts(ctx.state_change_keys[i], ctx.state_change_key_lens[i] as usize)
-            };
-            let key = std::str::from_utf8(key_slice).unwrap_or("");
-            sc_vec.push((key, ctx.state_change_vals[i]));
-        }
-        Some(sc_vec)
-    } else {
-        None
-    };
-
-    let transition = if !ctx.transition_ptr.is_null() {
-        let tr_slice = unsafe {
-            std::slice::from_raw_parts(ctx.transition_ptr, ctx.transition_len as usize)
-        };
-        std::str::from_utf8(tr_slice).ok()
-    } else {
-        None
-    };
-
-    unsafe {
-        (*ctx.nodes).push(ChessMove::Single(ChessMoveUnit {
-            from,
-            take,
-            move_to,
-            move_type,
-            state_change,
-            transition,
-        }));
-    }
-}
-
-pub extern "C" fn rust_helper_should_skip<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>) -> bool {
-    let ctx = unsafe { &*ctx_ptr };
-    !ctx.last_state()
-}
-
-pub extern "C" fn jit_helper_not<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>) {
-    let ctx = unsafe { &mut *ctx_ptr };
-    let state = ctx.last_state();
-    ctx.set_last_state(!state);
-}
-
-pub extern "C" fn jit_helper_block_open<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, close_index: u64) {
-    let ctx = unsafe { &mut *ctx_ptr };
-    let cur = ctx.current_position();
-    
-    let len = ctx.position_stack_len as usize;
-    ctx.position_stack_cols[len] = cur.0 as u64;
-    ctx.position_stack_rows[len] = cur.1 as u64;
-    ctx.position_stack_closes[len] = close_index;
-    ctx.position_stack_len += 1;
-
-    let t_len = ctx.take_stack_len as usize;
-    if t_len > 0 && ctx.take_stack_has_value[t_len - 1] == 1 {
-        ctx.take_stack_cols[t_len] = ctx.take_stack_cols[t_len - 1];
-        ctx.take_stack_rows[t_len] = ctx.take_stack_rows[t_len - 1];
-        ctx.take_stack_has_value[t_len] = 1;
-    } else {
-        ctx.take_stack_has_value[t_len] = 0;
-    }
-    ctx.take_stack_len += 1;
-
-    let s_len = ctx.states_len as usize;
-    ctx.states[s_len] = 1; // push true
-    ctx.states_len += 1;
-}
-
-pub extern "C" fn jit_helper_block_close<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>) {
-    let ctx = unsafe { &mut *ctx_ptr };
-    if ctx.position_stack_len > 1 {
-        ctx.position_stack_len -= 1;
-    }
-    if ctx.take_stack_len > 1 {
-        ctx.take_stack_len -= 1;
-    }
-    if ctx.states_len > 1 {
-        ctx.states_len -= 1;
-    }
-}
-
-pub extern "C" fn jit_helper_move<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
-    let ctx = unsafe { &mut *ctx_ptr };
-    let board = unsafe { &*ctx.board };
-    let current_pos = ctx.current_position();
-    let nx = current_pos.0 as i8 + dx;
-    let ny = current_pos.1 as i8 - dy;
-
-    let color_on_start = board.color_on(&(ctx.start_pos_col as u8, ctx.start_pos_row as u8)).unwrap();
-    let wc = wall_collision(&current_pos, &(dx, dy), board, color_on_start);
-    if wc != WallCollision::NoCollision {
-        ctx.set_last_state(false);
-        return;
-    }
-    let target_pos = (nx as u8, ny as u8);
-
-    if is_friendly(target_pos, board, color_on_start) {
-        ctx.set_last_state(false);
-    } else if is_enemy(target_pos, board, color_on_start) {
-        ctx.set_last_state(false);
-    } else {
-        ctx.set_current_position(target_pos);
-        push_node(ctx, MoveType::Move, target_pos, target_pos);
-    }
-}
-
-pub extern "C" fn jit_helper_take<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
-    let ctx = unsafe { &mut *ctx_ptr };
-    let board = unsafe { &*ctx.board };
-    let current_pos = ctx.current_position();
-    let nx = current_pos.0 as i8 + dx;
-    let ny = current_pos.1 as i8 - dy;
-
-    let color_on_start = board.color_on(&(ctx.start_pos_col as u8, ctx.start_pos_row as u8)).unwrap();
-    let wc = wall_collision(&current_pos, &(dx, dy), board, color_on_start);
-    if wc != WallCollision::NoCollision {
-        ctx.set_last_state(false);
-        return;
-    }
-    let target_pos = (nx as u8, ny as u8);
-    
-    if is_friendly(target_pos, board, color_on_start) {
-        ctx.set_last_state(false);
-    } else if is_enemy(target_pos, board, color_on_start) {
-        ctx.set_current_position(target_pos);
-        push_node(ctx, MoveType::Take, target_pos, target_pos);
-        let t_idx = (ctx.take_stack_len - 1) as usize;
-        ctx.take_stack_cols[t_idx] = target_pos.0 as u64;
-        ctx.take_stack_rows[t_idx] = target_pos.1 as u64;
-        ctx.take_stack_has_value[t_idx] = 1;
-    } else {
-        ctx.set_current_position(target_pos);
-    }
-}
-
-pub extern "C" fn jit_helper_take_move<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
-    let ctx = unsafe { &mut *ctx_ptr };
-    let board = unsafe { &*ctx.board };
-    let current_pos = ctx.current_position();
-    let nx = current_pos.0 as i8 + dx;
-    let ny = current_pos.1 as i8 - dy;
-    
-    let color_on_start = board.color_on(&(ctx.start_pos_col as u8, ctx.start_pos_row as u8)).unwrap();
-    let wc = wall_collision(&current_pos, &(dx, dy), board, color_on_start);
-    if wc != WallCollision::NoCollision {
-        ctx.set_last_state(false);
-        return;
-    }
-    let target_pos = (nx as u8, ny as u8);
-    
-    if is_friendly(target_pos, board, color_on_start) {
-        ctx.set_last_state(false);
-    } else if is_enemy(target_pos, board, color_on_start) {
-        ctx.set_current_position(target_pos);
-        push_node(ctx, MoveType::TakeMove, target_pos, target_pos);
-        ctx.set_last_state(false);
-    } else {
-        ctx.set_current_position(target_pos);
-        push_node(ctx, MoveType::TakeMove, target_pos, target_pos);
-    }
-}
-
-pub extern "C" fn jit_helper_jump<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
-    let ctx = unsafe { &mut *ctx_ptr };
-    let board = unsafe { &*ctx.board };
-    let t_idx = (ctx.take_stack_len - 1) as usize;
-
-    if ctx.take_stack_has_value[t_idx] == 1 {
-        let tp = (ctx.take_stack_cols[t_idx] as u8, ctx.take_stack_rows[t_idx] as u8);
-        unsafe {
-            let nodes = &mut *ctx.nodes;
-            if let Some(pos) = nodes.iter().position(|x| match x {
-                ChessMove::Single(n) => n.move_type == MoveType::Take && n.take == tp, // ?
-                ChessMove::Multiple(_) => false
-            }) {
-                nodes.swap_remove(pos);
-            }
-        }
-
-        if dx != 0 || dy != 0 {
-            let cur = ctx.current_position();
-            let nx = cur.0 as i8 + dx;
-            let ny = cur.1 as i8 - dy;
-            if nx < 0 || nx >= SIZE as i8 || ny < 0 || ny >= SIZE as i8 {
-                let target_pos = (nx as u8, ny as u8);
-                let color_on_start = board.color_on(&(ctx.start_pos_col as u8, ctx.start_pos_row as u8)).unwrap();
-                let wc = wall_collision(&cur, &(dx, dy), board, color_on_start);
-                if wc == WallCollision::NoCollision && board.color_on(&target_pos).is_none() {
-                    ctx.set_current_position(target_pos);
-                    push_node(ctx, MoveType::TakeJump, target_pos, tp);
-                    return;
-                }
-            }
-        }
-    }
-    ctx.set_last_state(false);
-}
-
-pub extern "C" fn jit_helper_catch<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
-    let ctx = unsafe { &mut *ctx_ptr };
-    let board = unsafe { &*ctx.board };
-    let current_pos = ctx.current_position();
-    let nx = current_pos.0 as i8 + dx;
-    let ny = current_pos.1 as i8 - dy;
-
-    let color_on_start = board.color_on(&(ctx.start_pos_col as u8, ctx.start_pos_row as u8)).unwrap();
-    let wc = wall_collision(&current_pos, &(dx, dy), board, color_on_start);
-    if wc != WallCollision::NoCollision {
-        ctx.set_last_state(false);
-        return;
-    }
-    let target_pos = (nx as u8, ny as u8);
-
-    if is_friendly(target_pos, board, color_on_start) {
-        ctx.set_last_state(false);
-    } else if is_enemy(target_pos, board, color_on_start) {
-        push_node(ctx, MoveType::Catch, (ctx.start_pos_col as u8, ctx.start_pos_row as u8), target_pos);
-    } else {
-        ctx.set_last_state(false);
-    }
-}
-
-
-pub extern "C" fn jit_helper_peek<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
-    let ctx = unsafe { &mut *ctx_ptr };
-    let board = unsafe { &*ctx.board };
-    let current_pos = ctx.current_position();
-    let nx = current_pos.0 as i8 + dx;
-    let ny = current_pos.1 as i8 - dy;
-    
-    if nx < 0 || nx >= SIZE as i8 || ny < 0 || ny >= SIZE as i8 {
-        ctx.set_last_state(false);
-        return;
-    }
-    let target_pos = (nx as u8, ny as u8);
-    let color_on_start = board.color_on(&(ctx.start_pos_col as u8, ctx.start_pos_row as u8)).unwrap();
-    let wc = wall_collision(&current_pos, &(dx, dy), board, color_on_start);
-    if wc != WallCollision::NoCollision || board.color_on(&target_pos).is_some() {
-        ctx.set_last_state(false);
-    } else {
-        ctx.set_current_position(target_pos);
-    }
-}
-
-pub extern "C" fn jit_helper_observe<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
-    let ctx = unsafe { &mut *ctx_ptr };
-    let board = unsafe { &*ctx.board };
-    let current_pos = ctx.current_position();
-    let nx = current_pos.0 as i8 + dx;
-    let ny = current_pos.1 as i8 - dy;
-
-    if nx < 0 || nx >= SIZE as i8 || ny < 0 || ny >= SIZE as i8 {
-        ctx.set_last_state(false);
-        return;
-    }
-    let target_pos = (nx as u8, ny as u8);
-    let color_on_start = board.color_on(&(ctx.start_pos_col as u8, ctx.start_pos_row as u8)).unwrap();
-    let wc = wall_collision(&current_pos, &(dx, dy), board, color_on_start);
-    if wc != WallCollision::NoCollision || board.color_on(&target_pos).is_some() {
-        ctx.set_last_state(false);
-    }
-}
-
-pub extern "C" fn jit_helper_piece<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, name_ptr: *const u8, name_len: usize) {
-    let ctx = unsafe { &mut *ctx_ptr };
-    let board = unsafe { &*ctx.board };
-    let name = unsafe { std::str::from_utf8(std::slice::from_raw_parts(name_ptr, name_len)).unwrap_or("") };
-    let start_pos = (ctx.start_pos_col as u8, ctx.start_pos_row as u8);
-    ctx.set_last_state(board.piece_on(&start_pos) == Some(name));
-}
-
-pub extern "C" fn rust_helper_do<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>) {
-    let ctx = unsafe { &mut *ctx_ptr };
-    let len = ctx.states_len as usize;
-    ctx.states[len] = 1; // push true
-    ctx.states_len += 1;
-}
-
-pub extern "C" fn rust_helper_while_check<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>) -> bool {
-    let ctx = unsafe { &*ctx_ptr };
-    ctx.last_state()
-}
-
-pub extern "C" fn rust_helper_while_exit<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>) {
-    let ctx = unsafe { &mut *ctx_ptr };
-    if ctx.states_len > 1 {
-        ctx.states_len -= 1;
-    }
-}
-
-pub extern "C" fn rust_helper_jmp_check<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>) -> bool {
-    let ctx = unsafe { &*ctx_ptr };
-    ctx.last_state()
-}
-
-pub extern "C" fn rust_helper_jmp_reset<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>) {
-    let ctx = unsafe { &mut *ctx_ptr };
-    ctx.set_last_state(true);
-}
-
-pub extern "C" fn rust_helper_jne_check<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>) -> bool {
-    let ctx = unsafe { &*ctx_ptr };
-    !ctx.last_state()
 }
 
 // ------------------------------------------
@@ -623,6 +265,54 @@ impl ChessemblyJitCompiler {
         self.emit(&[0x48, 0x83, 0xc4, 0x08]);
     }
 
+    fn emit_call_piece_on<'a>(&mut self, func_ptr: usize, name: &'a str, dx: i8, dy: i8) {
+        let name_ptr = name.as_ptr() as u64;
+        let name_len = name.len() as u64;
+        
+        // dx와 dy를 하나의 u64 파라미터 영역에 컴팩트하게 비트 패킹
+        let packed_delta = ((dx as u32 & 0xFF) | (((dy as u32) & 0xFF) << 8)) as u64;
+
+        #[cfg(target_os = "windows")]
+        {
+            self.emit(&[0x48, 0x89, 0xd9]);          // mov rcx, rbx (ctx)
+            
+            self.emit(&[0x48, 0xba]);                // mov rdx, name_ptr
+            self.emit(&name_ptr.to_le_bytes());
+            
+            self.emit(&[0x49, 0xc7, 0xc0]);          // mov r8, name_len
+            self.emit(&name_len.to_le_bytes());
+
+            self.emit(&[0x49, 0xc7, 0xc1]);          // mov r9, packed_delta
+            self.emit(&packed_delta.to_le_bytes());
+            
+            self.emit(&[0x48, 0x83, 0xec, 0x28]);    // sub rsp, 40 (Shadow Space + Alignment)
+        }
+        #[cfg(unix)]
+        {
+            self.emit(&[0x48, 0x89, 0xdf]);          // mov rdi, rbx (ctx)
+            
+            self.emit(&[0x48, 0xbe]);                // mov rsi, name_ptr
+            self.emit(&name_ptr.to_le_bytes());
+            
+            self.emit(&[0x48, 0xc7, 0xc2]);          // mov rdx, name_len
+            self.emit(&name_len.to_le_bytes());
+
+            self.emit(&[0x48, 0xc7, 0xc1]);          // mov rcx, packed_delta
+            self.emit(&packed_delta.to_le_bytes());
+            
+            self.emit(&[0x48, 0x83, 0xec, 0x08]);    // sub rsp, 8 (align 16-bytes)
+        }
+
+        self.emit(&[0x48, 0xb8]);                    // mov rax, func_ptr
+        self.emit(&(func_ptr as u64).to_le_bytes());
+        self.emit(&[0xff, 0xd0]);                    // call rax
+
+        #[cfg(target_os = "windows")]
+        self.emit(&[0x48, 0x83, 0xc4, 0x28]);
+        #[cfg(unix)]
+        self.emit(&[0x48, 0x83, 0xc4, 0x08]);
+    }
+
     pub fn compile<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(&mut self, chain: &BehaviorChain) -> CompiledChain {
         self.code.clear();
         self.label_offsets.clear();
@@ -674,8 +364,17 @@ impl ChessemblyJitCompiler {
                 | Behavior::Jne(_)
                 | Behavior::Label(_)
                 | Behavior::Not
-                | Behavior::BlockClose
+                | Behavior::True
+                | Behavior::False
+                | Behavior::Write(_)
+                | Behavior::Read(_)
+                | Behavior::ReadAnd(_)
+                | Behavior::ReadOr(_)
+                | Behavior::ReadXor(_)
+
+                | Behavior::BlockClose // ??
             );
+
 
             if !is_control_expr {
                 // Call rust_helper_should_skip
@@ -720,8 +419,27 @@ impl ChessemblyJitCompiler {
                 Behavior::Observe((dx, dy)) => {
                     self.emit_call_3_args(jit_helper_observe::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy);
                 }
+                Behavior::ColorOn((color_name, (dx, dy))) => {
+                    if color_name == &"white" {
+                        self.emit_call_3_args(jit_helper_color_on_white::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy);
+                    }
+                    else {
+                        self.emit_call_3_args(jit_helper_color_on_black::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy);
+                    }
+                }
+                Behavior::Color(color_name) => {
+                    if color_name == &"white" {
+                        self.emit_call_native(jit_helper_color_white::<MACHO, IMPRISONED, SIZE> as usize);
+                    }
+                    else {
+                        self.emit_call_native(jit_helper_color_black::<MACHO, IMPRISONED, SIZE> as usize);
+                    }
+                }
                 Behavior::Piece(name) => {
                     self.emit_call_string_helper(jit_helper_piece::<MACHO, IMPRISONED, SIZE> as usize, name);
+                }
+                Behavior::PieceOn((name, (dx, dy))) => {
+                    self.emit_call_piece_on(jit_helper_piece_on::<MACHO, IMPRISONED, SIZE> as usize, name, *dx, *dy);
                 }
                 Behavior::Not => {
                     self.emit_call_native(jit_helper_not::<MACHO, IMPRISONED, SIZE> as usize);
