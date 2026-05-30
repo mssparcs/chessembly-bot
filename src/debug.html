@@ -373,6 +373,29 @@
         .debug-stat-val { color: #7ec897; font-weight: 700; }
         .debug-stat-val.warn { color: #e2b96d; }
         .debug-stat-val.bad  { color: #f08080; }
+
+        /* ─── variant piece presets ─── */
+        .variant-panel-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+        .variant-btn {
+            padding: 5px 10px;
+            border: 1px solid #2a4a2a;
+            border-radius: 5px;
+            background: #0e1e0e;
+            color: #8fc888;
+            cursor: pointer;
+            font-size: 11px;
+            transition: background 0.15s, border-color 0.15s;
+            white-space: nowrap;
+            line-height: 1.35;
+            text-align: center;
+        }
+        .variant-btn:hover { background: #1a3a1a; border-color: #4a8a4a; color: #b0e8a0; }
+        .variant-category {
+            font-size: 10px; color: #4a6a50; text-transform: uppercase;
+            letter-spacing: 0.07em; margin-top: 8px; margin-bottom: 2px;
+            width: 100%; border-bottom: 1px solid #1a2a1a; padding-bottom: 3px;
+        }
+        .variant-sub { font-size: 9px; color: #4a6a4a; display: block; margin-top: 1px; }
     </style>
 </head>
 <body>
@@ -535,6 +558,47 @@
                         <div class="form-row">
                             <span class="form-label">Register Black</span>
                             <input type="text" id="regBl" placeholder="ex) enpassant,1" style="flex:1">
+                        </div>
+                    </div>
+
+                    <!-- Variant Piece Test Positions -->
+                    <div class="panel" style="width:100%;">
+                        <div class="panel-title">변형 기물 테스트 포지션</div>
+                        <div class="form-row" style="margin-bottom:4px;">
+                            <label class="check-label">
+                                <input type="checkbox" id="variantAutoTest" checked>
+                                불러오기 시 즉시 AI 테스트
+                            </label>
+                            <span style="font-size:11px;color:#445;margin-left:8px;">↳ 포지션 로드 후 자동으로 최선 수 계산을 실행합니다</span>
+                        </div>
+                        <div class="variant-panel-grid">
+                            <span class="variant-category">복합 이동 (Compound Movers)</span>
+                            <button class="variant-btn" onclick="loadVariantPreset('amazon',document.getElementById('variantAutoTest').checked)">아마존<span class="variant-sub">queen+knight</span></button>
+                            <button class="variant-btn" onclick="loadVariantPreset('chancellor',document.getElementById('variantAutoTest').checked)">챈슬러<span class="variant-sub">rook+knight</span></button>
+                            <button class="variant-btn" onclick="loadVariantPreset('archbishop',document.getElementById('variantAutoTest').checked)">대주교<span class="variant-sub">bishop+knight</span></button>
+                            <button class="variant-btn" onclick="loadVariantPreset('centaur',document.getElementById('variantAutoTest').checked)">센타우르<span class="variant-sub">knight+king</span></button>
+
+                            <span class="variant-category">특수 포획 (Special Capture)</span>
+                            <button class="variant-btn" onclick="loadVariantPreset('cannon',document.getElementById('variantAutoTest').checked)">대포<span class="variant-sub">platform jump</span></button>
+                            <button class="variant-btn" onclick="loadVariantPreset('chameleon',document.getElementById('variantAutoTest').checked)">카멜레온<span class="variant-sub">transforms</span></button>
+                            <button class="variant-btn" onclick="loadVariantPreset('wasp',document.getElementById('variantAutoTest').checked)">웨습<span class="variant-sub">locust-type</span></button>
+                            <button class="variant-btn" onclick="loadVariantPreset('beacon',document.getElementById('variantAutoTest').checked)">비콘<span class="variant-sub">chain capture</span></button>
+
+                            <span class="variant-category">변신 기물 (Transitioning)</span>
+                            <button class="variant-btn" onclick="loadVariantPreset('windmill_rook',document.getElementById('variantAutoTest').checked)">풍차 룩<span class="variant-sub">→windmill-bishop</span></button>
+                            <button class="variant-btn" onclick="loadVariantPreset('windmill_bishop',document.getElementById('variantAutoTest').checked)">풍차 비숍<span class="variant-sub">→windmill-rook</span></button>
+                            <button class="variant-btn" onclick="loadVariantPreset('mirrored_queen',document.getElementById('variantAutoTest').checked)">미러드 퀸<span class="variant-sub">mirrored-queen</span></button>
+
+                            <span class="variant-category">특수 이동 (Special Movers)</span>
+                            <button class="variant-btn" onclick="loadVariantPreset('tempest_rook',document.getElementById('variantAutoTest').checked)">템페스트 룩<span class="variant-sub">teleport rook</span></button>
+                            <button class="variant-btn" onclick="loadVariantPreset('bouncing_bishop',document.getElementById('variantAutoTest').checked)">바운싱 비숍<span class="variant-sub">wall-bounce</span></button>
+                            <button class="variant-btn" onclick="loadVariantPreset('dozer',document.getElementById('variantAutoTest').checked)">도저<span class="variant-sub">push pieces</span></button>
+                            <button class="variant-btn" onclick="loadVariantPreset('bard',document.getElementById('variantAutoTest').checked)">바드<span class="variant-sub">special mover</span></button>
+
+                            <span class="variant-category">점프 이동 (Leapers)</span>
+                            <button class="variant-btn" onclick="loadVariantPreset('alfil',document.getElementById('variantAutoTest').checked)">알필<span class="variant-sub">(2,2) leaper</span></button>
+                            <button class="variant-btn" onclick="loadVariantPreset('zebra',document.getElementById('variantAutoTest').checked)">제브라<span class="variant-sub">(2,3) leaper</span></button>
+                            <button class="variant-btn" onclick="loadVariantPreset('giraffe',document.getElementById('variantAutoTest').checked)">기린<span class="variant-sub">(1,4) leaper</span></button>
                         </div>
                     </div>
 
@@ -1462,6 +1526,233 @@ piece(chameleon) piece-on(pawn, -2, -2) transition(mirrored-pawn) catch(-2, -2);
 piece(mirrored-pawn) move(0, 1);
 piece(mirrored-pawn) piece-on(pawn, 1, 1) take(1, 1);
 piece(mirrored-pawn) piece-on(pawn, -1, 1) take(-1, 1)`;
+}
+
+// ═══════════════════════════════════════════════
+//  변형 기물 테스트 포지션 프리셋
+// ═══════════════════════════════════════════════
+const P = rows => rows.join('\n'); // 8개 랭크 배열 → 포지션 문자열
+
+const VARIANT_PRESETS = {
+
+    // ── 복합 이동 (Compound Movers) ──────────────────────────────────────
+    amazon: { label: '아마존', desc: 'queen+knight', script: '',
+        position: P(['. . . . king:black . . .',
+                     '. . . . pawn:black pawn:black . .',
+                     '. . . rook:black . . . .',
+                     '. . . . . . . .',
+                     '. . . amazon:white . . . .',
+                     '. . . . . . . .',
+                     '. pawn:white . . . . . .',
+                     '. . . king:white . . . .']) },
+
+    chancellor: { label: '챈슬러', desc: 'rook+knight', script: '',
+        position: P(['. . . . king:black . . .',
+                     '. . pawn:black . pawn:black . . .',
+                     '. . . rook:black . . . .',
+                     '. . . . . . . .',
+                     '. . . chancellor:white . . . .',
+                     '. . . . . . . .',
+                     '. pawn:white . . . . . .',
+                     '. . . king:white . . . .']) },
+
+    archbishop: { label: '대주교', desc: 'bishop+knight', script: '',
+        position: P(['. . . . king:black . . .',
+                     '. . pawn:black . pawn:black . . .',
+                     '. . . . . rook:black . .',
+                     '. . . . . . . .',
+                     '. . . archbishop:white . . . .',
+                     '. . . . . . . .',
+                     '. . pawn:white . . . . .',
+                     '. . . . king:white . . .']) },
+
+    centaur: { label: '센타우르', desc: 'knight+king', script: '',
+        position: P(['. . . . king:black . . .',
+                     '. . . pawn:black . pawn:black . .',
+                     '. . . . . . . .',
+                     '. . . centaur:white . . . .',
+                     '. . . . . . . .',
+                     '. . . . . . . .',
+                     '. . pawn:white . . . . .',
+                     '. . . king:white . . . .']) },
+
+    // ── 특수 포획 (Special Capture) ──────────────────────────────────────
+    cannon: { label: '대포', desc: 'platform jump', script: '',
+        position: P(['. . . . king:black . . .',
+                     '. . . pawn:black . pawn:black . .',
+                     '. . . rook:black . . . .',
+                     '. . . pawn:black . . . .',
+                     '. . . cannon:white . . . .',
+                     '. . . . . . . .',
+                     '. . pawn:white . . . . .',
+                     '. . . king:white . . . .']) },
+
+    chameleon: { label: '카멜레온', desc: 'transforms', script: 'chameleon',
+        position: P(['. . . . king:black . . .',
+                     '. pawn:black . pawn:black . . . .',
+                     '. . . . . . . .',
+                     '. . . chameleon:white . . . .',
+                     '. . . . . . . .',
+                     '. . . . . . . .',
+                     '. pawn:white . . . . . .',
+                     '. . . king:white . . . .']) },
+
+    wasp: { label: '웨습', desc: 'locust-type', script: '',
+        position: P(['. . . . king:black . . .',
+                     '. pawn:black . . . pawn:black . .',
+                     '. . . rook:black . . . .',
+                     '. . pawn:black . . . . .',
+                     '. . . wasp:white . . . .',
+                     '. . . . . . . .',
+                     '. . pawn:white . . . . .',
+                     '. . . . king:white . . .']) },
+
+    beacon: { label: '비콘', desc: 'chain capture', script: '',
+        position: P(['. . . . king:black . . .',
+                     '. . . pawn:black pawn:black . . .',
+                     '. . rook:black . . . . .',
+                     '. . . . . . . .',
+                     '. . . beacon:white . . . .',
+                     '. . . . . . . .',
+                     '. . pawn:white . . . . .',
+                     '. . . king:white . . . .']) },
+
+    // ── 변신 기물 (Transitioning) ─────────────────────────────────────────
+    windmill_rook: { label: '풍차 룩', desc: '→windmill-bishop', script: '',
+        position: P(['. . . . king:black . . .',
+                     '. . . pawn:black . . . .',
+                     '. . . rook:black . . . .',
+                     '. . . . . . . .',
+                     '. . windmill-rook:white . . . . .',
+                     '. . . . . . . .',
+                     '. . pawn:white . . . . .',
+                     '. . . . king:white . . .']) },
+
+    windmill_bishop: { label: '풍차 비숍', desc: '→windmill-rook', script: '',
+        position: P(['. . . . king:black . . .',
+                     '. . . . . pawn:black . .',
+                     '. . . . rook:black . . .',
+                     '. . . . . . . .',
+                     '. windmill-bishop:white . . . . . .',
+                     '. . . . . . . .',
+                     '. . pawn:white . . . . .',
+                     '. . . . king:white . . .']) },
+
+    mirrored_queen: { label: '미러드 퀸', desc: 'mirrored-queen', script: '',
+        position: P(['. . . . king:black . . .',
+                     '. . . pawn:black . pawn:black . .',
+                     '. . . rook:black . . . .',
+                     '. . . . . . . .',
+                     '. . mirrored-queen:white . . . . .',
+                     '. . . . . . . .',
+                     '. pawn:white . . . . . .',
+                     '. . . king:white . . . .']) },
+
+    // ── 특수 이동 (Special Movers) ────────────────────────────────────────
+    tempest_rook: { label: '템페스트 룩', desc: 'teleport rook', script: '',
+        position: P(['. . . . king:black . . .',
+                     '. . . pawn:black . pawn:black . .',
+                     '. . . . rook:black . . .',
+                     '. . . . . . . .',
+                     '. . . tempest-rook:white . . . .',
+                     '. . . . . . . .',
+                     '. . pawn:white . . . . .',
+                     '. . . king:white . . . .']) },
+
+    bouncing_bishop: { label: '바운싱 비숍', desc: 'wall-bounce', script: '',
+        position: P(['. . . . king:black . . .',
+                     '. . pawn:black . . pawn:black . .',
+                     '. . . . . . . .',
+                     '. . . . rook:black . . .',
+                     '. . . bouncing-bishop:white . . . .',
+                     '. . . . . . . .',
+                     '. . . pawn:white . . . .',
+                     '. . . king:white . . . .']) },
+
+    dozer: { label: '도저', desc: 'push pieces', script: '',
+        position: P(['. . . . king:black . . .',
+                     '. . pawn:black . pawn:black . . .',
+                     '. . . . . . . .',
+                     '. . pawn:black . . . . .',
+                     '. . dozer:white . . . . .',
+                     '. . . . . . . .',
+                     '. pawn:white . . . . . .',
+                     '. . . king:white . . . .']) },
+
+    bard: { label: '바드', desc: 'special mover', script: '',
+        position: P(['. . . . king:black . . .',
+                     '. . pawn:black . pawn:black . . .',
+                     '. . . . . . . .',
+                     '. . . . rook:black . . .',
+                     '. . . bard:white . . . .',
+                     '. . . . . . . .',
+                     '. pawn:white . . . . . .',
+                     '. . . king:white . . . .']) },
+
+    // ── 점프 이동 (Leapers) ───────────────────────────────────────────────
+    alfil: { label: '알필', desc: '(2,2) leaper', script: '',
+        position: P(['. . . . king:black . . .',
+                     '. . . pawn:black . pawn:black . .',
+                     '. . . . rook:black . . .',
+                     '. . . . . . . .',
+                     '. . . alfil:white . . . .',
+                     '. . . . . . . .',
+                     '. . pawn:white . . . . .',
+                     '. . . king:white . . . .']) },
+
+    zebra: { label: '제브라', desc: '(2,3) leaper', script: '',
+        position: P(['. . . . king:black . . .',
+                     '. . . pawn:black . pawn:black . .',
+                     '. . rook:black . . . . .',
+                     '. . . . . . . .',
+                     '. . . zebra:white . . . .',
+                     '. . . . . . . .',
+                     '. . pawn:white . . . . .',
+                     '. . . king:white . . . .']) },
+
+    giraffe: { label: '기린', desc: '(1,4) leaper', script: '',
+        position: P(['. . . . king:black . . .',
+                     '. . . pawn:black . pawn:black . .',
+                     '. . rook:black . . . . .',
+                     '. . . . . . . .',
+                     '. . . giraffe:white . . . .',
+                     '. . . . . . . .',
+                     '. . pawn:white . . . . .',
+                     '. . . king:white . . . .']) },
+
+};
+
+function loadVariantPreset(key, autoTest) {
+    const preset = VARIANT_PRESETS[key];
+    if (!preset) return;
+
+    // Script 설정
+    if (preset.script === 'chameleon') {
+        setChameleonScript();
+    } else {
+        document.getElementById('chessemblyScript').value = preset.script || '';
+    }
+
+    // 보드 상태 설정
+    document.getElementById('positionText').value = preset.position;
+    document.querySelector(`input[name="turn"][value="${preset.turn || 'white'}"]`).checked = true;
+    document.getElementById('castOOw').checked  = false;
+    document.getElementById('castOOb').checked  = false;
+    document.getElementById('castOOOw').checked = false;
+    document.getElementById('castOOOb').checked = false;
+    document.getElementById('enPwh').value = '';
+    document.getElementById('enPbl').value = '';
+    document.getElementById('regWh').value = '';
+    document.getElementById('regBl').value = '';
+    board = parsePositionText(preset.position);
+    highlight = { from: null, to: null, take: null };
+    selectedCell = null;
+    moveHighlights = [];
+    document.getElementById('parseError').textContent = '';
+    renderBoard();
+    renderMoveList();
+
+    if (autoTest) getBestMove();
 }
 
 // ═══════════════════════════════════════════════
