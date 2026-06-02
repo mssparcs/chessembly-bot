@@ -28,7 +28,7 @@ pub struct Board<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usiz
     pub board: [[PieceSpan<'a>; SIZE]; SIZE],
     pub board_state: BothBoardState<'a>,
     pub turn: Color,
-    pub script: &'a ChessemblyCompiled<'a>,
+    pub script: &'a ChessemblyCompiled,
     pub status: BoardStatus
 }
 

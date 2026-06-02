@@ -20,10 +20,10 @@ use super::{
     Color
 };
 
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct ChessemblyCompiled<'a> {
-    _marker: std::marker::PhantomData<&'a ()>,
-}
+// #[derive(Clone, PartialEq, Eq, Debug)]
+// pub struct ChessemblyCompiled<'a> {
+//     _marker: std::marker::PhantomData<&'a ()>,
+// }
 
 // ------------------------------------------
 // 2. JIT 실행 컨텍스트 (JitContext)
@@ -50,7 +50,7 @@ pub struct JitContext<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE:
     pub states: [u64; 32],                     // offset 1584 (ends at 1840)
     pub states_len: u64,                       // offset 1840
 
-    pub has_jumped: bool,
+    pub check_danger: bool,
     
     pub transition_ptr: *const u8,             // offset 1848 (Thin pointer로 변경하여 컴파일 에러 예방)
     pub transition_len: u64,                   // offset 1856
@@ -62,7 +62,7 @@ pub struct JitContext<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE:
 }
 
 impl<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize> JitContext<'a, MACHO, IMPRISONED, SIZE> {
-    pub fn new(board: &Board<'a, MACHO, IMPRISONED, SIZE>, start_pos: Position, nodes: &mut Vec<ChessMove<'a>>) -> Self {
+    pub fn new(board: &Board<'a, MACHO, IMPRISONED, SIZE>, start_pos: Position, nodes: &mut Vec<ChessMove<'a>>, check_danger: bool) -> Self {
         let mut pos_cols = [0; 32];
         let mut pos_rows = [0; 32];
         pos_cols[0] = start_pos.0 as u64;
@@ -86,7 +86,7 @@ impl<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize> JitContex
             take_stack_len: 1,
             states,
             states_len: 1,
-            has_jumped: false,
+            check_danger,
             transition_ptr: ptr::null(),
             transition_len: 0,
             state_change_keys: [ptr::null(); 32],
@@ -569,6 +569,7 @@ impl ChessemblyJitCompiler {
 // ------------------------------------------
 // 5. 컴파일된 기계어 실행 관리 구조체
 // ------------------------------------------
+#[derive(Debug, PartialEq, Eq)]
 pub struct CompiledChain {
     ptr: *mut c_void,
     size: usize,
@@ -580,8 +581,8 @@ impl CompiledChain {
         func(ctx);
     }
 
-    pub fn execute_from<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(&self, board: &Board<'a, MACHO, IMPRISONED, SIZE>, start_pos: Position, nodes: &mut Vec<ChessMove<'a>>) {
-        let mut ctx = JitContext::new(board, start_pos, nodes);
+    pub fn execute_from<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(&self, board: &Board<'a, MACHO, IMPRISONED, SIZE>, start_pos: Position, nodes: &mut Vec<ChessMove<'a>>, check_danger: bool) {
+        let mut ctx = JitContext::new(board, start_pos, nodes, check_danger);
 
         unsafe {
             self.execute(&mut ctx);
@@ -665,18 +666,18 @@ pub fn test(script_str: &str, board_str: &str) {
     println!("==============================================");
 
     let script_str_compiled = crate::chessembly::ChessemblyCompiled::from_script(script_str).unwrap();
-    let chains = &script_str_compiled.chains;
+    let compiled_chains = &script_str_compiled.compiled_chains;
 
     const TEST_BOARD_SIZE: usize = 8;
 
     let start = Instant::now();
-    let mut compiled_chains = Vec::new();
+    // let mut compiled_chains = Vec::new();
 
-    for chain in chains {
-        let mut compiler = ChessemblyJitCompiler::new();
-        let compiled = compiler.compile::<false, false, TEST_BOARD_SIZE>(chain);
-        compiled_chains.push(compiled);
-    }
+    // for chain in chains {
+    //     let mut compiler = ChessemblyJitCompiler::new();
+    //     let compiled = compiler.compile::<false, false, TEST_BOARD_SIZE>(chain);
+    //     compiled_chains.push(compiled);
+    // }
     let duration = start.elapsed();
 
     println!("컴파일 바이트 크기: {} bytes", compiled_chains.iter().map(|x| x.size).fold(0, |a, b| a + b));
@@ -690,9 +691,9 @@ pub fn test(script_str: &str, board_str: &str) {
     
     for y in 0..TEST_BOARD_SIZE as u8 {
         for x in 0..TEST_BOARD_SIZE as u8 {
-            for compiled in &compiled_chains {
+            for compiled in compiled_chains {
                 if let Some(_) = board.color_on(&(x as u8, y as u8)) {
-                    compiled.execute_from(&board, (x, y), &mut nodes);
+                    compiled.execute_from(&board, (x, y), &mut nodes, true);
                 }
             }
         }

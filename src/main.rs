@@ -126,7 +126,7 @@ async fn serve_debug_ui() -> impl IntoResponse {
 }
 
 fn setup_board<'a, const MACHO: bool, const IMPRISONED: bool>(
-    compiled: &'a ChessemblyCompiled<'a>,
+    compiled: &'a ChessemblyCompiled,
     position: &'a str,
     board_state: BothBoardState<'a>,
     turn: chessembly::Color,

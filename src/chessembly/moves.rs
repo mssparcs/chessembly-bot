@@ -5,8 +5,8 @@ use crate::chessembly::{
     Behavior, ChessMove, Color, DeltaPosition, MoveType, Position, WallCollision, board::Board, ChessMoveUnit
 };
 
-impl<'a> ChessemblyCompiled<'a> {
-    pub fn generate_pawn_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
+impl ChessemblyCompiled {
+    pub fn generate_pawn_moves<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
         board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
@@ -223,7 +223,7 @@ impl<'a> ChessemblyCompiled<'a> {
         ret
     }
 
-    pub fn generate_king_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
+    pub fn generate_king_moves<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
         board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
@@ -313,7 +313,7 @@ impl<'a> ChessemblyCompiled<'a> {
         ret
     }
     
-    pub fn generate_ij_abs_take_move<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
+    pub fn generate_ij_abs_take_move<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
         moves: &mut Vec<ChessMove<'a>>,
         board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
@@ -356,7 +356,7 @@ impl<'a> ChessemblyCompiled<'a> {
         }
     }
 
-    pub fn generate_ij_abs_take_move_slide<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
+    pub fn generate_ij_abs_take_move_slide<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
         moves: &mut Vec<ChessMove<'a>>,
         board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
@@ -370,7 +370,7 @@ impl<'a> ChessemblyCompiled<'a> {
         }
     }
 
-    pub fn generate_bishop_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
+    pub fn generate_bishop_moves<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
         board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
@@ -383,7 +383,7 @@ impl<'a> ChessemblyCompiled<'a> {
         moves
     }
 
-    pub fn generate_rook_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
+    pub fn generate_rook_moves<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
         board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
@@ -396,28 +396,24 @@ impl<'a> ChessemblyCompiled<'a> {
             (_, _, _, _, _) => None,
         };
         if let Some(state_transition) = state_change {
-            ChessemblyCompiled {
-                chains: vec![
-                    vec![Behavior::SetState(state_transition), Behavior::TakeMove((1, 0)), Behavior::Repeat(1)],
-                    vec![Behavior::SetState(state_transition), Behavior::TakeMove((-1, 0)), Behavior::Repeat(1)],
-                    vec![Behavior::SetState(state_transition), Behavior::TakeMove((0, 1)), Behavior::Repeat(1)],
-                    vec![Behavior::SetState(state_transition), Behavior::TakeMove((0, -1)), Behavior::Repeat(1)],
-                ],
-            }.generate_moves::<MACHO, IMPRISONED, SIZE>(board, position, false).unwrap()
+            ChessemblyCompiled::from_chains_vec(vec![
+                vec![Behavior::SetState(state_transition), Behavior::TakeMove((1, 0)), Behavior::Repeat(1)],
+                vec![Behavior::SetState(state_transition), Behavior::TakeMove((-1, 0)), Behavior::Repeat(1)],
+                vec![Behavior::SetState(state_transition), Behavior::TakeMove((0, 1)), Behavior::Repeat(1)],
+                vec![Behavior::SetState(state_transition), Behavior::TakeMove((0, -1)), Behavior::Repeat(1)],
+            ]).generate_moves::<MACHO, IMPRISONED, SIZE>(board, position, false).unwrap()
         }
         else {
-            ChessemblyCompiled {
-                chains: vec![
-                    vec![Behavior::TakeMove((1, 0)), Behavior::Repeat(1)],
-                    vec![Behavior::TakeMove((-1, 0)), Behavior::Repeat(1)],
-                    vec![Behavior::TakeMove((0, 1)), Behavior::Repeat(1)],
-                    vec![Behavior::TakeMove((0, -1)), Behavior::Repeat(1)],
-                ],
-            }.generate_moves::<MACHO, IMPRISONED, SIZE>(board, position, false).unwrap()
+            ChessemblyCompiled::from_chains_vec(vec![
+                vec![Behavior::TakeMove((1, 0)), Behavior::Repeat(1)],
+                vec![Behavior::TakeMove((-1, 0)), Behavior::Repeat(1)],
+                vec![Behavior::TakeMove((0, 1)), Behavior::Repeat(1)],
+                vec![Behavior::TakeMove((0, -1)), Behavior::Repeat(1)],
+            ]).generate_moves::<MACHO, IMPRISONED, SIZE>(board, position, false).unwrap()
         }
     }
 
-    pub fn generate_knight_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
+    pub fn generate_knight_moves<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
         board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
@@ -425,7 +421,7 @@ impl<'a> ChessemblyCompiled<'a> {
         self.generate_ij_moves::<MACHO, IMPRISONED, SIZE>(board, position, 2, 1)
     }
 
-    pub fn generate_queen_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
+    pub fn generate_queen_moves<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
         board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
@@ -442,7 +438,7 @@ impl<'a> ChessemblyCompiled<'a> {
         moves
     }
 
-    pub fn generate_dozer_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
+    pub fn generate_dozer_moves<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
         board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
@@ -465,7 +461,7 @@ impl<'a> ChessemblyCompiled<'a> {
         moves
     }
 
-    pub fn generate_bouncing_bishop_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
+    pub fn generate_bouncing_bishop_moves<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
         board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
@@ -475,7 +471,7 @@ impl<'a> ChessemblyCompiled<'a> {
         ret
     }
 
-    pub fn generate_alfil_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
+    pub fn generate_alfil_moves<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
         board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
@@ -488,7 +484,7 @@ impl<'a> ChessemblyCompiled<'a> {
         ret
     }
 
-    pub fn generate_ij_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
+    pub fn generate_ij_moves<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
         board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
@@ -507,7 +503,7 @@ impl<'a> ChessemblyCompiled<'a> {
         ret
     }
 
-    pub fn generate_bard_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
+    pub fn generate_bard_moves<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
         board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
@@ -524,23 +520,21 @@ impl<'a> ChessemblyCompiled<'a> {
         ret
     }
     
-    pub fn generate_wasp_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
+    pub fn generate_wasp_moves<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
         board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
-        ChessemblyCompiled {
-            chains: vec![
-                vec![Behavior::TakeMove((0, 1)), Behavior::Repeat(1)],
-                vec![Behavior::Move((1, -1)), Behavior::Repeat(1)],
-                vec![Behavior::Move((-1, -1)), Behavior::Repeat(1)],
-            ],
-        }
+        ChessemblyCompiled::from_chains_vec(vec![
+            vec![Behavior::TakeMove((0, 1)), Behavior::Repeat(1)],
+            vec![Behavior::Move((1, -1)), Behavior::Repeat(1)],
+            vec![Behavior::Move((-1, -1)), Behavior::Repeat(1)],
+        ])
             .generate_moves::<MACHO, IMPRISONED, SIZE>(board, position, false)
             .unwrap()
     }
 
-    pub fn generate_amazon_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
+    pub fn generate_amazon_moves<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
         board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
@@ -557,7 +551,7 @@ impl<'a> ChessemblyCompiled<'a> {
         moves
     }
 
-    pub fn generate_centaur_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
+    pub fn generate_centaur_moves<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
         board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
@@ -574,7 +568,7 @@ impl<'a> ChessemblyCompiled<'a> {
         moves
     }
 
-    pub fn generate_archbishop_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
+    pub fn generate_archbishop_moves<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
         board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
@@ -587,7 +581,7 @@ impl<'a> ChessemblyCompiled<'a> {
         moves
     }
 
-    pub fn generate_chancellor_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
+    pub fn generate_chancellor_moves<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
         board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
@@ -600,157 +594,151 @@ impl<'a> ChessemblyCompiled<'a> {
         moves
     }
 
-    pub fn generate_cannon_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
+    pub fn generate_cannon_moves<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
         board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
-        ChessemblyCompiled {
-            chains: vec![
-                vec![
-                    Behavior::Do,
-                    Behavior::Take((1, 0)),
-                    Behavior::Enemy((0, 0)),
-                    Behavior::Not,
-                    Behavior::While,
-                    Behavior::Jump((1, 0)),
-                    Behavior::Repeat(1),
-                ],
-                vec![
-                    Behavior::Do,
-                    Behavior::Take((-1, 0)),
-                    Behavior::Enemy((0, 0)),
-                    Behavior::Not,
-                    Behavior::While,
-                    Behavior::Jump((-1, 0)),
-                    Behavior::Repeat(1),
-                ],
-                vec![
-                    Behavior::Do,
-                    Behavior::Take((0, 1)),
-                    Behavior::Enemy((0, 0)),
-                    Behavior::Not,
-                    Behavior::While,
-                    Behavior::Jump((0, 1)),
-                    Behavior::Repeat(1),
-                ],
-                vec![
-                    Behavior::Do,
-                    Behavior::Take((0, -1)),
-                    Behavior::Enemy((0, 0)),
-                    Behavior::Not,
-                    Behavior::While,
-                    Behavior::Jump((0, -1)),
-                    Behavior::Repeat(1),
-                ],
-                vec![
-                    Behavior::Do,
-                    Behavior::Peek((1, 0)),
-                    Behavior::While,
-                    Behavior::Friendly((0, 0)),
-                    Behavior::Move((1, 0)),
-                    Behavior::Repeat(1),
-                ],
-                vec![
-                    Behavior::Do,
-                    Behavior::Peek((-1, 0)),
-                    Behavior::While,
-                    Behavior::Friendly((0, 0)),
-                    Behavior::Move((-1, 0)),
-                    Behavior::Repeat(1),
-                ],
-                vec![
-                    Behavior::Do,
-                    Behavior::Peek((0, 1)),
-                    Behavior::While,
-                    Behavior::Friendly((0, 0)),
-                    Behavior::Move((0, 1)),
-                    Behavior::Repeat(1),
-                ],
-                vec![
-                    Behavior::Do,
-                    Behavior::Peek((0, -1)),
-                    Behavior::While,
-                    Behavior::Friendly((0, 0)),
-                    Behavior::Move((0, -1)),
-                    Behavior::Repeat(1),
-                ],
+        ChessemblyCompiled::from_chains_vec(vec![
+            vec![
+                Behavior::Do,
+                Behavior::Take((1, 0)),
+                Behavior::Enemy((0, 0)),
+                Behavior::Not,
+                Behavior::While,
+                Behavior::Jump((1, 0)),
+                Behavior::Repeat(1),
             ],
-        }
+            vec![
+                Behavior::Do,
+                Behavior::Take((-1, 0)),
+                Behavior::Enemy((0, 0)),
+                Behavior::Not,
+                Behavior::While,
+                Behavior::Jump((-1, 0)),
+                Behavior::Repeat(1),
+            ],
+            vec![
+                Behavior::Do,
+                Behavior::Take((0, 1)),
+                Behavior::Enemy((0, 0)),
+                Behavior::Not,
+                Behavior::While,
+                Behavior::Jump((0, 1)),
+                Behavior::Repeat(1),
+            ],
+            vec![
+                Behavior::Do,
+                Behavior::Take((0, -1)),
+                Behavior::Enemy((0, 0)),
+                Behavior::Not,
+                Behavior::While,
+                Behavior::Jump((0, -1)),
+                Behavior::Repeat(1),
+            ],
+            vec![
+                Behavior::Do,
+                Behavior::Peek((1, 0)),
+                Behavior::While,
+                Behavior::Friendly((0, 0)),
+                Behavior::Move((1, 0)),
+                Behavior::Repeat(1),
+            ],
+            vec![
+                Behavior::Do,
+                Behavior::Peek((-1, 0)),
+                Behavior::While,
+                Behavior::Friendly((0, 0)),
+                Behavior::Move((-1, 0)),
+                Behavior::Repeat(1),
+            ],
+            vec![
+                Behavior::Do,
+                Behavior::Peek((0, 1)),
+                Behavior::While,
+                Behavior::Friendly((0, 0)),
+                Behavior::Move((0, 1)),
+                Behavior::Repeat(1),
+            ],
+            vec![
+                Behavior::Do,
+                Behavior::Peek((0, -1)),
+                Behavior::While,
+                Behavior::Friendly((0, 0)),
+                Behavior::Move((0, -1)),
+                Behavior::Repeat(1),
+            ],
+        ])
             .generate_moves::<MACHO, IMPRISONED, SIZE>(board, position, false)
             .unwrap()
     }
 
-    pub fn generate_tempest_rook_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
+    pub fn generate_tempest_rook_moves<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
         board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
-        ChessemblyCompiled {
-            chains: vec![
-                vec![
-                    Behavior::TakeMove((1, 1)),
-                    Behavior::TakeMove((1, 0)),
-                    Behavior::Repeat(1),
-                ],
-                vec![
-                    Behavior::TakeMove((1, 1)),
-                    Behavior::TakeMove((0, 1)),
-                    Behavior::Repeat(1),
-                ],
-                vec![
-                    Behavior::TakeMove((1, -1)),
-                    Behavior::TakeMove((1, 0)),
-                    Behavior::Repeat(1),
-                ],
-                vec![
-                    Behavior::TakeMove((1, -1)),
-                    Behavior::TakeMove((0, -1)),
-                    Behavior::Repeat(1),
-                ],
-                vec![
-                    Behavior::TakeMove((-1, 1)),
-                    Behavior::TakeMove((-1, 0)),
-                    Behavior::Repeat(1),
-                ],
-                vec![
-                    Behavior::TakeMove((-1, 1)),
-                    Behavior::TakeMove((0, 1)),
-                    Behavior::Repeat(1),
-                ],
-                vec![
-                    Behavior::TakeMove((-1, -1)),
-                    Behavior::TakeMove((-1, 0)),
-                    Behavior::Repeat(1),
-                ],
-                vec![
-                    Behavior::TakeMove((-1, -1)),
-                    Behavior::TakeMove((0, -1)),
-                    Behavior::Repeat(1),
-                ],
+        ChessemblyCompiled::from_chains_vec(vec![
+            vec![
+                Behavior::TakeMove((1, 1)),
+                Behavior::TakeMove((1, 0)),
+                Behavior::Repeat(1),
             ],
-        }
+            vec![
+                Behavior::TakeMove((1, 1)),
+                Behavior::TakeMove((0, 1)),
+                Behavior::Repeat(1),
+            ],
+            vec![
+                Behavior::TakeMove((1, -1)),
+                Behavior::TakeMove((1, 0)),
+                Behavior::Repeat(1),
+            ],
+            vec![
+                Behavior::TakeMove((1, -1)),
+                Behavior::TakeMove((0, -1)),
+                Behavior::Repeat(1),
+            ],
+            vec![
+                Behavior::TakeMove((-1, 1)),
+                Behavior::TakeMove((-1, 0)),
+                Behavior::Repeat(1),
+            ],
+            vec![
+                Behavior::TakeMove((-1, 1)),
+                Behavior::TakeMove((0, 1)),
+                Behavior::Repeat(1),
+            ],
+            vec![
+                Behavior::TakeMove((-1, -1)),
+                Behavior::TakeMove((-1, 0)),
+                Behavior::Repeat(1),
+            ],
+            vec![
+                Behavior::TakeMove((-1, -1)),
+                Behavior::TakeMove((0, -1)),
+                Behavior::Repeat(1),
+            ],
+        ])
             .generate_moves::<MACHO, IMPRISONED, SIZE>(board, position, false)
             .unwrap()
     }
 
-    pub fn generate_chameleon_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
+    pub fn generate_chameleon_moves<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
         board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
-        let mut moves = ChessemblyCompiled {
-            chains: vec![
-                vec![Behavior::Move((1, 0))],
-                vec![Behavior::Move((-1, 0))],
-                vec![Behavior::Move((0, 1))],
-                vec![Behavior::Move((0, -1))],
-                vec![Behavior::Move((1, 1))],
-                vec![Behavior::Move((1, -1))],
-                vec![Behavior::Move((-1, 1))],
-                vec![Behavior::Move((-1, -1))],
-            ],
-        }
+        let mut moves = ChessemblyCompiled::from_chains_vec(vec![
+            vec![Behavior::Move((1, 0))],
+            vec![Behavior::Move((-1, 0))],
+            vec![Behavior::Move((0, 1))],
+            vec![Behavior::Move((0, -1))],
+            vec![Behavior::Move((1, 1))],
+            vec![Behavior::Move((1, -1))],
+            vec![Behavior::Move((-1, 1))],
+            vec![Behavior::Move((-1, -1))],
+        ])
             .generate_moves::<MACHO, IMPRISONED, SIZE>(board, position, false)
             .unwrap();
 
@@ -819,23 +807,21 @@ impl<'a> ChessemblyCompiled<'a> {
         moves
     }
 
-    pub fn generate_pseudo_pawn_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
+    pub fn generate_pseudo_pawn_moves<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
         board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
-        ChessemblyCompiled {
-            chains: vec![
-                vec![Behavior::Move((0, 1))],
-                vec![Behavior::Take((1, 1))],
-                vec![Behavior::Take((-1, 1))],
-            ],
-        }
+        ChessemblyCompiled::from_chains_vec(vec![
+            vec![Behavior::Move((0, 1))],
+            vec![Behavior::Take((1, 1))],
+            vec![Behavior::Take((-1, 1))],
+        ])
             .generate_moves::<MACHO, IMPRISONED, SIZE>(board, position, false)
             .unwrap()
     }
 
-    pub fn generate_beacon_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
+    pub fn generate_beacon_moves<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
         board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
@@ -867,7 +853,7 @@ impl<'a> ChessemblyCompiled<'a> {
         moves
     }
 
-    pub fn generate_pseudo_rook_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
+    pub fn generate_pseudo_rook_moves<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
         board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
@@ -880,7 +866,7 @@ impl<'a> ChessemblyCompiled<'a> {
         moves
     }
     
-    pub fn generate_windmill_rook_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
+    pub fn generate_windmill_rook_moves<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
         board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
@@ -890,7 +876,7 @@ impl<'a> ChessemblyCompiled<'a> {
         ret
     }
 
-    pub fn generate_windmill_bishop_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
+    pub fn generate_windmill_bishop_moves<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
         board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
@@ -900,7 +886,7 @@ impl<'a> ChessemblyCompiled<'a> {
         ret
     }
 
-    pub fn generate_mirrored_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
+    pub fn generate_mirrored_moves<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
         board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,

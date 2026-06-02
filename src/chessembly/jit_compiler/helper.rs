@@ -94,7 +94,6 @@ pub extern "C" fn rust_helper_should_skip<'a, const MACHO: bool, const IMPRISONE
 
 pub extern "C" fn jit_helper_not<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>) {
     let ctx = unsafe { &mut *ctx_ptr };
-    println!("NOT");
     let state = ctx.last_state();
     ctx.set_last_state(!state);
 }
@@ -441,7 +440,6 @@ pub extern "C" fn jit_helper_corner<'a, const MACHO: bool, const IMPRISONED: boo
 
 pub extern "C" fn jit_helper_edge_top<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
     let ctx = unsafe { &mut *ctx_ptr };
-    println!("ET");
     ctx.set_last_state(matches!(jit_helper_get_wc(ctx_ptr, dx, dy), WallCollision::EdgeTop));
 }
 
@@ -506,6 +504,5 @@ pub extern "C" fn rust_helper_jmp_check<'a, const MACHO: bool, const IMPRISONED:
 
 pub extern "C" fn rust_helper_jmp_reset<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>) {
     let ctx = unsafe { &mut *ctx_ptr };
-    println!("jne??? {}.", ctx.last_state());
     ctx.set_last_state(true);
 }
