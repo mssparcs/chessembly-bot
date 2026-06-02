@@ -187,10 +187,10 @@ impl ChessemblyJitCompiler {
         #[cfg(unix)]
         {
             self.emit(&[0x48, 0x89, 0xdf]);          // mov rdi, rbx
-            self.emit(&[0x48, 0xc7, 0xc6]);          // mov rsi, dx
-            self.emit(&(dx as i64).to_le_bytes());
-            self.emit(&[0x48, 0xc7, 0xc2]);          // mov rdx, dy
-            self.emit(&(dy as i64).to_le_bytes());
+            self.emit(&[0x48, 0xc7, 0xc6]);          // mov rsi, dx (imm32 sign-extends to 64)
+            self.emit(&(dx as i32).to_le_bytes());
+            self.emit(&[0x48, 0xc7, 0xc2]);          // mov rdx, dy (imm32 sign-extends to 64)
+            self.emit(&(dy as i32).to_le_bytes());
             
             self.emit(&[0x48, 0x83, 0xec, 0x08]);    // sub rsp, 8
         }
@@ -242,17 +242,17 @@ impl ChessemblyJitCompiler {
             self.emit(&[0x48, 0x89, 0xd9]);          // mov rcx, rbx
             self.emit(&[0x48, 0xba]);                // mov rdx, name_ptr
             self.emit(&name_ptr.to_le_bytes());
-            self.emit(&[0x49, 0xc7, 0xc0]);          // mov r8, name_len
-            self.emit(&name_len.to_le_bytes());
+            self.emit(&[0x49, 0xc7, 0xc0]);          // mov r8, name_len (imm32, fits)
+            self.emit(&(name_len as u32).to_le_bytes());
             
             self.emit(&[0x48, 0x83, 0xec, 0x28]);    // sub rsp, 40
         }
         #[cfg(unix)]
         {
             self.emit(&[0x48, 0x89, 0xdf]);          // mov rdi, rbx
-            self.emit(&[0x48, 0xc7, 0xc6]);          // mov rsi, name_ptr
+            self.emit(&[0x48, 0xbe]);                // mov rsi, name_ptr (imm64)
             self.emit(&name_ptr.to_le_bytes());
-            self.emit(&[0x48, 0xc7, 0xc2]);          // mov rdx, name_len
+            self.emit(&[0x48, 0xba]);                // mov rdx, name_len (imm64)
             self.emit(&name_len.to_le_bytes());
             
             self.emit(&[0x48, 0x83, 0xec, 0x08]);    // sub rsp, 8
@@ -282,11 +282,11 @@ impl ChessemblyJitCompiler {
             self.emit(&[0x48, 0xba]);                // mov rdx, name_ptr
             self.emit(&name_ptr.to_le_bytes());
             
-            self.emit(&[0x49, 0xc7, 0xc0]);          // mov r8, name_len
-            self.emit(&name_len.to_le_bytes());
+            self.emit(&[0x49, 0xc7, 0xc0]);          // mov r8, name_len (imm32, len fits in 32 bits)
+            self.emit(&(name_len as u32).to_le_bytes());
 
-            self.emit(&[0x49, 0xc7, 0xc1]);          // mov r9, packed_delta
-            self.emit(&packed_delta.to_le_bytes());
+            self.emit(&[0x49, 0xc7, 0xc1]);          // mov r9, packed_delta (imm32, fits in 32 bits)
+            self.emit(&(packed_delta as u32).to_le_bytes());
             
             self.emit(&[0x48, 0x83, 0xec, 0x28]);    // sub rsp, 40 (Shadow Space + Alignment)
         }
@@ -294,13 +294,13 @@ impl ChessemblyJitCompiler {
         {
             self.emit(&[0x48, 0x89, 0xdf]);          // mov rdi, rbx (ctx)
             
-            self.emit(&[0x48, 0xbe]);                // mov rsi, name_ptr
+            self.emit(&[0x48, 0xbe]);                // mov rsi, name_ptr (imm64)
             self.emit(&name_ptr.to_le_bytes());
             
-            self.emit(&[0x48, 0xc7, 0xc2]);          // mov rdx, name_len
+            self.emit(&[0x48, 0xba]);                // mov rdx, name_len (imm64)
             self.emit(&name_len.to_le_bytes());
 
-            self.emit(&[0x48, 0xc7, 0xc1]);          // mov rcx, packed_delta
+            self.emit(&[0x48, 0xb9]);                // mov rcx, packed_delta (imm64)
             self.emit(&packed_delta.to_le_bytes());
             
             self.emit(&[0x48, 0x83, 0xec, 0x08]);    // sub rsp, 8 (align 16-bytes)
