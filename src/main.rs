@@ -3,7 +3,7 @@ use axum::{
     extract::Json as JsonBody,
 };
 use chessembly_bot::{
-    chessembly::{self, ChessemblyCompiled, PieceSpan, board::{Board, BoardState, BothBoardState}},
+    chessembly::{self, ChessemblyCompiled, Piece, PieceSpan, board::{Board, BoardState, BothBoardState}},
     engine,
 };
 use std::{collections::HashMap, env};
@@ -93,6 +93,8 @@ async fn main() {
         .route("/debug", post(run_engine_debug))
         .route("/moves", post(get_piece_moves))
         .route("/apply", post(apply_move_endpoint))
+        .route("/classify", post(classify_piece))
+        .route("/classifier", get(serve_classifier_ui))
         .layer(cors);
 
     let port = env::var("PORT")
@@ -109,6 +111,10 @@ async fn main() {
 
 async fn serve_debug_ui() -> impl IntoResponse {
     axum::response::Html(include_str!("debug.html"))
+}
+
+async fn serve_classifier_ui() -> impl IntoResponse {
+    axum::response::Html(include_str!("piece_classifier.html"))
 }
 
 fn setup_board<'a, const MACHO: bool, const IMPRISONED: bool>(
@@ -772,4 +778,133 @@ async fn apply_move_endpoint(
         Some(resp) => (StatusCode::OK, Json(resp)).into_response(),
         None => (StatusCode::BAD_REQUEST, "illegal move").into_response(),
     }
+}
+
+// ─── POST /classify ───────────────────────────────────────────────────────────
+// 바디: { "piece_name": "...", "script": "..." }
+// 반환: { "classification": "legend"|"major"|"minor", "example": "..." | null }
+//
+// 분류 기준:
+//   legend — 자신 킹 없이 이 기물 혼자서 체크메이트 가능한 포지션이 존재
+//   major  — 자신 킹과 함께 체크메이트 가능한 포지션이 존재
+//   minor  — 위 두 경우 모두 해당 없음
+
+#[derive(serde::Deserialize)]
+struct ClassifyRequest {
+    piece_name: String,
+    script: String,
+}
+
+#[derive(serde::Serialize)]
+struct ClassifyResponse {
+    classification: String,
+    example: Option<String>,
+}
+
+async fn classify_piece(JsonBody(body): JsonBody<ClassifyRequest>) -> impl IntoResponse {
+    // piece_name을 스크립트 주석으로 포함시켜 같은 lifetime 'a를 공유하게 함
+    // ';'로 주석 체인을 분리해야 from_script가 첫 번째 실제 체인을 건너뛰지 않음
+    let combined = format!(
+        "#{};\n{}",
+        body.piece_name,
+        body.script.replace('{', " { ").replace('}', " } ")
+    );
+    let Ok(compiled) = ChessemblyCompiled::from_script(&combined) else {
+        return (StatusCode::BAD_REQUEST, Json(serde_json::json!({"error": "script parse failed"}))).into_response();
+    };
+    // combined[1..] 은 '#' 이후의 piece_name 부분을 포함하므로 lifetime이 동일
+    let piece_name: &str = &combined[1..1 + body.piece_name.len()];
+
+    // ── Legend 단계: 어떤 위치에서든 이 기물의 이동 가능 칸이 2×2 블록을 커버하면 legend ──
+    // 빈 보드에서 검사해야 슬라이딩 기물(비숍·퀸 계열)의 이동 범위가 완전히 펼쳐짐
+    // 꽉 찬 보드를 쓰면 슬라이딩이 1칸으로 막혀 아마존·아치비숍 등이 2×2를 커버하지 못함
+    for pc in 0u8..8 {
+        for pr in 0u8..8 {
+            // 백 킹은 (7,7) 고정 (기물과 겹치면 (7,6) 사용)
+            let (wkc, wkr): (u8, u8) = if (pc, pr) != (7, 7) { (7, 7) } else { (7, 6) };
+
+            let mut board = Board::<false, false, 8>::empty(&compiled);
+            board.board_state.white.castling_oo = false;
+            board.board_state.white.castling_ooo = false;
+            board.board_state.black.castling_oo = false;
+            board.board_state.black.castling_ooo = false;
+            board.board[pr as usize][pc as usize] = PieceSpan::Piece(Piece { piece_type: piece_name, color: chessembly::Color::White });
+            board.board[wkr as usize][wkc as usize] = PieceSpan::Piece(Piece { piece_type: "king", color: chessembly::Color::White });
+
+            let script = board.script;
+            let moves = script.get_moves::<false, false, 8>(&mut board, &(pc, pr), true);
+            let dests: Vec<(u8, u8)> = moves.iter().map(|m| m.get_dest()).collect();
+
+            // 이동 가능 칸들이 2×2 블록을 커버하는지 확인
+            for c in 0u8..7 {
+                for r in 0u8..7 {
+                    if dests.contains(&(c, r)) && dests.contains(&(c + 1, r))
+                        && dests.contains(&(c, r + 1)) && dests.contains(&(c + 1, r + 1))
+                    {
+                        return (StatusCode::OK, Json(ClassifyResponse {
+                            classification: "legend".to_string(),
+                            example: Some(format!(
+                                "{}@({},{}), 2x2 cover ({},{})~({},{})",
+                                piece_name, pc, pr, c, r, c + 1, r + 1
+                            )),
+                        })).into_response();
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Major 단계: 행 또는 열 방향으로 연속된 두 칸에 이동 가능하면 major ─────────────
+    // 빈 보드에서 슬라이딩 범위를 확인
+    for pc in 0u8..8 {
+        for pr in 0u8..8 {
+            let (wkc, wkr): (u8, u8) = if (pc, pr) != (7, 7) { (7, 7) } else { (7, 6) };
+
+            let mut board = Board::<false, false, 8>::empty(&compiled);
+            board.board_state.white.castling_oo = false;
+            board.board_state.white.castling_ooo = false;
+            board.board_state.black.castling_oo = false;
+            board.board_state.black.castling_ooo = false;
+            board.board[pr as usize][pc as usize] = PieceSpan::Piece(Piece { piece_type: piece_name, color: chessembly::Color::White });
+            board.board[wkr as usize][wkc as usize] = PieceSpan::Piece(Piece { piece_type: "king", color: chessembly::Color::White });
+
+            let script = board.script;
+            let moves = script.get_moves::<false, false, 8>(&mut board, &(pc, pr), true);
+            let dests: Vec<(u8, u8)> = moves.iter().map(|m| m.get_dest()).collect();
+
+            // 같은 행에서 인접한 두 칸에 이동 가능하면 행 방향 슬라이딩
+            for r in 0u8..8 {
+                for c in 0u8..7 {
+                    if dests.contains(&(c, r)) && dests.contains(&(c + 1, r)) {
+                        return (StatusCode::OK, Json(ClassifyResponse {
+                            classification: "major".to_string(),
+                            example: Some(format!(
+                                "{}@({},{}), horizontal slide row {}",
+                                piece_name, pc, pr, r
+                            )),
+                        })).into_response();
+                    }
+                }
+            }
+            // 같은 열에서 인접한 두 칸에 이동 가능하면 열 방향 슬라이딩
+            for c in 0u8..8 {
+                for r in 0u8..7 {
+                    if dests.contains(&(c, r)) && dests.contains(&(c, r + 1)) {
+                        return (StatusCode::OK, Json(ClassifyResponse {
+                            classification: "major".to_string(),
+                            example: Some(format!(
+                                "{}@({},{}), vertical slide col {}",
+                                piece_name, pc, pr, c
+                            )),
+                        })).into_response();
+                    }
+                }
+            }
+        }
+    }
+
+    (StatusCode::OK, Json(ClassifyResponse {
+        classification: "minor".to_string(),
+        example: None,
+    })).into_response()
 }
