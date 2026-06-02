@@ -7,6 +7,7 @@ pub mod moves;
 use behavior::{Behavior};
 pub(crate) use board::Board;
 use serde::Serialize;
+mod game_script;
 
 use crate::chessembly::behavior::BehaviorChain;
 use crate::chessembly::jit_compiler::{ChessemblyJitCompiler, CompiledChain};
@@ -112,6 +113,7 @@ impl<'a> ChessMove<'a> {
 #[derive(Debug, PartialEq, Eq)]
 pub struct ChessemblyCompiled {
     pub compiled_chains: Vec<CompiledChain>,
+    pub precompiled_units: Vec<CompiledChain>,
 }
 
 #[repr(C)]
@@ -250,16 +252,15 @@ impl MoveGen {
 
 impl ChessemblyCompiled {
     pub fn new() -> ChessemblyCompiled {
-        ChessemblyCompiled { compiled_chains: Vec::new() }
+        let mut ret = ChessemblyCompiled { compiled_chains: Vec::new(), precompiled_units: Vec::new() };
+        let units_chain = ChessemblyCompiled::from_script_to_chain(game_script::GAME_SCRIPT).unwrap();
+        for chain in units_chain {
+            let mut compiler = ChessemblyJitCompiler::new();
+            let compiled = compiler.compile::<false, false, 8>(&chain);
+            ret.precompiled_units.push(compiled);
+        }
+        ret
     }
-
-    // #[inline]
-    // pub fn push_behavior(&mut self, behavior: Behavior<'a>) {
-    //     let x = &mut self.compiled_chains.last_mut();
-    //     if let Some(last) = x {
-    //         last.push(behavior);
-    //     }
-    // }
 
     #[inline]
     pub fn push_compiled(&mut self, compiled: CompiledChain) {
@@ -276,6 +277,44 @@ impl ChessemblyCompiled {
         ret
     }
 
+    pub fn from_script_to_chain<'a>(script: &'a str) -> Result<Vec<BehaviorChain<'a>>, ()> {
+        let mut ret = Vec::new();
+        let chains = script.split(';');
+        for chain_str in chains {
+            if chain_str.trim().starts_with('#') {
+                continue;
+            } else if chain_str.chars().all(char::is_whitespace) {
+                continue;
+            } else {
+                let mut chain = Vec::new();
+                let mut i = 0;
+                let mut j = 0;
+                while j < chain_str.len() - 1 {
+                    let jp1 = chain_str.ceil_char_boundary(j + 1);
+                    if chain_str[j..jp1].chars().all(char::is_whitespace) {
+                        let jp2 = chain_str.ceil_char_boundary(jp1 + 1);
+                        if chain_str[jp1..jp2]
+                            .chars()
+                            .all(|c| char::is_alphabetic(c) || c == '{' || c == '}')
+                        {
+                            if chain_str[i..j].trim().len() > 0 {
+                                chain.push(Behavior::from_str(&chain_str[i..j].trim()));
+                                i = j;
+                            }
+                        }
+                    }
+                    j = jp1;
+                }
+                if !chain_str[i..].chars().all(char::is_whitespace) {
+                    chain.push(Behavior::from_str(&chain_str[i..].trim()));
+                }
+
+                ret.push(chain);
+            }
+        }
+        Ok(ret)
+    
+    }
     pub fn from_script(script: &str) -> Result<ChessemblyCompiled, ()> {
         let mut ret = ChessemblyCompiled::new();
         let chains = script.split(';');
@@ -459,6 +498,15 @@ impl ChessemblyCompiled {
             }
         }
 
+        for compiled in &self.precompiled_units {
+            if let Some(_) = board.color_on(position) {
+                compiled.execute_from(&board, *position, &mut nodes, check_danger);
+            }
+            else {
+                return Err(());
+            }
+        }
+
         Ok(nodes)
     }
 
@@ -518,22 +566,6 @@ impl ChessemblyCompiled {
                 ret
             },
             "rook" => self.generate_rook_moves::<MACHO, IMPRISONED, SIZE>(board, position),
-            "knight" => self.generate_knight_moves::<MACHO, IMPRISONED, SIZE>(board, position),
-            "bishop" => self.generate_bishop_moves::<MACHO, IMPRISONED, SIZE>(board, position),
-            "queen" => self.generate_queen_moves::<MACHO, IMPRISONED, SIZE>(board, position),
-            "tempest-rook" => self.generate_tempest_rook_moves::<MACHO, IMPRISONED, SIZE>(board, position),
-            "bouncing-bishop" => self.generate_bouncing_bishop_moves::<MACHO, IMPRISONED, SIZE>(board, position),
-            "dozer" => self.generate_dozer_moves::<MACHO, IMPRISONED, SIZE>(board, position),
-            "alfil" => self.generate_alfil_moves::<MACHO, IMPRISONED, SIZE>(board, position),
-            "bard" => self.generate_bard_moves::<MACHO, IMPRISONED, SIZE>(board, position),
-            "wasp" => self.generate_wasp_moves::<MACHO, IMPRISONED, SIZE>(board, position),
-            "amazon" => self.generate_amazon_moves::<MACHO, IMPRISONED, SIZE>(board, position),
-            "chancellor" => self.generate_chancellor_moves::<MACHO, IMPRISONED, SIZE>(board, position),
-            "archbishop" => self.generate_archbishop_moves::<MACHO, IMPRISONED, SIZE>(board, position),
-            "centaur" => self.generate_centaur_moves::<MACHO, IMPRISONED, SIZE>(board, position),
-            "zebra" => self.generate_ij_moves::<MACHO, IMPRISONED, SIZE>(board, position, 3, 2),
-            "giraffe" => self.generate_ij_moves::<MACHO, IMPRISONED, SIZE>(board, position, 4, 1),
-            "camel" => self.generate_ij_moves::<MACHO, IMPRISONED, SIZE>(board, position, 3, 1),
             "beacon" => self.generate_beacon_moves::<MACHO, IMPRISONED, SIZE>(board, position),
             "chameleon" => self.generate_chameleon_moves::<MACHO, IMPRISONED, SIZE>(board, position),
             "mirrored-pawn" => self.generate_mirrored_moves::<MACHO, IMPRISONED, SIZE>(board, position, "mirrored-pawn"),
@@ -541,8 +573,25 @@ impl ChessemblyCompiled {
             "mirrored-rook" => self.generate_mirrored_moves::<MACHO, IMPRISONED, SIZE>(board, position, "mirrored-rook"),
             "mirrored-knight" => self.generate_mirrored_moves::<MACHO, IMPRISONED, SIZE>(board, position, "mirrored-knight"),
             "mirrored-queen" => self.generate_mirrored_moves::<MACHO, IMPRISONED, SIZE>(board, position, "mirrored-queen"),
-            "windmill-rook" => self.generate_windmill_rook_moves::<MACHO, IMPRISONED, SIZE>(board, position),
-            "windmill-bishop" => self.generate_windmill_bishop_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            // "knight" => self.generate_knight_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            // "bishop" => self.generate_bishop_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            // "queen" => self.generate_queen_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            // "tempest-rook" => self.generate_tempest_rook_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            // "bouncing-bishop" => self.generate_bouncing_bishop_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            // "dozer" => self.generate_dozer_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            // "alfil" => self.generate_alfil_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            // "bard" => self.generate_bard_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            // // "wasp" => self.generate_wasp_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            // "wasp" => self.generate_moves_precompiled::<MACHO, IMPRISONED, SIZE>(board, position).unwrap_or(Vec::new()),
+            // "amazon" => self.generate_amazon_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            // "chancellor" => self.generate_chancellor_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            // "archbishop" => self.generate_archbishop_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            // "centaur" => self.generate_centaur_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            // "zebra" => self.generate_ij_moves::<MACHO, IMPRISONED, SIZE>(board, position, 3, 2),
+            // "giraffe" => self.generate_ij_moves::<MACHO, IMPRISONED, SIZE>(board, position, 4, 1),
+            // "camel" => self.generate_ij_moves::<MACHO, IMPRISONED, SIZE>(board, position, 3, 1),
+            // "windmill-rook" => self.generate_windmill_rook_moves::<MACHO, IMPRISONED, SIZE>(board, position),
+            // "windmill-bishop" => self.generate_windmill_bishop_moves::<MACHO, IMPRISONED, SIZE>(board, position),
             _ => {
                 let ret = self.generate_moves::<MACHO, IMPRISONED, SIZE>(board, position, check_danger);
                 ret.unwrap_or(Vec::new())

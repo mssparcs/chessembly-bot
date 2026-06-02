@@ -20,11 +20,6 @@ use super::{
     Color
 };
 
-// #[derive(Clone, PartialEq, Eq, Debug)]
-// pub struct ChessemblyCompiled<'a> {
-//     _marker: std::marker::PhantomData<&'a ()>,
-// }
-
 // ------------------------------------------
 // 2. JIT 실행 컨텍스트 (JitContext)
 // ------------------------------------------
@@ -555,9 +550,6 @@ impl ChessemblyJitCompiler {
             if let Some(&target_offset) = self.label_offsets.get(&patch.target_label_id) {
                 let next_inst = patch.source_inst_offset + 4;
                 let rel = (target_offset as isize - next_inst as isize) as i32;
-                if patch.target_label_id < 10010 && 10000 <= patch.target_label_id {
-                    println!("{} {}", &patch.target_label_id - 10000, target_offset);
-                }
                 self.code[patch.source_inst_offset..patch.source_inst_offset + 4].copy_from_slice(&rel.to_le_bytes());
             } else {
                 panic!("JIT Linker Error: Label {} not found", patch.target_label_id);

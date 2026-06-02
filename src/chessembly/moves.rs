@@ -527,20 +527,6 @@ impl ChessemblyCompiled {
         ret
     }
     
-    pub fn generate_wasp_moves<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
-        &self,
-        board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
-        position: &Position,
-    ) -> Vec<ChessMove<'a>> {
-        ChessemblyCompiled::from_chains_vec(vec![
-            vec![Behavior::TakeMove((0, 1)), Behavior::Repeat(1)],
-            vec![Behavior::Move((1, -1)), Behavior::Repeat(1)],
-            vec![Behavior::Move((-1, -1)), Behavior::Repeat(1)],
-        ])
-            .generate_moves::<MACHO, IMPRISONED, SIZE>(board, position, false)
-            .unwrap()
-    }
-
     pub fn generate_amazon_moves<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
         &self,
         board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
