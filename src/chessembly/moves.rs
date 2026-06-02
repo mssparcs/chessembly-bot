@@ -395,22 +395,29 @@ impl ChessemblyCompiled {
             (_, Ordering::Equal, Ordering::Equal, _, Color::Black) => Some(("castling-oo", 0)),
             (_, _, _, _, _) => None,
         };
+        let mut moves = Vec::new();
         if let Some(state_transition) = state_change {
-            ChessemblyCompiled::from_chains_vec(vec![
-                vec![Behavior::SetState(state_transition), Behavior::TakeMove((1, 0)), Behavior::Repeat(1)],
-                vec![Behavior::SetState(state_transition), Behavior::TakeMove((-1, 0)), Behavior::Repeat(1)],
-                vec![Behavior::SetState(state_transition), Behavior::TakeMove((0, 1)), Behavior::Repeat(1)],
-                vec![Behavior::SetState(state_transition), Behavior::TakeMove((0, -1)), Behavior::Repeat(1)],
-            ]).generate_moves::<MACHO, IMPRISONED, SIZE>(board, position, false).unwrap()
+            self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(1, 0));
+            self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(-1, 0));
+            self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(0, 1));
+            self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(0, -1));
+            let len = moves.len();
+            for i in 0..len {
+                match &mut moves[i] {
+                    ChessMove::Multiple(_) => (),
+                    ChessMove::Single(node) => {
+                        node.state_change = Some(vec![state_transition.clone()]);
+                    }
+                };
+            }
         }
         else {
-            ChessemblyCompiled::from_chains_vec(vec![
-                vec![Behavior::TakeMove((1, 0)), Behavior::Repeat(1)],
-                vec![Behavior::TakeMove((-1, 0)), Behavior::Repeat(1)],
-                vec![Behavior::TakeMove((0, 1)), Behavior::Repeat(1)],
-                vec![Behavior::TakeMove((0, -1)), Behavior::Repeat(1)],
-            ]).generate_moves::<MACHO, IMPRISONED, SIZE>(board, position, false).unwrap()
+            self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(1, 0));
+            self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(-1, 0));
+            self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(0, 1));
+            self.generate_ij_abs_take_move_slide(&mut moves, board, position, &(0, -1));
         }
+        moves
     }
 
     pub fn generate_knight_moves<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(

@@ -89,6 +89,7 @@ async fn main() {
         do take-move(-1, -1) while peek(0, 0) edge-left(-1, -1) jne(0) take-move(1, -1) repeat(1) label(0) edge-bottom(-1, -1) jne(1) take-move(-1, 1) repeat(1) label(1);
         
         # jmp(0) take-move(1, 0) label(0) take-move(2, 0);
+        
     ", board_str);
 
 
