@@ -216,22 +216,6 @@ impl<'a> Behavior<'a> {
                     .map(|s| s.parse::<u8>().unwrap_or(0))
                     .unwrap_or(0),
             ));
-        // } else if cmd == "movl" {
-        //     return Behavior::Movl((
-        //         params_vec.get(0).unwrap_or(&""),
-        //         params_vec
-        //             .get(1)
-        //             .map(|s| s.parse::<u8>().unwrap_or(0))
-        //             .unwrap_or(0),
-        //     ));
-        // } else if cmd == "movr" {
-        //     return Behavior::Movr((
-        //         params_vec.get(0).unwrap_or(&""),
-        //         params_vec
-        //             .get(1)
-        //             .map(|s| s.parse::<u8>().unwrap_or(0))
-        //             .unwrap_or(0),
-        //     ));
         } else if cmd == "piece-on" {
             return Behavior::PieceOn((
                 params_vec.get(0).unwrap_or(&""),

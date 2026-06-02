@@ -30,11 +30,28 @@ pub enum Color {
 }
 
 impl Color {
+    #[inline]
     pub fn invert(&self) -> Color {
         match self {
             Self::White => Self::Black,
             Self::Black => Self::White,
         }
+    }
+    
+    #[inline]
+    pub fn i8d(&self) -> i8 {
+        match self {
+            Self::White => 1,
+            Self::Black => -1,
+        }    
+    }
+
+    #[inline]
+    pub fn i8v2(&self, dx: i8, dy: i8) -> DeltaPosition {
+        match self {
+            Self::White => (dx, dy),
+            Self::Black => (-dx, -dy),
+        }    
     }
 }
 
@@ -573,25 +590,6 @@ impl ChessemblyCompiled {
             "mirrored-rook" => self.generate_mirrored_moves::<MACHO, IMPRISONED, SIZE>(board, position, "mirrored-rook"),
             "mirrored-knight" => self.generate_mirrored_moves::<MACHO, IMPRISONED, SIZE>(board, position, "mirrored-knight"),
             "mirrored-queen" => self.generate_mirrored_moves::<MACHO, IMPRISONED, SIZE>(board, position, "mirrored-queen"),
-            // "knight" => self.generate_knight_moves::<MACHO, IMPRISONED, SIZE>(board, position),
-            // "bishop" => self.generate_bishop_moves::<MACHO, IMPRISONED, SIZE>(board, position),
-            // "queen" => self.generate_queen_moves::<MACHO, IMPRISONED, SIZE>(board, position),
-            // "tempest-rook" => self.generate_tempest_rook_moves::<MACHO, IMPRISONED, SIZE>(board, position),
-            // "bouncing-bishop" => self.generate_bouncing_bishop_moves::<MACHO, IMPRISONED, SIZE>(board, position),
-            // "dozer" => self.generate_dozer_moves::<MACHO, IMPRISONED, SIZE>(board, position),
-            // "alfil" => self.generate_alfil_moves::<MACHO, IMPRISONED, SIZE>(board, position),
-            // "bard" => self.generate_bard_moves::<MACHO, IMPRISONED, SIZE>(board, position),
-            // // "wasp" => self.generate_wasp_moves::<MACHO, IMPRISONED, SIZE>(board, position),
-            // "wasp" => self.generate_moves_precompiled::<MACHO, IMPRISONED, SIZE>(board, position).unwrap_or(Vec::new()),
-            // "amazon" => self.generate_amazon_moves::<MACHO, IMPRISONED, SIZE>(board, position),
-            // "chancellor" => self.generate_chancellor_moves::<MACHO, IMPRISONED, SIZE>(board, position),
-            // "archbishop" => self.generate_archbishop_moves::<MACHO, IMPRISONED, SIZE>(board, position),
-            // "centaur" => self.generate_centaur_moves::<MACHO, IMPRISONED, SIZE>(board, position),
-            // "zebra" => self.generate_ij_moves::<MACHO, IMPRISONED, SIZE>(board, position, 3, 2),
-            // "giraffe" => self.generate_ij_moves::<MACHO, IMPRISONED, SIZE>(board, position, 4, 1),
-            // "camel" => self.generate_ij_moves::<MACHO, IMPRISONED, SIZE>(board, position, 3, 1),
-            // "windmill-rook" => self.generate_windmill_rook_moves::<MACHO, IMPRISONED, SIZE>(board, position),
-            // "windmill-bishop" => self.generate_windmill_bishop_moves::<MACHO, IMPRISONED, SIZE>(board, position),
             _ => {
                 let ret = self.generate_moves::<MACHO, IMPRISONED, SIZE>(board, position, check_danger);
                 ret.unwrap_or(Vec::new())

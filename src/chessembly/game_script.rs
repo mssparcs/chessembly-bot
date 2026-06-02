@@ -132,10 +132,10 @@ piece(cannon)
     { do take(-1, 0) enemy(0, 0) not while jump(-1, 0) repeat(1) }
     { do take(0, 1) enemy(0, 0) not while jump(0, 1) repeat(1) }
     { do take(0, -1) enemy(0, 0) not while jump(0, -1) repeat(1) }
-    { do peek(1, 0) while friendly(0, 0) move(1, 0) repeat(1) }
-    { do peek(-1, 0) while friendly(0, 0) move(-1, 0) repeat(1) }
-    { do peek(0, 1) while friendly(0, 0) move(0, 1) repeat(1) }
-    do peek(0, -1) while friendly(0, 0) move(0, -1) repeat(1);
+    { do peek(1, 0) while anchro(1, 0) friendly(0, 0) move(1, 0) repeat(1) }
+    { do peek(-1, 0) while anchro(1, 0) friendly(0, 0) move(-1, 0) repeat(1) }
+    { do peek(0, 1) while anchro(1, 0) friendly(0, 0) move(0, 1) repeat(1) }
+    do peek(0, -1) while anchro(1, 0) friendly(0, 0) move(0, -1) repeat(1);
 piece(centaur)
     { take-move(1, 2) }
     { take-move(1, -2) }

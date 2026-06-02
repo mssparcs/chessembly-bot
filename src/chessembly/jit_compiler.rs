@@ -399,10 +399,14 @@ impl ChessemblyJitCompiler {
                 Behavior::Move((dx, dy)) => self.emit_call_3_args(jit_helper_move::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
                 Behavior::Take((dx, dy)) => self.emit_call_3_args(jit_helper_take::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
                 Behavior::TakeMove((dx, dy)) => self.emit_call_3_args(jit_helper_take_move::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
+                Behavior::Shift((dx, dy)) => self.emit_call_3_args(jit_helper_shift::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
                 Behavior::Jump((dx, dy)) => self.emit_call_3_args(jit_helper_jump::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
                 Behavior::Catch((dx, dy)) => self.emit_call_3_args(jit_helper_catch::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
                 Behavior::Peek((dx, dy)) => self.emit_call_3_args(jit_helper_peek::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
                 Behavior::Observe((dx, dy)) => self.emit_call_3_args(jit_helper_observe::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
+
+                Behavior::Anchor((dx, dy)) => self.emit_call_3_args(jit_helper_anchor::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
+                Behavior::Absoulte((dx, dy)) => self.emit_call_3_args(jit_helper_absolute::<MACHO, IMPRISONED, SIZE> as usize, *dx as i8, *dy as i8),
                 
                 Behavior::Bound((dx, dy)) => self.emit_call_3_args(jit_helper_bound::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
                 Behavior::Edge((dx, dy)) => self.emit_call_3_args(jit_helper_edge::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
@@ -425,6 +429,8 @@ impl ChessemblyJitCompiler {
                         self.emit_call_3_args(jit_helper_color_on_black::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy);
                     }
                 }
+                Behavior::Friendly((dx, dy)) => self.emit_call_3_args(jit_helper_is_friendly::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
+                Behavior::Enemy((dx, dy)) => self.emit_call_3_args(jit_helper_is_enemy::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
                 Behavior::Color(color_name) => {
                     if color_name == &"white" {
                         self.emit_call_native(jit_helper_color_white::<MACHO, IMPRISONED, SIZE> as usize);
@@ -435,6 +441,14 @@ impl ChessemblyJitCompiler {
                 }
                 Behavior::Piece(name) => {
                     self.emit_call_string_helper(jit_helper_piece::<MACHO, IMPRISONED, SIZE> as usize, name);
+                }
+                Behavior::Transition(name) => {
+                    if name.len() == 0 {
+                        self.emit_call_native(jit_helper_transition_erase::<MACHO, IMPRISONED, SIZE> as usize);
+                    }
+                    else {
+                        self.emit_call_string_helper(jit_helper_transition::<MACHO, IMPRISONED, SIZE> as usize, name);
+                    }
                 }
                 Behavior::PieceOn((name, (dx, dy))) => {
                     self.emit_call_piece_on(jit_helper_piece_on::<MACHO, IMPRISONED, SIZE> as usize, name, *dx, *dy);
@@ -519,7 +533,16 @@ impl ChessemblyJitCompiler {
                     let patch_offset = self.code.len() - 4;
                     self.label_patches.push(LabelPatch {
                         source_inst_offset: patch_offset,
-                        target_label_id: target_idx,
+                        target_label_id: target_idx
+                    });
+                }
+                Behavior::End => {
+                    // jmp rel32
+                    self.emit(&[0xe9, 0x00, 0x00, 0x00, 0x00]);
+                    let patch_offset = self.code.len() - 4;
+                    self.label_patches.push(LabelPatch {
+                        source_inst_offset: patch_offset,
+                        target_label_id: epilogue_label_id
                     });
                 }
                 _ => {}
@@ -552,7 +575,10 @@ impl ChessemblyJitCompiler {
                 let rel = (target_offset as isize - next_inst as isize) as i32;
                 self.code[patch.source_inst_offset..patch.source_inst_offset + 4].copy_from_slice(&rel.to_le_bytes());
             } else {
-                panic!("JIT Linker Error: Label {} not found", patch.target_label_id);
+                let target_offset = self.code.len();
+                let next_inst = patch.source_inst_offset + 4;
+                let rel = (target_offset as isize - next_inst as isize) as i32;
+                self.code[patch.source_inst_offset..patch.source_inst_offset + 4].copy_from_slice(&rel.to_le_bytes());
             }
         }
     }

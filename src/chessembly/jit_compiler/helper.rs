@@ -11,6 +11,7 @@ use super::{
 };
 use crate::chessembly::ChessMoveUnit;
 use std::cmp::Ordering;
+use std::ptr;
 
 fn wall_collision<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(anchor: &Position, delta: &DeltaPosition, board: &Board<MACHO, IMPRISONED, SIZE>, color: Color) -> WallCollision {
     let a0 = (anchor.0 as i8) + delta.0;
@@ -139,12 +140,12 @@ pub extern "C" fn jit_helper_block_close<'a, const MACHO: bool, const IMPRISONED
 pub extern "C" fn jit_helper_move<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
     let ctx = unsafe { &mut *ctx_ptr };
     let board = unsafe { &*ctx.board };
-    let current_pos = ctx.current_position();
-    let nx = current_pos.0 as i8 + dx;
-    let ny = current_pos.1 as i8 - dy;
-
     let color_on_start = board.color_on(&(ctx.start_pos_col as u8, ctx.start_pos_row as u8)).unwrap();
-    let wc = wall_collision(&current_pos, &(dx, dy), board, color_on_start);
+    let current_pos = ctx.current_position();
+    let nx = current_pos.0 as i8 + dx * color_on_start.i8d();
+    let ny = current_pos.1 as i8 - dy * color_on_start.i8d();
+
+    let wc = wall_collision(&current_pos, &color_on_start.i8v2(dx, dy), board, color_on_start);
     if wc != WallCollision::NoCollision {
         ctx.set_last_state(false);
         return;
@@ -161,15 +162,41 @@ pub extern "C" fn jit_helper_move<'a, const MACHO: bool, const IMPRISONED: bool,
     }
 }
 
+pub extern "C" fn jit_helper_shift<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
+    let ctx = unsafe { &mut *ctx_ptr };
+    let board = unsafe { &*ctx.board };
+    let color_on_start = board.color_on(&(ctx.start_pos_col as u8, ctx.start_pos_row as u8)).unwrap();
+    let current_pos = ctx.current_position();
+    let nx = current_pos.0 as i8 + dx * color_on_start.i8d();
+    let ny = current_pos.1 as i8 - dy * color_on_start.i8d();
+
+    let wc = wall_collision(&current_pos, &color_on_start.i8v2(dx, dy), board, color_on_start);
+    if wc != WallCollision::NoCollision {
+        ctx.set_last_state(false);
+        return;
+    }
+    
+    let target_pos = (nx as u8, ny as u8);
+    if is_friendly(target_pos, board, color_on_start) {
+        ctx.set_current_position(target_pos);
+        push_node(ctx, MoveType::Shift, target_pos, target_pos);
+    } else if is_enemy(target_pos, board, color_on_start) {
+        ctx.set_current_position(target_pos);
+        push_node(ctx, MoveType::Shift, target_pos, target_pos);
+    } else {
+        ctx.set_current_position(target_pos);
+    }
+}
+
 pub extern "C" fn jit_helper_take<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
     let ctx = unsafe { &mut *ctx_ptr };
     let board = unsafe { &*ctx.board };
-    let current_pos = ctx.current_position();
-    let nx = current_pos.0 as i8 + dx;
-    let ny = current_pos.1 as i8 - dy;
-
     let color_on_start = board.color_on(&(ctx.start_pos_col as u8, ctx.start_pos_row as u8)).unwrap();
-    let wc = wall_collision(&current_pos, &(dx, dy), board, color_on_start);
+    let current_pos = ctx.current_position();
+    let nx = current_pos.0 as i8 + dx * color_on_start.i8d();
+    let ny = current_pos.1 as i8 - dy * color_on_start.i8d();
+
+    let wc = wall_collision(&current_pos, &color_on_start.i8v2(dx, dy), board, color_on_start);
     if wc != WallCollision::NoCollision {
         ctx.set_last_state(false);
         return;
@@ -194,11 +221,11 @@ pub extern "C" fn jit_helper_take_move<'a, const MACHO: bool, const IMPRISONED: 
     let ctx = unsafe { &mut *ctx_ptr };
     let board = unsafe { &*ctx.board };
     let current_pos = ctx.current_position();
-    let nx = current_pos.0 as i8 + dx;
-    let ny = current_pos.1 as i8 - dy;
-    
     let color_on_start = board.color_on(&(ctx.start_pos_col as u8, ctx.start_pos_row as u8)).unwrap();
-    let wc = wall_collision(&current_pos, &(dx, dy), board, color_on_start);
+    let nx = current_pos.0 as i8 + dx * color_on_start.i8d();
+    let ny = current_pos.1 as i8 - dy * color_on_start.i8d();
+    
+    let wc = wall_collision(&current_pos, &color_on_start.i8v2(dx, dy), board, color_on_start);
     if wc != WallCollision::NoCollision {
         ctx.set_last_state(false);
         return;
@@ -220,6 +247,7 @@ pub extern "C" fn jit_helper_take_move<'a, const MACHO: bool, const IMPRISONED: 
 pub extern "C" fn jit_helper_jump<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
     let ctx = unsafe { &mut *ctx_ptr };
     let board = unsafe { &*ctx.board };
+    let color_on_start = board.color_on(&(ctx.start_pos_col as u8, ctx.start_pos_row as u8)).unwrap();
     let t_idx = (ctx.take_stack_len - 1) as usize;
 
     if ctx.take_stack_has_value[t_idx] == 1 {
@@ -236,12 +264,11 @@ pub extern "C" fn jit_helper_jump<'a, const MACHO: bool, const IMPRISONED: bool,
 
         if dx != 0 || dy != 0 {
             let cur = ctx.current_position();
-            let nx = cur.0 as i8 + dx;
-            let ny = cur.1 as i8 - dy;
+            let nx = cur.0 as i8 + dx * color_on_start.i8d();
+            let ny = cur.1 as i8 - dy * color_on_start.i8d();
             if nx < 0 || nx >= SIZE as i8 || ny < 0 || ny >= SIZE as i8 {
                 let target_pos = (nx as u8, ny as u8);
-                let color_on_start = board.color_on(&(ctx.start_pos_col as u8, ctx.start_pos_row as u8)).unwrap();
-                let wc = wall_collision(&cur, &(dx, dy), board, color_on_start);
+                let wc = wall_collision(&cur, &color_on_start.i8v2(dx, dy), board, color_on_start);
                 if wc == WallCollision::NoCollision && board.color_on(&target_pos).is_none() {
                     ctx.set_current_position(target_pos);
                     push_node(ctx, MoveType::TakeJump, target_pos, tp);
@@ -250,6 +277,7 @@ pub extern "C" fn jit_helper_jump<'a, const MACHO: bool, const IMPRISONED: bool,
             }
         }
     }
+
     ctx.set_last_state(false);
 }
 
@@ -257,11 +285,11 @@ pub extern "C" fn jit_helper_catch<'a, const MACHO: bool, const IMPRISONED: bool
     let ctx = unsafe { &mut *ctx_ptr };
     let board = unsafe { &*ctx.board };
     let current_pos = ctx.current_position();
-    let nx = current_pos.0 as i8 + dx;
-    let ny = current_pos.1 as i8 - dy;
-
     let color_on_start = board.color_on(&(ctx.start_pos_col as u8, ctx.start_pos_row as u8)).unwrap();
-    let wc = wall_collision(&current_pos, &(dx, dy), board, color_on_start);
+    let nx = current_pos.0 as i8 + dx * color_on_start.i8d();
+    let ny = current_pos.1 as i8 - dy * color_on_start.i8d();
+
+    let wc = wall_collision(&current_pos, &color_on_start.i8v2(dx, dy), board, color_on_start);
     if wc != WallCollision::NoCollision {
         ctx.set_last_state(false);
         return;
@@ -281,9 +309,10 @@ pub extern "C" fn jit_helper_catch<'a, const MACHO: bool, const IMPRISONED: bool
 pub extern "C" fn jit_helper_peek<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
     let ctx = unsafe { &mut *ctx_ptr };
     let board = unsafe { &*ctx.board };
+    let color_on_start = board.color_on(&(ctx.start_pos_col as u8, ctx.start_pos_row as u8)).unwrap();
     let current_pos = ctx.current_position();
-    let nx = current_pos.0 as i8 + dx;
-    let ny = current_pos.1 as i8 - dy;
+    let nx = current_pos.0 as i8 + dx * color_on_start.i8d();
+    let ny = current_pos.1 as i8 - dy * color_on_start.i8d();
     
     if nx < 0 || nx >= SIZE as i8 || ny < 0 || ny >= SIZE as i8 {
         ctx.set_last_state(false);
@@ -291,8 +320,7 @@ pub extern "C" fn jit_helper_peek<'a, const MACHO: bool, const IMPRISONED: bool,
     }
 
     let target_pos = (nx as u8, ny as u8);
-    let color_on_start = board.color_on(&(ctx.start_pos_col as u8, ctx.start_pos_row as u8)).unwrap();
-    let wc = wall_collision(&current_pos, &(dx, dy), board, color_on_start);
+    let wc = wall_collision(&current_pos, &color_on_start.i8v2(dx, dy), board, color_on_start);
     if wc != WallCollision::NoCollision || board.color_on(&target_pos).is_some() {
         ctx.set_last_state(false);
     } else {
@@ -303,12 +331,12 @@ pub extern "C" fn jit_helper_peek<'a, const MACHO: bool, const IMPRISONED: bool,
 pub extern "C" fn jit_helper_observe<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
     let ctx = unsafe { &mut *ctx_ptr };
     let board = unsafe { &*ctx.board };
-    let current_pos = ctx.current_position();
-    let nx = current_pos.0 as i8 + dx;
-    let ny = current_pos.1 as i8 - dy;
-
     let color_on_start = board.color_on(&(ctx.start_pos_col as u8, ctx.start_pos_row as u8)).unwrap();
-    let wc = wall_collision(&current_pos, &(dx, dy), board, color_on_start);
+    let current_pos = ctx.current_position();
+    let nx = current_pos.0 as i8 + dx * color_on_start.i8d();
+    let ny = current_pos.1 as i8 - dy * color_on_start.i8d();
+
+    let wc = wall_collision(&current_pos, &color_on_start.i8v2(dx, dy), board, color_on_start);
     if wc != WallCollision::NoCollision {
         ctx.set_last_state(false);
         return;
@@ -320,15 +348,47 @@ pub extern "C" fn jit_helper_observe<'a, const MACHO: bool, const IMPRISONED: bo
     }
 }
 
+pub extern "C" fn jit_helper_anchor<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
+    let ctx = unsafe { &mut *ctx_ptr };
+    let board = unsafe { &*ctx.board };
+    let color_on_start = board.color_on(&(ctx.start_pos_col as u8, ctx.start_pos_row as u8)).unwrap();
+    let current_pos = ctx.current_position();
+    let nx = current_pos.0 as i8 + dx * color_on_start.i8d();
+    let ny = current_pos.1 as i8 - dy * color_on_start.i8d();
+    
+    let wc = wall_collision(&current_pos, &color_on_start.i8v2(dx, dy), board, color_on_start);
+    if wc != WallCollision::NoCollision {
+        ctx.set_last_state(false);
+    } else {
+        let target_pos = (nx as u8, ny as u8);
+        ctx.set_current_position(target_pos);
+    }
+}
+
+pub extern "C" fn jit_helper_absolute<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, nx: i8, ny: i8) {
+    let ctx = unsafe { &mut *ctx_ptr };
+    let board = unsafe { &*ctx.board };
+    if nx < 0 || nx >= SIZE as i8 || ny < 0 || ny >= SIZE as i8 {
+        ctx.set_last_state(false);
+        return;
+    }
+    let color_on_start = board.color_on(&(ctx.start_pos_col as u8, ctx.start_pos_row as u8)).unwrap();
+    let target_pos = match color_on_start {
+        Color::White => (nx as u8, ny as u8),
+        Color::Black => (SIZE as u8 - 1 - nx as u8, SIZE as u8 - 1 - ny as u8)
+    };
+    ctx.set_current_position(target_pos);
+}
+
 pub extern "C" fn jit_helper_color_on_white<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
     let ctx = unsafe { &mut *ctx_ptr };
     let board = unsafe { &*ctx.board };
-    let current_pos = ctx.current_position();
-    let nx = current_pos.0 as i8 + dx;
-    let ny = current_pos.1 as i8 - dy;
-    
     let color_on_start = board.color_on(&(ctx.start_pos_col as u8, ctx.start_pos_row as u8)).unwrap();
-    let wc = wall_collision(&current_pos, &(dx, dy), board, color_on_start);
+    let current_pos = ctx.current_position();
+    let nx = current_pos.0 as i8 + dx * color_on_start.i8d();
+    let ny = current_pos.1 as i8 - dy * color_on_start.i8d();
+    
+    let wc = wall_collision(&current_pos, &color_on_start.i8v2(dx, dy), board, color_on_start);
     if wc != WallCollision::NoCollision {
         ctx.set_last_state(false);
         return;
@@ -347,12 +407,12 @@ pub extern "C" fn jit_helper_color_on_white<'a, const MACHO: bool, const IMPRISO
 pub extern "C" fn jit_helper_color_on_black<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
     let ctx = unsafe { &mut *ctx_ptr };
     let board = unsafe { &*ctx.board };
-    let current_pos = ctx.current_position();
-    let nx = current_pos.0 as i8 + dx;
-    let ny = current_pos.1 as i8 - dy;
-    
     let color_on_start = board.color_on(&(ctx.start_pos_col as u8, ctx.start_pos_row as u8)).unwrap();
-    let wc = wall_collision(&current_pos, &(dx, dy), board, color_on_start);
+    let current_pos = ctx.current_position();
+    let nx = current_pos.0 as i8 + dx * color_on_start.i8d();
+    let ny = current_pos.1 as i8 - dy * color_on_start.i8d();
+    
+    let wc = wall_collision(&current_pos, &color_on_start.i8v2(dx, dy), board, color_on_start);
     if wc != WallCollision::NoCollision {
         ctx.set_last_state(false);
         return;
@@ -368,12 +428,58 @@ pub extern "C" fn jit_helper_color_on_black<'a, const MACHO: bool, const IMPRISO
     }
 }
 
+pub extern "C" fn jit_helper_is_friendly<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
+    let ctx = unsafe { &mut *ctx_ptr };
+    let board = unsafe { &*ctx.board };
+    let color_on_start = board.color_on(&(ctx.start_pos_col as u8, ctx.start_pos_row as u8)).unwrap();
+    let current_pos = ctx.current_position();
+    let nx = current_pos.0 as i8 + dx * color_on_start.i8d();
+    let ny = current_pos.1 as i8 - dy * color_on_start.i8d();
+    
+    let wc = wall_collision(&current_pos, &color_on_start.i8v2(dx, dy), board, color_on_start);
+    if wc != WallCollision::NoCollision {
+        ctx.set_last_state(false);
+        return;
+    }
+    let target_pos = (nx as u8, ny as u8);
+    ctx.set_last_state(board.color_on(&target_pos) == Some(color_on_start));
+}
+
+pub extern "C" fn jit_helper_is_enemy<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
+    let ctx = unsafe { &mut *ctx_ptr };
+    let board = unsafe { &*ctx.board };
+    let color_on_start = board.color_on(&(ctx.start_pos_col as u8, ctx.start_pos_row as u8)).unwrap();
+    let current_pos = ctx.current_position();
+    let nx = current_pos.0 as i8 + dx * color_on_start.i8d();
+    let ny = current_pos.1 as i8 - dy * color_on_start.i8d();
+    
+    let wc = wall_collision(&current_pos, &color_on_start.i8v2(dx, dy), board, color_on_start);
+    if wc != WallCollision::NoCollision {
+        ctx.set_last_state(false);
+        return;
+    }
+    let target_pos = (nx as u8, ny as u8);
+    ctx.set_last_state(board.color_on(&target_pos) == Some(color_on_start.invert()));
+}
+
 pub extern "C" fn jit_helper_piece<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, name_ptr: *const u8, name_len: usize) {
     let ctx = unsafe { &mut *ctx_ptr };
     let board = unsafe { &*ctx.board };
     let name = unsafe { std::str::from_utf8(std::slice::from_raw_parts(name_ptr, name_len)).unwrap_or("") };
     let start_pos = (ctx.start_pos_col as u8, ctx.start_pos_row as u8);
     ctx.set_last_state(board.piece_on(&start_pos) == Some(name));
+}
+
+pub extern "C" fn jit_helper_transition_erase<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>) {
+    let ctx = unsafe { &mut *ctx_ptr };
+    ctx.transition_ptr = ptr::null();
+    ctx.transition_len = 0;
+}
+
+pub extern "C" fn jit_helper_transition<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, name_ptr: *const u8, name_len: usize) {
+    let ctx = unsafe { &mut *ctx_ptr };
+    ctx.transition_ptr = name_ptr;
+    ctx.transition_len = name_len as u64;
 }
 
 pub extern "C" fn jit_helper_color_white<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>) {
@@ -393,6 +499,7 @@ pub extern "C" fn jit_helper_color_black<'a, const MACHO: bool, const IMPRISONED
 pub extern "C" fn jit_helper_piece_on<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, name_ptr: *const u8, name_len: usize, packed_delta: u64) {
     let ctx = unsafe { &mut *ctx_ptr };
     let board = unsafe { &*ctx.board };
+    let color_on_start = board.color_on(&(ctx.start_pos_col as u8, ctx.start_pos_row as u8)).unwrap();
     let name = unsafe { std::str::from_utf8(std::slice::from_raw_parts(name_ptr, name_len)).unwrap_or("") };
     
     // 32비트 압축 정보로부터 dx, dy 부호 정밀 해석 복원
@@ -400,12 +507,11 @@ pub extern "C" fn jit_helper_piece_on<'a, const MACHO: bool, const IMPRISONED: b
     let dy = ((packed_delta >> 8) & 0xFF) as i8;
 
     let current_pos = ctx.current_position();
-    let nx = current_pos.0 as i8 + dx;
-    let ny = current_pos.1 as i8 - dy;
+    let nx = current_pos.0 as i8 + dx * color_on_start.i8d();
+    let ny = current_pos.1 as i8 - dy * color_on_start.i8d();
 
     let target_pos = (nx as u8, ny as u8);
-    let color_on_start = board.color_on(&(ctx.start_pos_col as u8, ctx.start_pos_row as u8)).unwrap();
-    let wc = wall_collision(&current_pos, &(dx, dy), board, color_on_start);
+    let wc = wall_collision(&current_pos, &color_on_start.i8v2(dx, dy), board, color_on_start);
     if wc != WallCollision::NoCollision {
         ctx.set_last_state(false);
         return;
@@ -419,7 +525,7 @@ pub extern "C" fn jit_helper_get_wc<'a, const MACHO: bool, const IMPRISONED: boo
     let board = unsafe { &*ctx.board };
     let current_pos = ctx.current_position();
     let color_on_start = board.color_on(&(ctx.start_pos_col as u8, ctx.start_pos_row as u8)).unwrap();
-    let wc = wall_collision(&current_pos, &(dx, dy), board, color_on_start);
+    let wc = wall_collision(&current_pos, &color_on_start.i8v2(dx, dy), board, color_on_start);
     return wc;
 }
 
@@ -477,6 +583,16 @@ pub extern "C" fn jit_helper_corner_bottom_right<'a, const MACHO: bool, const IM
     let ctx = unsafe { &mut *ctx_ptr };
     ctx.set_last_state(matches!(jit_helper_get_wc(ctx_ptr, dx, dy), WallCollision::CornerBottomRight));
 }
+
+
+
+// pub extern "C" fn jit_helper_corner_bottom_right<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>, dx: i8, dy: i8) {
+//     let ctx = unsafe { &mut *ctx_ptr };
+//     ctx.set_last_state(matches!(jit_helper_get_wc(ctx_ptr, dx, dy), WallCollision::CornerBottomRight));
+// }
+
+
+
 
 pub extern "C" fn rust_helper_do<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(ctx_ptr: *mut JitContext<'a, MACHO, IMPRISONED, SIZE>) {
     let ctx = unsafe { &mut *ctx_ptr };
