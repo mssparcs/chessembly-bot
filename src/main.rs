@@ -78,13 +78,17 @@ fn encode_board_response<'a, const MACHO: bool, const IMPRISONED: bool, const SI
 
 #[tokio::main]
 async fn main() {
-    let board_str = "rnbqkbnr/......../......../.....r../......../......../......../RNBQKBNR/";
+    let board_str = "......../......../......../..B...../......../......../......../......../";
     chessembly::jit_compiler::test("
-        piece(rook)
-        { take-move(1, 0) repeat(1) }
-        { take-move(-1, 0) repeat(1) }
-        { take-move(0, 1) repeat(1) }
-        { take-move(0, -1) repeat(1) };
+        do take-move(1, 1) while peek(0, 0) edge-right(1, 1) jne(0) take-move(-1, 1) repeat(1) label(0) edge-top(1, 1) jne(1) take-move(1, -1) repeat(1) label(1);
+
+        do take-move(-1, 1) while peek(0, 0) edge-left(-1, 1) jne(0) take-move(1, 1) repeat(1) label(0) edge-top(-1, 1) jne(1) take-move(-1, -1) repeat(1) label(1);
+
+        do take-move(1, -1) while peek(0, 0) edge-right(1, -1) jne(0) take-move(-1, -1) repeat(1) label(0) edge-bottom(1, -1) jne(1) take-move(1, 1) repeat(1) label(1);
+
+        do take-move(-1, -1) while peek(0, 0) edge-left(-1, -1) jne(0) take-move(1, -1) repeat(1) label(0) edge-bottom(-1, -1) jne(1) take-move(-1, 1) repeat(1) label(1);
+        
+        # jmp(0) take-move(1, 0) label(0) take-move(2, 0);
     ", board_str);
 
 

@@ -49,6 +49,8 @@ pub struct JitContext<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE:
     
     pub states: [u64; 32],                     // offset 1584 (ends at 1840)
     pub states_len: u64,                       // offset 1840
+
+    pub has_jumped: bool,
     
     pub transition_ptr: *const u8,             // offset 1848 (Thin pointer로 변경하여 컴파일 에러 예방)
     pub transition_len: u64,                   // offset 1856
@@ -84,6 +86,7 @@ impl<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize> JitContex
             take_stack_len: 1,
             states,
             states_len: 1,
+            has_jumped: false,
             transition_ptr: ptr::null(),
             transition_len: 0,
             state_change_keys: [ptr::null(); 32],
@@ -409,6 +412,7 @@ impl ChessemblyJitCompiler {
                 Behavior::Bound((dx, dy)) => self.emit_call_3_args(jit_helper_bound::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
                 Behavior::Edge((dx, dy)) => self.emit_call_3_args(jit_helper_edge::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
                 Behavior::Corner((dx, dy)) => self.emit_call_3_args(jit_helper_corner::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
+
                 Behavior::EdgeTop((dx, dy)) => self.emit_call_3_args(jit_helper_edge_top::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
                 Behavior::EdgeBottom((dx, dy)) => self.emit_call_3_args(jit_helper_edge_bottom::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
                 Behavior::EdgeLeft((dx, dy)) => self.emit_call_3_args(jit_helper_edge_left::<MACHO, IMPRISONED, SIZE> as usize, *dx, *dy),
@@ -492,6 +496,7 @@ impl ChessemblyJitCompiler {
                     // jnz target_label
                     self.emit(&[0x0f, 0x85, 0x00, 0x00, 0x00, 0x00]);
                     let patch_offset = self.code.len() - 4;
+                    
                     self.label_patches.push(LabelPatch {
                         source_inst_offset: patch_offset,
                         target_label_id: *label_id as u32 + 10000,
@@ -499,11 +504,13 @@ impl ChessemblyJitCompiler {
                     self.emit_call_native(rust_helper_jmp_reset::<MACHO, IMPRISONED, SIZE> as usize);
                 }
                 Behavior::Jne(label_id) => {
-                    self.emit_call_native(rust_helper_jne_check::<MACHO, IMPRISONED, SIZE> as usize);
+                    self.emit_call_native(jit_helper_not::<MACHO, IMPRISONED, SIZE> as usize);
+                    self.emit_call_native(rust_helper_jmp_check::<MACHO, IMPRISONED, SIZE> as usize);
                     self.emit(&[0x84, 0xc0]); // test al, al
                     // jnz target_label
                     self.emit(&[0x0f, 0x85, 0x00, 0x00, 0x00, 0x00]);
                     let patch_offset = self.code.len() - 4;
+                    
                     self.label_patches.push(LabelPatch {
                         source_inst_offset: patch_offset,
                         target_label_id: *label_id as u32 + 10000,
@@ -548,6 +555,9 @@ impl ChessemblyJitCompiler {
             if let Some(&target_offset) = self.label_offsets.get(&patch.target_label_id) {
                 let next_inst = patch.source_inst_offset + 4;
                 let rel = (target_offset as isize - next_inst as isize) as i32;
+                if patch.target_label_id < 10010 && 10000 <= patch.target_label_id {
+                    println!("{} {}", &patch.target_label_id - 10000, target_offset);
+                }
                 self.code[patch.source_inst_offset..patch.source_inst_offset + 4].copy_from_slice(&rel.to_le_bytes());
             } else {
                 panic!("JIT Linker Error: Label {} not found", patch.target_label_id);
