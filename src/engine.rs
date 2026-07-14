@@ -70,13 +70,12 @@ pub mod game_logic {
     // Board 평가 헬퍼 메서드
     // (engine_huristic::heuristics의 순수 함수를 조합해 보드 전체를 평가합니다)
     // -------------------------------------------------------------------------
-    impl<'a, const MACHO: bool, const IMPRISONED: bool> Board<'a, MACHO, IMPRISONED, 8> {
-
+    impl<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize> Board<'a, MACHO, IMPRISONED, SIZE> {
         /// 모든 기물의 센티폰 가치 합산. 반환값: 백 절대 시점 (양수 = 백 우세).
         fn evaluate_material(&self) -> i32 {
             let mut score = 0;
-            for x in 0..8u8 {
-                for y in 0..8u8 {
+            for x in 0..SIZE as u8 {
+                for y in 0..SIZE as u8 {
                     if let Some(piece) = self.piece_on(&(x, y)) {
                         let is_white = self.color_on(&(x, y)) == Some(Color::White);
                         let value = heuristics::get_piece_value(piece);
@@ -111,8 +110,8 @@ pub mod game_logic {
         /// 전방에 적 폰이 없는 폰에 랭크 기반 보너스. 반환값: 백 절대 시점.
         fn evaluate_passed_pawns(&self) -> i32 {
             let mut score = 0;
-            for x in 0..8u8 {
-                for y in 0..8u8 {
+            for x in 0..SIZE as u8 {
+                for y in 0..SIZE as u8 {
                     if self.piece_on(&(x, y)) != Some("pawn") { continue; }
                     let Some(color) = self.color_on(&(x, y)) else { continue; };
                     if self.is_passed_pawn(x, y, color) {
@@ -157,8 +156,8 @@ pub mod game_logic {
         // --- 유틸리티 헬퍼 ------------------------------------------------------
 
         fn find_king(&self, color: Color) -> Option<(u8, u8)> {
-            for x in 0..8u8 {
-                for y in 0..8u8 {
+            for x in 0..SIZE as u8 {
+                for y in 0..SIZE as u8 {
                     if self.piece_on(&(x, y)) == Some("king")
                         && self.color_on(&(x, y)) == Some(color)
                     {
@@ -178,7 +177,7 @@ pub mod game_logic {
                 for dist in 1i8..=2 {
                     let nx = kx as i8 + dx;
                     let ny = ky as i8 + dy * dist;
-                    if nx < 0 || nx > 7 || ny < 0 || ny > 7 { continue; }
+                    if nx < 0 || nx > (SIZE - 1) as i8 || ny < 0 || ny > (SIZE - 1) as i8 { continue; }
                     if self.piece_on(&(nx as u8, ny as u8)) == Some("pawn")
                         && self.color_on(&(nx as u8, ny as u8)) == Some(color)
                     {
@@ -194,11 +193,11 @@ pub mod game_logic {
             let enemy = color.invert();
             let (y_start, y_end): (u8, u8) = match color {
                 Color::White => (0, py.saturating_sub(1)),
-                Color::Black => (py + 1, 7),
+                Color::Black => (py + 1, SIZE as u8 - 1),
             };
             // y_start > y_end 이면 범위가 비어 루프를 돌지 않습니다(u8 안전).
             if y_start > y_end { return true; }
-            for x in px.saturating_sub(1)..=(px + 1).min(7) {
+            for x in px.saturating_sub(1)..=(px + 1).min(SIZE as u8 - 1) {
                 for y in y_start..=y_end {
                     if self.piece_on(&(x, y)) == Some("pawn")
                         && self.color_on(&(x, y)) == Some(enemy)
@@ -220,7 +219,7 @@ pub mod game_logic {
             let pawn_dy: i8 = if color == Color::White { 1 } else { -1 };
             for &dx in &[-1i8, 1i8] {
                 let (px, py) = (sx + dx, sy + pawn_dy);
-                if px >= 0 && px < 8 && py >= 0 && py < 8 {
+                if px >= 0 && px < SIZE as i8 && py >= 0 && py < SIZE as i8 {
                     let pos = (px as u8, py as u8);
                     if self.piece_on(&pos) == Some("pawn") && self.color_on(&pos) == Some(color) {
                         result.push((100, pos));
@@ -231,7 +230,7 @@ pub mod game_logic {
             // 나이트
             for &(dx, dy) in &[(-2i8,-1i8),(-2,1),(-1,-2),(-1,2),(1,-2),(1,2),(2,-1),(2,1)] {
                 let (px, py) = (sx + dx, sy + dy);
-                if px >= 0 && px < 8 && py >= 0 && py < 8 {
+                if px >= 0 && px < SIZE as i8 && py >= 0 && py < SIZE as i8 {
                     let pos = (px as u8, py as u8);
                     if self.piece_on(&pos) == Some("knight") && self.color_on(&pos) == Some(color) {
                         result.push((320, pos));
@@ -242,7 +241,7 @@ pub mod game_logic {
             // 비숍·퀀 대각선
             for &(dx, dy) in &[(-1i8,-1i8),(-1,1),(1,-1),(1,1)] {
                 let (mut px, mut py) = (sx + dx, sy + dy);
-                while px >= 0 && px < 8 && py >= 0 && py < 8 {
+                while px >= 0 && px < SIZE as i8 && py >= 0 && py < SIZE as i8 {
                     let pos = (px as u8, py as u8);
                     if let Some(p) = self.piece_on(&pos) {
                         if self.color_on(&pos) == Some(color) {
@@ -261,7 +260,7 @@ pub mod game_logic {
             // 룩·퀀 직선
             for &(dx, dy) in &[(-1i8,0i8),(1,0),(0,-1),(0,1)] {
                 let (mut px, mut py) = (sx + dx, sy + dy);
-                while px >= 0 && px < 8 && py >= 0 && py < 8 {
+                while px >= 0 && px < SIZE as i8 && py >= 0 && py < SIZE as i8 {
                     let pos = (px as u8, py as u8);
                     if let Some(p) = self.piece_on(&pos) {
                         if self.color_on(&pos) == Some(color) {
@@ -273,7 +272,8 @@ pub mod game_logic {
                         }
                         break;
                     }
-                    px += dx; py += dy;
+                    px += dx;
+                    py += dy;
                 }
             }
 
@@ -282,7 +282,7 @@ pub mod game_logic {
                 for dy in -1i8..=1 {
                     if dx == 0 && dy == 0 { continue; }
                     let (px, py) = (sx + dx, sy + dy);
-                    if px >= 0 && px < 8 && py >= 0 && py < 8 {
+                    if px >= 0 && px < SIZE as i8 && py >= 0 && py < SIZE as i8 {
                         let pos = (px as u8, py as u8);
                         if self.piece_on(&pos) == Some("king") && self.color_on(&pos) == Some(color) {
                             result.push((20_000, pos));
@@ -361,7 +361,7 @@ pub mod game_logic {
     }
 
     // --- 표준 체스를 위한 GameState 구현 -------------------------------------
-    impl<'a, const MACHO: bool, const IMPRISONED: bool> GameState for Board<'a, MACHO, IMPRISONED, 8> {
+    impl<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize> GameState for Board<'a, MACHO, IMPRISONED, SIZE> {
         type Move = ChessMove<'a>;
 
         fn get_legal_moves(&mut self) -> Vec<Self::Move> {
@@ -421,8 +421,8 @@ pub mod game_logic {
             use std::hash::{Hash, Hasher};
             use std::collections::hash_map::DefaultHasher;
             let mut h = DefaultHasher::new();
-            for x in 0..8u8 {
-                for y in 0..8u8 {
+            for x in 0..SIZE as u8 {
+                for y in 0..SIZE as u8 {
                     self.piece_on(&(x, y)).hash(&mut h);
                     self.color_on(&(x, y)).hash(&mut h);
                 }

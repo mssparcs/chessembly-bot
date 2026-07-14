@@ -117,15 +117,20 @@ async fn serve_classifier_ui() -> impl IntoResponse {
     axum::response::Html(include_str!("piece_classifier.html"))
 }
 
-fn setup_board<'a, const MACHO: bool, const IMPRISONED: bool>(
+#[derive(Debug)]
+struct SetupBoardParams<'a> {
     compiled: &'a ChessemblyCompiled<'a>,
     position: &'a str,
     board_state: BothBoardState<'a>,
-    turn: chessembly::Color,
-) -> Board<'a, MACHO, IMPRISONED, 8> {
-    let mut board = Board::<'a, MACHO, IMPRISONED, 8>::empty(&compiled);
+    turn: chessembly::Color
+}
+
+fn setup_board<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
+    params: SetupBoardParams<'a>
+) -> Board<'a, MACHO, IMPRISONED, SIZE> {
+    let mut board = Board::<'a, MACHO, IMPRISONED, SIZE>::empty(&params.compiled);
     let mut i = 0;
-    for line in position.split('/') {
+    for line in params.position.split('/') {
         let mut j = 0;
         for pc in line.split_whitespace() {
             if let Some((piece_name, color)) = pc.split_once(':') {
@@ -143,13 +148,26 @@ fn setup_board<'a, const MACHO: bool, const IMPRISONED: bool>(
         i += 1;
     }
 
-    board.board_state = board_state;
-    board.turn = turn;
+    board.board_state = params.board_state;
+    board.turn = params.turn;
 
     board
 }
 
+// macro_rules! run_generic {
+//     ($macho:expr, $imprisoned:expr, $size:expr) => {
+//         let mut board: Board<$macho, true, 8> = setup_board(
+//             &compiled,x
+//             position.to_str().unwrap(),
+//             board_state,
+//             turn
+//         );
+//         engine::search::find_best_move(&mut board, depth, beam_width)
+//     };
+// }
+
 async fn run_engine(headers: HeaderMap) -> impl IntoResponse {
+    println!("?????");
     let (
         Some(position),
         Some(script),
@@ -175,6 +193,9 @@ async fn run_engine(headers: HeaderMap) -> impl IntoResponse {
     ) else {
         return (StatusCode::OK, "asdf").into_response();
     };
+
+    let board_size = headers.get("Board-Size").map(|b| b.to_str().map(|x| x.parse::<u8>().unwrap_or(8)).unwrap_or(8)).unwrap_or(8);
+    println!("{:?}", board_size);
     
     let Ok(depth) = depth_header_str.to_str().map(|x| x.parse::<u8>().unwrap_or(3)) else {
         return (StatusCode::OK, "asdf").into_response();
@@ -284,41 +305,45 @@ async fn run_engine(headers: HeaderMap) -> impl IntoResponse {
         return (StatusCode::OK, format!("{:?}/{:?}", from, position)).into_response();
     }
 
-    let best_move = match (is_macho, is_imprisoned) {
-        (true, true) => {
-            let mut board: Board<true, true, 8> = setup_board(
-                &compiled,
-                position.to_str().unwrap(),
-                board_state,
-                turn
-            );
+    let param = SetupBoardParams {
+        compiled: &compiled,
+        position: position.to_str().unwrap(),
+        board_state: board_state,
+        turn: turn
+    };
+
+    let best_move = match (is_macho, is_imprisoned, board_size) {
+        (true, true, 9) => {
+            let mut board: Board<true, false, 9> = setup_board(param);
             engine::search::find_best_move(&mut board, depth, beam_width)
         },
-        (true, false) => {
-            let mut board: Board<true, false, 8> = setup_board(
-                &compiled,
-                position.to_str().unwrap(),
-                board_state,
-                turn
-            );
+        (true, false, 9)  => {
+            let mut board: Board<true, false, 9> = setup_board(param);
             engine::search::find_best_move(&mut board, depth, beam_width)
         }
-        (false, true) => {
-            let mut board: Board<false, true, 8> = setup_board(
-                &compiled,
-                position.to_str().unwrap(),
-                board_state,
-                turn
-            );
+        (false, true, 9) => {
+            let mut board: Board<false, true, 9> = setup_board(param);
             engine::search::find_best_move(&mut board, depth, beam_width)
         }
-        (false, false) => {
-            let mut board: Board<false, false, 8> = setup_board(
-                &compiled,
-                position.to_str().unwrap(),
-                board_state,
-                turn
-            );
+        (false, false, 9) => {
+            let mut board: Board<false, false, 9> = setup_board(param);
+            engine::search::find_best_move(&mut board, depth, beam_width)
+        }
+        
+        (true, true, 8) | (true, true, _) => {
+            let mut board: Board<true, false, 8> = setup_board(param);
+            engine::search::find_best_move(&mut board, depth, beam_width)
+        },
+        (true, false, 8) | (true, false, _)  => {
+            let mut board: Board<true, false, 8> = setup_board(param);
+            engine::search::find_best_move(&mut board, depth, beam_width)
+        }
+        (false, true, 8) | (false, true, _) => {
+            let mut board: Board<false, true, 8> = setup_board(param);
+            engine::search::find_best_move(&mut board, depth, beam_width)
+        }
+        (false, false, 8) | (false, false, _) => {
+            let mut board: Board<false, false, 8> = setup_board(param);
             engine::search::find_best_move(&mut board, depth, beam_width)
         }
     };
@@ -456,21 +481,28 @@ async fn run_engine_debug(headers: HeaderMap) -> impl IntoResponse {
         .and_then(|s| s.parse::<usize>().ok());
     let pos_str = position.to_str().unwrap_or("");
 
+    let param = SetupBoardParams {
+        compiled: &compiled,
+        position: pos_str,
+        board_state: board_state,
+        turn: turn
+    };
+
     let debug_info = match (is_macho, is_imprisoned) {
         (true, true) => {
-            let mut board: chessembly::board::Board<true, true, 8> = setup_board(&compiled, pos_str, board_state, turn);
+            let mut board: chessembly::board::Board<true, true, 8> = setup_board(param);
             engine::search::find_best_move_debug(&mut board, depth, beam_width)
         }
         (true, false) => {
-            let mut board: chessembly::board::Board<true, false, 8> = setup_board(&compiled, pos_str, board_state, turn);
+            let mut board: chessembly::board::Board<true, false, 8> = setup_board(param);
             engine::search::find_best_move_debug(&mut board, depth, beam_width)
         }
         (false, true) => {
-            let mut board: chessembly::board::Board<false, true, 8> = setup_board(&compiled, pos_str, board_state, turn);
+            let mut board: chessembly::board::Board<false, true, 8> = setup_board(param);
             engine::search::find_best_move_debug(&mut board, depth, beam_width)
         }
         (false, false) => {
-            let mut board: chessembly::board::Board<false, false, 8> = setup_board(&compiled, pos_str, board_state, turn);
+            let mut board: chessembly::board::Board<false, false, 8> = setup_board(param);
             engine::search::find_best_move_debug(&mut board, depth, beam_width)
         }
     };
@@ -597,27 +629,34 @@ async fn get_piece_moves(headers: HeaderMap) -> impl IntoResponse {
 
     let pos_str = position.to_str().unwrap_or("");
 
+    let param = SetupBoardParams {
+        compiled: &compiled,
+        position: pos_str,
+        board_state: board_state,
+        turn: turn
+    };
+
     let moves = match (is_macho, is_imprisoned) {
         (true, true) => {
-            let mut b: Board<true, true, 8> = setup_board(&compiled, pos_str, board_state, turn);
+            let mut b: Board<true, true, 8> = setup_board(param);
             let script = b.script;
             let raw = script.get_moves::<true, true, 8>(&mut b, &(target_col, target_row), true);
             script.filter_nodes::<true, true, 8>(raw, &b)
         }
         (true, false) => {
-            let mut b: Board<true, false, 8> = setup_board(&compiled, pos_str, board_state, turn);
+            let mut b: Board<true, false, 8> = setup_board(param);
             let script = b.script;
             let raw = script.get_moves::<true, false, 8>(&mut b, &(target_col, target_row), true);
             script.filter_nodes::<true, false, 8>(raw, &b)
         }
         (false, true) => {
-            let mut b: Board<false, true, 8> = setup_board(&compiled, pos_str, board_state, turn);
+            let mut b: Board<false, true, 8> = setup_board(param);
             let script = b.script;
             let raw = script.get_moves::<false, true, 8>(&mut b, &(target_col, target_row), true);
             script.filter_nodes::<false, true, 8>(raw, &b)
         }
         (false, false) => {
-            let mut b: Board<false, false, 8> = setup_board(&compiled, pos_str, board_state, turn);
+            let mut b: Board<false, false, 8> = setup_board(param);
             let script = b.script;
             let raw = script.get_moves::<false, false, 8>(&mut b, &(target_col, target_row), true);
             script.filter_nodes::<false, false, 8>(raw, &b)
@@ -734,10 +773,17 @@ async fn apply_move_endpoint(
     let is_imprisoned = headers.get("Imprisoned").is_some();
     let pos_str = position.to_str().unwrap_or("");
 
+    let param = SetupBoardParams {
+        compiled: &compiled,
+        position: pos_str,
+        board_state: board_state,
+        turn: turn
+    };
+
     // 합법적인 수 목록에서 요청된 수를 찾아 적용
     let result: Option<BoardStateResponse> = match (is_macho, is_imprisoned) {
         (true, true) => {
-            let mut b: Board<true, true, 8> = setup_board(&compiled, pos_str, board_state, turn);
+            let mut b: Board<true, true, 8> = setup_board(param);
             let script = b.script;
             let raw = script.get_moves::<true, true, 8>(&mut b, &body.from, true);
             let filtered = script.filter_nodes::<true, true, 8>(raw, &b);
@@ -746,7 +792,7 @@ async fn apply_move_endpoint(
                 .map(|m| encode_board_response(&b.make_move_new(&m)))
         }
         (true, false) => {
-            let mut b: Board<true, false, 8> = setup_board(&compiled, pos_str, board_state, turn);
+            let mut b: Board<true, false, 8> = setup_board(param);
             let script = b.script;
             let raw = script.get_moves::<true, false, 8>(&mut b, &body.from, true);
             let filtered = script.filter_nodes::<true, false, 8>(raw, &b);
@@ -755,7 +801,7 @@ async fn apply_move_endpoint(
                 .map(|m| encode_board_response(&b.make_move_new(&m)))
         }
         (false, true) => {
-            let mut b: Board<false, true, 8> = setup_board(&compiled, pos_str, board_state, turn);
+            let mut b: Board<false, true, 8> = setup_board(param);
             let script = b.script;
             let raw = script.get_moves::<false, true, 8>(&mut b, &body.from, true);
             let filtered = script.filter_nodes::<false, true, 8>(raw, &b);
@@ -764,7 +810,7 @@ async fn apply_move_endpoint(
                 .map(|m| encode_board_response(&b.make_move_new(&m)))
         }
         (false, false) => {
-            let mut b: Board<false, false, 8> = setup_board(&compiled, pos_str, board_state, turn);
+            let mut b: Board<false, false, 8> = setup_board(param);
             let script = b.script;
             let raw = script.get_moves::<false, false, 8>(&mut b, &body.from, true);
             let filtered = script.filter_nodes::<false, false, 8>(raw, &b);
