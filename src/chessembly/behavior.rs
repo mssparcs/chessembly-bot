@@ -40,6 +40,7 @@ pub enum Behavior<'a> {
     Friendly(DeltaPosition),
     PieceOn((&'a str, DeltaPosition)),
     ColorOn((&'a str, DeltaPosition)),
+    PlaceMove((&'a str, DeltaPosition)),
     SetState((&'a str, u8)),
     IfState((&'a str, u8)),
     Transition(&'a str),
@@ -234,6 +235,20 @@ impl<'a> Behavior<'a> {
         //     ));
         } else if cmd == "piece-on" {
             return Behavior::PieceOn((
+                params_vec.get(0).unwrap_or(&""),
+                (
+                    params_vec
+                        .get(1)
+                        .map(|s| s.parse::<i8>().unwrap_or(0))
+                        .unwrap_or(0),
+                    params_vec
+                        .get(2)
+                        .map(|s| s.parse::<i8>().unwrap_or(0))
+                        .unwrap_or(0),
+                ),
+            ));
+        } else if cmd == "place-move" {
+            return Behavior::PlaceMove((
                 params_vec.get(0).unwrap_or(&""),
                 (
                     params_vec
@@ -595,6 +610,9 @@ impl<'a> Behavior<'a> {
             Behavior::AbsoulteY(y) => Behavior::AbsoulteY(Behavior::reflect_abs_vector(&(0, *y), turn).1),
             Behavior::PieceOn((piece, delta)) => {
                 Behavior::PieceOn((piece, Behavior::reflect_turn_vector(delta, turn)))
+            }
+            Behavior::PlaceMove((piece, delta)) => {
+                Behavior::PlaceMove((piece, Behavior::reflect_turn_vector(delta, turn)))
             }
             _ => self.clone(),
         }

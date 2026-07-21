@@ -154,20 +154,7 @@ fn setup_board<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>
     board
 }
 
-// macro_rules! run_generic {
-//     ($macho:expr, $imprisoned:expr, $size:expr) => {
-//         let mut board: Board<$macho, true, 8> = setup_board(
-//             &compiled,x
-//             position.to_str().unwrap(),
-//             board_state,
-//             turn
-//         );
-//         engine::search::find_best_move(&mut board, depth, beam_width)
-//     };
-// }
-
 async fn run_engine(headers: HeaderMap) -> impl IntoResponse {
-    println!("?????");
     let (
         Some(position),
         Some(script),
