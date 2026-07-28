@@ -280,7 +280,7 @@ impl<'a> ChessemblyCompiled<'a> {
                         let jp2 = chain_str.ceil_char_boundary(jp1 + 1);
                         if chain_str[jp1..jp2]
                             .chars()
-                            .all(|c| char::is_alphabetic(c) || c == '{' || c == '}')
+                            .all(|c| char::is_alphabetic(c) || c == '{' || c == '}' || c == '+' || c == '|')
                         {
                             if chain_str[i..j].trim().len() > 0 {
                                 ret.push_behavior(Behavior::from_str(&chain_str[i..j].trim()));
@@ -411,7 +411,7 @@ impl<'a> ChessemblyCompiled<'a> {
         ret
     }
 
-    pub fn push_node(nodes: &mut Vec<ChessMove<'a>>, node: ChessMoveUnit<'a>) {
+    pub fn push_single_node(nodes: &mut Vec<ChessMove<'a>>, node: ChessMoveUnit<'a>) {
         if let Some(i) = nodes
             .iter()
             .position(|x| x.get_dest() == node.move_to && match x {
@@ -422,6 +422,42 @@ impl<'a> ChessemblyCompiled<'a> {
             nodes.swap_remove(i);
         }
         nodes.push(ChessMove::Single(node));
+    }
+
+    pub fn push_node(nodes: &mut Vec<ChessMove<'a>>, multiple_stack: &Vec<Option<Position>>, node: ChessMoveUnit<'a>) {
+        if ChessemblyCompiled::ignore(multiple_stack) {
+            if nodes.len() > 0 {
+                let mut last = nodes.pop().unwrap();
+                if let ChessMove::Multiple(m) = &mut last {
+                    m.push(node);
+                    nodes.push(last);
+                }   
+                else if let ChessMove::Single(s) = last {
+                    nodes.push(ChessMove::Multiple(vec![s, node]));
+                }
+            }
+        }
+        else {
+            ChessemblyCompiled::push_single_node(nodes, node);
+        }
+    }
+
+    pub fn ignore(multiple_stack: &Vec<Option<Position>>) -> bool {
+        multiple_stack.last().map(|x| x.is_some()).unwrap_or(false)
+    }
+
+    fn get_position(&self, multiple_stack: &Vec<Option<Position>>, position: &Position) -> Position {
+        if let Some(last) = multiple_stack.last() {
+            if let Some(last_pos) = last {
+                *last_pos
+            }
+            else {
+                *position
+            }
+        }
+        else {
+            *position
+        }
     }
 
     pub fn generate_moves<const MACHO: bool, const IMPRISONED: bool, const SIZE: usize>(
@@ -439,6 +475,9 @@ impl<'a> ChessemblyCompiled<'a> {
             let mut loops = 0;
             let mut stack: Vec<(Position, usize)> = vec![(*position, chain.len())];
             let mut take_stack: Vec<Option<Position>> = vec![None];
+
+            let mut multiple_stack: Vec<Option<Position>> = vec![None];
+
             let mut states: Vec<bool> = vec![true];
             let mut transition: Option<*const str> = None;
             let mut state_change: Option<Vec<(*const str, u8)>> = None;
@@ -466,6 +505,10 @@ impl<'a> ChessemblyCompiled<'a> {
                     Behavior::ReadAnd(_) => true,
                     Behavior::ReadOr(_) => true,
                     Behavior::ReadXor(_) => true,
+
+                    Behavior::ThenPlus => true,
+                    Behavior::ThenBar => true,
+
                     _ => false,
                 };
 
@@ -523,8 +566,9 @@ impl<'a> ChessemblyCompiled<'a> {
                         ) {
                             ChessemblyCompiled::push_node(
                                 &mut nodes,
+                                &multiple_stack,
                                 ChessMoveUnit {
-                                    from: *position,
+                                    from: self.get_position(&multiple_stack, position),
                                     take: stack_top.0,
                                     move_to: stack_top.0,
                                     move_type: MoveType::TakeMove,
@@ -542,8 +586,9 @@ impl<'a> ChessemblyCompiled<'a> {
                         } else {
                             ChessemblyCompiled::push_node(
                                 &mut nodes,
+                                &multiple_stack,
                                 ChessMoveUnit {
-                                    from: *position,
+                                    from: self.get_position(&multiple_stack, position),
                                     take: stack_top.0,
                                     move_to: stack_top.0,
                                     move_type: MoveType::TakeMove,
@@ -583,6 +628,17 @@ impl<'a> ChessemblyCompiled<'a> {
                             take_stack.push(None);
                         }
                         states.push(true);
+
+                        if chain.get(rip - 1) == Some(&Behavior::ThenPlus) {
+                            multiple_stack.push(Some(stack.last().unwrap().0));
+                        }
+                        else if chain.get(rip - 1) == Some(&Behavior::ThenBar) {
+                            multiple_stack.push(Some(*position));
+                        }
+                        else {
+                            multiple_stack.push(None);
+                        }
+
                         rip += 1;
                     }
                     Behavior::BlockClose => {
@@ -917,8 +973,9 @@ impl<'a> ChessemblyCompiled<'a> {
                             
                             ChessemblyCompiled::push_node(
                                 &mut nodes,
+                                &multiple_stack,
                                 ChessMoveUnit {
-                                    from: *position,
+                                    from: self.get_position(&multiple_stack, position),
                                     take: stack.last().unwrap().0,
                                     move_to: stack.last().unwrap().0,
                                     move_type: MoveType::PlaceMove,
@@ -1004,6 +1061,10 @@ impl<'a> ChessemblyCompiled<'a> {
                         }
                         rip += 1;
                     }
+                    Behavior::ThenPlus | Behavior::ThenBar => {
+                        *states.last_mut().unwrap() = true;
+                        rip += 1;
+                    }
                     Behavior::Take(delta) => {
                         let states_top = states.last_mut().unwrap();
                         let stack_top = stack.last_mut().unwrap();
@@ -1037,8 +1098,9 @@ impl<'a> ChessemblyCompiled<'a> {
                         ) {
                             ChessemblyCompiled::push_node(
                                 &mut nodes,
+                                &multiple_stack,
                                 ChessMoveUnit {
-                                    from: *position,
+                                    from: self.get_position(&multiple_stack, position),
                                     take: stack_top.0,
                                     move_to: stack_top.0,
                                     move_type: MoveType::Take,
@@ -1084,8 +1146,9 @@ impl<'a> ChessemblyCompiled<'a> {
                                         if board.color_on(&stack_top.0).is_none() {
                                             ChessemblyCompiled::push_node(
                                                 &mut nodes,
+                                                &multiple_stack,
                                                 ChessMoveUnit {
-                                                    from: *position,
+                                                    from: self.get_position(&multiple_stack, position),
                                                     take: *tpc,
                                                     move_to: stack_top.0,
                                                     move_type: MoveType::TakeJump,
@@ -1147,8 +1210,9 @@ impl<'a> ChessemblyCompiled<'a> {
                         ) {
                             ChessemblyCompiled::push_node(
                                 &mut nodes,
+                                &multiple_stack,
                                 ChessMoveUnit {
-                                    from: *position,
+                                    from: self.get_position(&multiple_stack, position),
                                     take: stack_top.0,
                                     move_to: *position,
                                     move_type: MoveType::Catch,
@@ -1199,8 +1263,9 @@ impl<'a> ChessemblyCompiled<'a> {
                         } else {
                             ChessemblyCompiled::push_node(
                                 &mut nodes,
+                                &multiple_stack,
                                 ChessMoveUnit {
-                                    from: *position,
+                                    from: self.get_position(&multiple_stack, position),
                                     take: stack.last().unwrap().0,
                                     move_to: stack.last().unwrap().0,
                                     move_type: MoveType::Move,
@@ -1435,10 +1500,22 @@ impl<'a> ChessemblyCompiled<'a> {
                             *states.last_mut().unwrap() = false;
                         }
                         else if let Some(_) = board.color_on(&stack.last().unwrap().0) {
-                            ChessemblyCompiled::push_node(&mut nodes, ChessMoveUnit {
-                                from: *position,
+                            // ChessemblyCompiled::push_node(&mut nodes, &multiple_stack, ChessMoveUnit {
+                            //     from: self.get_position(&multiple_stack, position),
+                            //     move_to: stack.last().unwrap().0,
+                            //     take: self.get_position(&multiple_stack, position),
+                            //     move_type: MoveType::Shift,
+                            //     state_change: state_change.clone().map(|x| {
+                            //         x.iter()
+                            //             .map(|(k, v)| (unsafe { k.as_ref().unwrap() }, *v))
+                            //             .collect()
+                            //     }),
+                            //     transition: transition.map(|x| unsafe { x.as_ref().unwrap() }),
+                            // });
+                            ChessemblyCompiled::push_single_node(&mut nodes, ChessMoveUnit {
+                                from: self.get_position(&multiple_stack, position),
                                 move_to: stack.last().unwrap().0,
-                                take: *position,
+                                take: self.get_position(&multiple_stack, position),
                                 move_type: MoveType::Shift,
                                 state_change: state_change.clone().map(|x| {
                                     x.iter()

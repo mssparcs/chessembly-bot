@@ -32,6 +32,10 @@ pub enum Behavior<'a> {
     Jne(u8),
     BlockOpen,
     BlockClose,
+
+    ThenPlus,
+    ThenBar,
+
     Label(u8),
     End,
     Danger(DeltaPosition),
@@ -55,9 +59,6 @@ pub enum Behavior<'a> {
 
     WriteAnchor(u8),
     ReadAnchor(u8),
-
-    // Movr((&'a str, u8)),
-    // Movl((&'a str, u8)),
 
     AbsoulteX(u8),
     AbsoulteY(u8),
@@ -91,6 +92,10 @@ impl<'a> Behavior<'a> {
             return Behavior::BlockClose;
         } else if fragment.starts_with("{") {
             return Behavior::BlockOpen;
+        } else if fragment.starts_with("+") {
+            return Behavior::ThenPlus;
+        } else if fragment.starts_with("|") {
+            return Behavior::ThenBar;
         }
         let fs1 = fragment.split_once('(');
         if fs1.is_none() {
