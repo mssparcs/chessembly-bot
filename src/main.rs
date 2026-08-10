@@ -3,8 +3,7 @@ use axum::{
     extract::Json as JsonBody,
 };
 use chessembly_bot::{
-    chessembly::{self, ChessemblyCompiled, Piece, PieceSpan, board::{Board, BoardState, BothBoardState}},
-    engine,
+    chessembly::{self, ChessemblyCompiled, Piece, PieceSpan, board::{Board, BoardState, BothBoardState}}, engine::{self, game_logic::GameState},
 };
 use std::{collections::HashMap, env};
 use std::net::SocketAddr;
@@ -275,6 +274,13 @@ async fn run_engine(headers: HeaderMap) -> impl IntoResponse {
         .and_then(|v| v.to_str().ok())
         .and_then(|s| s.parse::<usize>().ok());
 
+    let param = SetupBoardParams {
+        compiled: &compiled,
+        position: position.to_str().unwrap(),
+        board_state: board_state,
+        turn: turn
+    };
+
     if let Some(to_evaluate) = headers.get("Target") {
         let Ok(to_evaluate_str) = to_evaluate.to_str() else {
             return (StatusCode::OK, "asdf").into_response();
@@ -288,17 +294,25 @@ async fn run_engine(headers: HeaderMap) -> impl IntoResponse {
         let Some(position) = position_str.split_once(',').map(|(x, y)| (x.parse().unwrap_or(0), y.parse().unwrap_or(0))) else {
             return (StatusCode::OK, "asdf").into_response();
         };
-        println!("{:?}/{:?}", from, position);
-        return (StatusCode::OK, format!("{:?}/{:?}", from, position)).into_response();
+
+        match (is_macho, is_imprisoned, board_size) {
+            (false, false, 8) | (false, false, _) => {
+                let mut board: Board<true, false, 8> = setup_board(param);
+                let moves = board.get_legal_moves();
+                let Some(played_move) = moves.iter().find(|node| node.get_source() == from && node.get_dest() == position) else {
+                    return (StatusCode::OK, "asdf").into_response();
+                };
+                let result = chessembly_bot::analyze::analyze_move(&mut board, played_move, 4);        
+
+                return (StatusCode::OK, Json(result)).into_response();
+            }
+            _ => {
+                return (StatusCode::OK, format!("{:?}/{:?}", from, position)).into_response();
+
+            }
+        }
     }
-
-    let param = SetupBoardParams {
-        compiled: &compiled,
-        position: position.to_str().unwrap(),
-        board_state: board_state,
-        turn: turn
-    };
-
+    
     let best_move = match (is_macho, is_imprisoned, board_size) {
         (true, true, 9) => {
             let mut board: Board<true, false, 9> = setup_board(param);
