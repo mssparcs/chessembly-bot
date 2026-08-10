@@ -297,7 +297,7 @@ async fn run_engine(headers: HeaderMap) -> impl IntoResponse {
 
         match (is_macho, is_imprisoned, board_size) {
             (false, false, 8) | (false, false, _) => {
-                let mut board: Board<true, false, 8> = setup_board(param);
+                let mut board: Board<false, false, 8> = setup_board(param);
                 let moves = board.get_legal_moves();
                 let Some(played_move) = moves.iter().find(|node| node.get_source() == from && node.get_dest() == position) else {
                     return (StatusCode::OK, "asdf").into_response();
@@ -308,7 +308,6 @@ async fn run_engine(headers: HeaderMap) -> impl IntoResponse {
             }
             _ => {
                 return (StatusCode::OK, format!("{:?}/{:?}", from, position)).into_response();
-
             }
         }
     }
