@@ -470,7 +470,7 @@ impl<'a> ChessemblyCompiled<'a> {
         board: &mut Board<'a, MACHO, IMPRISONED, SIZE>,
         position: &Position,
     ) -> Vec<ChessMove<'a>> {
-        let fs = ChessemblyCompiled::from_script("do take-move(1, 1) while peek(0, 0) edge-right(1, 1) jne(0) take-move(-1, 1) repeat(1) label(0) edge-top(1, 1) jne(1) take-move(1, -1) repeat(1) label(1);do take-move(-1, 1) while peek(0, 0) edge-left(-1, 1) jne(0) take-move(1, 1) repeat(1) label(0) edge-top(-1, 1) jne(1) take-move(-1, -1) repeat(1) label(1);do take-move(1, -1) while peek(0, 0) edge-right(1, -1) jne(0) take-move(-1, -1) repeat(1) label(0) edge-bottom(1, -1) jne(1) take-move(1, 1) repeat(1) label(1);do take-move(-1, -1) while peek(0, 0) edge-left(-1, -1) jne(0) take-move(1, -1) repeat(1) label(0) edge-bottom(-1, -1) jne(1) take-move(-1, 1) repeat(1) label(1);").unwrap();
+        let fs = ChessemblyCompiled::from_script("do take-move(1, 1) while edge(1, 1) { take-move(-1, 1) repeat(1) } { take-move(1, -1) repeat(1) }; do take-move(-1, 1) while edge(-1, 1) { take-move(1, 1) repeat(1) } { take-move(-1, -1) repeat(1) }; do take-move(1, -1) while edge(1, -1) { take-move(1, 1) repeat(1) } { take-move(-1, -1) repeat(1) }; do take-move(-1, -1) while edge(-1, -1) { take-move(1, -1) repeat(1) } { take-move(-1, 1) repeat(1) };").unwrap();
         let ret = fs.generate_moves::<MACHO, IMPRISONED, SIZE>(board, position, false).unwrap();
         ret
     }

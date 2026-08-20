@@ -303,7 +303,7 @@ async fn run_engine(headers: HeaderMap) -> impl IntoResponse {
                     return (StatusCode::OK, "asdf").into_response();
                 };
                 let result = chessembly_bot::analyze::analyze_move(&mut board, played_move, 4);        
-
+                
                 return (StatusCode::OK, Json(result)).into_response();
             }
             _ => {
