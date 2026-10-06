@@ -1302,6 +1302,11 @@ impl<'a> ChessemblyCompiled<'a> {
                         *states.last_mut().unwrap() = false;
                         rip += 1;
                     }
+                    Behavior::Pawn => {
+                        nodes.extend_from_slice(&self.generate_pawn_moves(board, position)[..]);
+                        *states.last_mut().unwrap() = true;
+                        rip += 1;
+                    }
                     Behavior::ReadAnd(index) => {
                         if index >= 16 {
                             *states.last_mut().unwrap() = false;

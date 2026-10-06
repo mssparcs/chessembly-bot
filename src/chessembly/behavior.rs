@@ -63,6 +63,8 @@ pub enum Behavior<'a> {
     AbsoulteX(u8),
     AbsoulteY(u8),
     Absoulte(Position),
+
+    Pawn,
     
     True,
     False
@@ -84,6 +86,8 @@ impl<'a> Behavior<'a> {
             return Behavior::True;
         } else if fragment.starts_with("false") {
             return Behavior::False;
+        } else if fragment.starts_with("pawn") {
+            return Behavior::Pawn;
         } else if fragment.starts_with("check") {
             return Behavior::Check;
         } else if fragment == "transition" {
