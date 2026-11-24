@@ -54,7 +54,8 @@ pub enum MoveType {
     Catch,
     Shift,
     Castling,
-    PlaceMove
+    PlaceMove,
+    PlaceStay
 
     // Void, Pause, Block
 }
@@ -979,6 +980,69 @@ impl<'a> ChessemblyCompiled<'a> {
                                     take: stack.last().unwrap().0,
                                     move_to: stack.last().unwrap().0,
                                     move_type: MoveType::PlaceMove,
+                                    state_change: state_change.clone().map(|x| {
+                                        x.iter()
+                                            .map(|(k, v)| (unsafe { k.as_ref().unwrap() }, *v))
+                                            .collect()
+                                    }),
+                                    transition: transition.map(|x| unsafe { x.as_ref().unwrap() }),
+                                },
+                            );
+                            
+                            transition = dt;
+                        }
+                        rip += 1;
+                    }
+                    Behavior::PlaceStay((piece_name, delta)) => {
+                        let dt = transition.clone();
+                        
+                        let wc = ChessemblyCompiled::move_anchor(
+                            &mut stack.last_mut().unwrap().0,
+                            &delta,
+                            board,
+                            piece_color,
+                        );
+
+                        if wc != WallCollision::NoCollision {
+                            *states.last_mut().unwrap() = false;
+                            rip += 1;
+                            continue;
+                        }
+                        if ChessemblyCompiled::is_friendly(
+                            &stack.last().unwrap().0,
+                            board,
+                            piece_color,
+                        ) {
+                            ChessemblyCompiled::cancel_move_anchor(
+                                &mut stack.last_mut().unwrap().0,
+                                &delta,
+                            );
+                            *states.last_mut().unwrap() = false;
+                        } else if ChessemblyCompiled::is_enemy(
+                            &stack.last().unwrap().0,
+                            board,
+                            piece_color,
+                        ) {
+                            ChessemblyCompiled::cancel_move_anchor(
+                                &mut stack.last_mut().unwrap().0,
+                                &delta,
+                            );
+                            *states.last_mut().unwrap() = false;
+                        } else {
+                            if piece_name.len() == 0 {
+                                transition = None;
+                            } else {
+                                transition = Some(piece_name);
+                            }
+                            
+                            ChessemblyCompiled::push_node(
+                                &mut nodes,
+                                &multiple_stack,
+                                ChessMoveUnit {
+                                    from: self.get_position(&multiple_stack, position),
+                                    take: stack.last().unwrap().0,
+                                    move_to: self.get_position(&multiple_stack, position),
+                                    move_type: MoveType::PlaceStay,
                                     state_change: state_change.clone().map(|x| {
                                         x.iter()
                                             .map(|(k, v)| (unsafe { k.as_ref().unwrap() }, *v))

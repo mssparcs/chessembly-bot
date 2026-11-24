@@ -45,6 +45,7 @@ pub enum Behavior<'a> {
     PieceOn((&'a str, DeltaPosition)),
     ColorOn((&'a str, DeltaPosition)),
     PlaceMove((&'a str, DeltaPosition)),
+    PlaceStay((&'a str, DeltaPosition)),
     SetState((&'a str, u8)),
     IfState((&'a str, u8)),
     Transition(&'a str),
@@ -258,6 +259,20 @@ impl<'a> Behavior<'a> {
             ));
         } else if cmd == "place-move" {
             return Behavior::PlaceMove((
+                params_vec.get(0).unwrap_or(&""),
+                (
+                    params_vec
+                        .get(1)
+                        .map(|s| s.parse::<i8>().unwrap_or(0))
+                        .unwrap_or(0),
+                    params_vec
+                        .get(2)
+                        .map(|s| s.parse::<i8>().unwrap_or(0))
+                        .unwrap_or(0),
+                ),
+            ));
+        } else if cmd == "place-stay" {
+            return Behavior::PlaceStay((
                 params_vec.get(0).unwrap_or(&""),
                 (
                     params_vec
@@ -622,6 +637,9 @@ impl<'a> Behavior<'a> {
             }
             Behavior::PlaceMove((piece, delta)) => {
                 Behavior::PlaceMove((piece, Behavior::reflect_turn_vector(delta, turn)))
+            }
+            Behavior::PlaceStay((piece, delta)) => {
+                Behavior::PlaceStay((piece, Behavior::reflect_turn_vector(delta, turn)))
             }
             _ => self.clone(),
         }

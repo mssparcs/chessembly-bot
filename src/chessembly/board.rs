@@ -221,6 +221,16 @@ impl<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize> Board<'a,
     }
 
     #[inline]
+    pub fn at(&self, position: Position) -> &PieceSpan<'a> {
+        &self.board[position.1 as usize][position.0 as usize]
+    }
+
+    #[inline]
+    pub fn at_mut(&mut self, position: Position) -> &mut PieceSpan<'a> {
+        &mut self.board[position.1 as usize][position.0 as usize]
+    }
+
+    #[inline]
     pub fn clone_without_dp(&self) -> Board<'a, MACHO, IMPRISONED, SIZE> {
         Board {
             board: self.board.clone(),
@@ -249,32 +259,64 @@ impl<'a, const MACHO: bool, const IMPRISONED: bool, const SIZE: usize> Board<'a,
                 .map(|x| {
                     PieceSpan::Piece(Piece {
                         piece_type: x,
-                        color: match &ret.board[node.from.1 as usize][node.from.0 as usize] {
+                        color: match ret.at(node.from) {
                             PieceSpan::Empty => Color::White,
                             PieceSpan::Piece(piece) => piece.color,
                         },
                     })
                 })
-                .unwrap_or(ret.board[node.from.1 as usize][node.from.0 as usize].clone());
-            ret.board[node.from.1 as usize][node.from.0 as usize] = ret.board[node.move_to.1 as usize][node.move_to.0 as usize].clone();
-            ret.board[node.move_to.1 as usize][node.move_to.0 as usize] = shifter;
+                .unwrap_or_else(|| ret.at(node.from).clone());
+            *ret.at_mut(node.from) = ret.at(node.move_to).clone();
+            *ret.at_mut(node.move_to) = shifter;
         }
-        else {
-            ret.board[node.take.1 as usize][node.take.0 as usize] = PieceSpan::Empty;
-            ret.board[node.move_to.1 as usize][node.move_to.0 as usize] = node
+        else if node.move_type == MoveType::PlaceStay {
+            *ret.at_mut(node.take) = node
                 .transition
                 .as_ref()
                 .map(|x| {
                     PieceSpan::Piece(Piece {
                         piece_type: x,
-                        color: match &ret.board[node.from.1 as usize][node.from.0 as usize] {
+                        color: match ret.at(node.from) {
                             PieceSpan::Empty => Color::White,
                             PieceSpan::Piece(piece) => piece.color,
                         },
                     })
                 })
-                .unwrap_or(ret.board[node.from.1 as usize][node.from.0 as usize].clone());
-            ret.board[node.from.1 as usize][node.from.0 as usize] = PieceSpan::Empty;
+                .unwrap_or_else(|| ret.at(node.from).clone());
+        }
+        else if node.move_type == MoveType::PlaceMove {
+            let parent = ret.at(node.from).clone();
+            *ret.at_mut(node.from) = node
+                .transition
+                .as_ref()
+                .map(|x| {
+                    PieceSpan::Piece(Piece {
+                        piece_type: x,
+                        color: match ret.at(node.from) {
+                            PieceSpan::Empty => Color::White,
+                            PieceSpan::Piece(piece) => piece.color,
+                        },
+                    })
+                })
+                .unwrap_or_else(|| ret.at(node.from).clone());
+            *ret.at_mut(node.move_to) = parent;
+        }
+        else {
+            *ret.at_mut(node.take) = PieceSpan::Empty;
+            *ret.at_mut(node.move_to) = node
+                .transition
+                .as_ref()
+                .map(|x| {
+                    PieceSpan::Piece(Piece {
+                        piece_type: x,
+                        color: match ret.at(node.from) {
+                            PieceSpan::Empty => Color::White,
+                            PieceSpan::Piece(piece) => piece.color,
+                        },
+                    })
+                })
+                .unwrap_or_else(|| ret.at(node.from).clone());
+            *ret.at_mut(node.from) = PieceSpan::Empty;
         }
 
         if let Some(state_changes) = &node.state_change {
